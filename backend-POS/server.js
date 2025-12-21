@@ -13,6 +13,8 @@ app.use(express.json());
 // Aquí irán las rutas más adelante
 // app.use('/api/products', require('./src/routes/productRoutes'));
 // etc.
+app.use('/api/products', require('./src/routes/productRoutes'));
+app.use('/api/categories', require('./src/routes/categoryRoutes'));
 
 const PORT = process.env.PORT || 5000;
 

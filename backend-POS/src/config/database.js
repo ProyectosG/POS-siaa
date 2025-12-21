@@ -29,7 +29,7 @@ db.serialize(() => {
     iva REAL,
     ieps REAL,
     stock INTEGER DEFAULT 0,
-    category_id INTEGER,
+    category_id INTEGER NOT NULL,
     photo_url TEXT,
     FOREIGN KEY (category_id) REFERENCES categories(id)
   )`);
