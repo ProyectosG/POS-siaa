@@ -13,10 +13,9 @@ const menuItems = [
     icon: <ShoppingCart className="w-5 h-5" />,
     iconColor: "text-emerald-500",
     subItems: [
-      { label: "Ventas de Contado", href: "/ventas/contado" },
-      { label: "Ventas a Crédito", href: "/ventas/credito" },
-      { label: "Ventas Apartados", href: "/ventas/apartados" },
-      
+      { label: "Ventas Contado", href: "/dashboard/ventas/contado" }
+      // { label: "Ventas a Crédito", href: "/dashboard/ventas/credito" },
+      // { label: "Ventas Apartados", href: "/dashboard/ventas/apartados" },
     ],
   },
   {
@@ -30,8 +29,8 @@ const menuItems = [
     icon: <Receipt className="w-5 h-5" />,
     iconColor: "text-amber-500",
     subItems: [
-      { label: "Cortes X", href: "/cortes/x" },
-      { label: "Cortes Z", href: "/cortes/z" },
+      { label: "Cortes X", href: "/dashboard/cortes/x" },
+      { label: "Cortes Z", href: "/dashboard/cortes/z" },
     ],
   },
   {
@@ -39,8 +38,8 @@ const menuItems = [
     icon: <Package className="w-5 h-5" />,
     iconColor: "text-violet-500",
     subItems: [
-      { label: "Registro de Entradas", href: "/inventario/entradas" },
-      { label: "Registro de Salidas", href: "/inventario/salidas" },
+      { label: "Registro de Entradas", href: "/dashboard/inventario/entradas" },
+      { label: "Registro de Salidas", href: "/dashboard/inventario/salidas" },
     ],
   },
   {
@@ -48,8 +47,8 @@ const menuItems = [
     icon: <CreditCard className="w-5 h-5" />,
     iconColor: "text-rose-500",
     subItems: [
-      { label: "Registro de Abonos", href: "/cxc/abonos" },
-      { label: "Estados de Cuenta", href: "/cxc/estados" },
+      { label: "Registro de Abonos", href: "/dashboard/cxc/abonos" },
+      { label: "Estados de Cuenta", href: "/dashboard/cxc/estados" },
     ],
   },
   {
@@ -57,12 +56,12 @@ const menuItems = [
     icon: <FolderOpen className="w-5 h-5" />,
     iconColor: "text-cyan-500",
     subItems: [
-      { label: "Familias", href: "/catalogos/familias" },
-      { label: "Productos", href: "/catalogos/productos" },
-      { label: "Clientes", href: "/catalogos/clientes" },
-      { label: "Proveedores", href: "/catalogos/proveedores" },
-      { label: "Usuarios", href: "/catalogos/usuarios" },
-      { label: "cajas", href: "/catalogos/cajas" },
+      { label: "Familias", href: "/dashboard/catalogos/familias" },
+      { label: "Productos", href: "/dashboard/catalogos/productos" },
+      { label: "Clientes", href: "/dashboard/catalogos/clientes" },
+      { label: "Proveedores", href: "/dashboard/catalogos/proveedores" },
+      { label: "Usuarios", href: "/dashboard/catalogos/usuarios" },
+      { label: "Cajas", href: "/dashboard/catalogos/cajas" },
     ],
   },
   {
@@ -76,13 +75,14 @@ const menuItems = [
     icon: <Wrench className="w-5 h-5" />,
     iconColor: "text-indigo-500",
     subItems: [
-      { label: "Tickets", href: "/tools/tickets" },
-      { label: "Seguridad", href: "/tools/seguridad" },
+      { label: "Tickets", href: "/dashboard/tools/tickets" },
+      { label: "Seguridad", href: "/dashboard/tools/seguridad" },
     ],
   },
-]
+];
 
-export function SidebarMenu() {
+
+export default function SidebarMenu() {
   const [openItems, setOpenItems] = React.useState([])
   const [isMobileOpen, setIsMobileOpen] = React.useState(false)
 

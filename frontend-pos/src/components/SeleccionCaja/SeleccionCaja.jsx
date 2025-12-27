@@ -2,35 +2,49 @@
 
 import * as React from "react"
 import { Eye, EyeOff, CreditCard, Key } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { useCajaStore } from "@/store/useCajaStore"
 import { cn } from "@/lib/utils"
 
-export function SeleccionCaja({ onCajaSuccess }) {
+export function SeleccionCaja() {
+  const router = useRouter()
+  const setCaja = useCajaStore((state) => state.setCaja)
+
   const [showCajaKey, setShowCajaKey] = React.useState(false)
-  const [isAnimating, setIsAnimating] = React.useState(false)
   const [numeroCaja, setNumeroCaja] = React.useState("")
   const [claveCaja, setClaveCaja] = React.useState("")
   const [error, setError] = React.useState("")
+  const [isAnimating, setIsAnimating] = React.useState(false)
 
-  const handleCajaSubmit = (e) => {
+  const handleCajaSubmit = async (e) => {
     e.preventDefault()
     setError("")
 
-    if (numeroCaja && claveCaja) {
-      setIsAnimating(true)
-      setTimeout(() => {
-        // Llamar al callback para continuar al sistema
-        onCajaSuccess &&
-          onCajaSuccess({
-            numeroCaja,
-            claveCaja,
-          })
-      }, 500)
-    } else {
+    if (!numeroCaja || !claveCaja) {
       setError("Por favor ingresa número y clave de caja")
+      return
+    }
+
+    try {
+      setIsAnimating(true)
+
+      // 🔥 Aquí luego validas contra backend
+      setCaja({
+        numero: numeroCaja,
+        abiertaEn: new Date().toISOString(),
+      })
+
+      router.replace("/dashboard")
+
+    } catch (err) {
+      setError("Error al abrir la caja")
+    } finally {
+      setIsAnimating(false)
     }
   }
 
   return (
+
     <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 relative overflow-hidden">
       {/* Animated Background Elements */}
       <div className="absolute inset-0 overflow-hidden">

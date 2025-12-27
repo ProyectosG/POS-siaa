@@ -1,389 +1,356 @@
 "use client"
 
 import * as React from "react"
-import { Plus, Trash2, ShoppingCart, DollarSign, Receipt, CreditCard, Wallet } from "lucide-react"
+import { useVentasContado } from "./hooks/useVentasContado"
+import { useGridNavigation } from "./hooks/useGridNavigation"
+
+import Resumen from "./Resumen"
+import Pago from "./Pago"
+
+import { Plus, Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 
-export function VentasContado() {
-  const [items, setItems] = React.useState([
-    {
-      id: 1,
-      cantidad: 2,
-      codigoBarras: "7501234567890",
-      articulo: "Coca Cola 600ml",
-      presentacion: "Botella PET",
-      precioMenudeo: 15.0,
-      iva: 16,
-      descuento: 0,
-      precio: 15.0,
-      importe: 30.0,
-    },
-  ])
+/* =========================
+   UTILIDADES
+========================= */
+const fmt = (n) =>
+  Number(n || 0).toLocaleString("es-MX", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })
 
-  const [formaPago, setFormaPago] = React.useState("efectivo") // 'efectivo', 'tarjeta', 'ambas'
+/* =========================
+   COMPONENTE
+========================= */
+export default function VentasContado() {
+  /* ===== NEGOCIO ===== */
+  const {
+    items,
+    mostrarDescuento,
+    setMostrarDescuento,
+    subtotal,
+    ivaTotal,
+    descuentoTotal,
+    granTotal,
+    agregarItem,
+    actualizarItem,
+    eliminarItem,
+  } = useVentasContado()
+
+  /* ===== PAGO ===== */
+  const [formaPago, setFormaPago] = React.useState("efectivo")
   const [efectivo, setEfectivo] = React.useState(0)
   const [tarjeta, setTarjeta] = React.useState(0)
-  const [focusArea, setFocusArea] = React.useState("grilla") // 'grilla' o 'pago'
-  const grillaRef = React.useRef(null)
-  const pagoRef = React.useRef(null)
 
-  const subtotal = items.reduce((acc, item) => acc + item.importe, 0)
-  const ivaTotal = items.reduce((acc, item) => acc + (item.importe * item.iva) / 100, 0)
-  const descuentoTotal = items.reduce((acc, item) => acc + item.descuento, 0)
-  const total = subtotal + ivaTotal
-  const granTotal = total - descuentoTotal
+  /* ===== FOCO GENERAL ===== */
+  const [focusArea, setFocusArea] = React.useState("grilla")
 
-  const totalRecibido = formaPago === "efectivo" ? efectivo : formaPago === "tarjeta" ? tarjeta : efectivo + tarjeta
-  const cambio = Math.max(0, totalRecibido - granTotal)
+  /* ===== COLUMNAS (ANTES DEL HOOK) ===== */
+  const columnas = React.useMemo(() => {
+    const base = ["cantidad", "codigoBarras", "articulo", "precio"]
+    if (mostrarDescuento) base.push("descuento")
+    return base
+  }, [mostrarDescuento])
 
+  /* ===== NAVEGACIÓN ===== */
+  const { activeCell, setActiveCell, manejarTeclas } =
+    useGridNavigation({ columnas, items })
+
+  /* =========================
+     ATAJO F11
+  ========================= */
   React.useEffect(() => {
-    const handleKeyPress = (e) => {
+    const h = (e) => {
       if (e.key === "F11") {
         e.preventDefault()
-        setFocusArea((prev) => {
-          const newArea = prev === "grilla" ? "pago" : "grilla"
-          setTimeout(() => {
-            if (newArea === "grilla" && grillaRef.current) {
-              const firstInput = grillaRef.current.querySelector("input")
-              firstInput?.focus()
-            } else if (newArea === "pago" && pagoRef.current) {
-              const firstInput = pagoRef.current.querySelector("input")
-              firstInput?.focus()
-            }
-          }, 100)
-          return newArea
-        })
+        setFocusArea((p) => (p === "grilla" ? "pago" : "grilla"))
       }
     }
-
-    window.addEventListener("keydown", handleKeyPress)
-    return () => window.removeEventListener("keydown", handleKeyPress)
+    window.addEventListener("keydown", h)
+    return () => window.removeEventListener("keydown", h)
   }, [])
 
-  const agregarItem = () => {
-    const nuevoItem = {
-      id: items.length + 1,
-      cantidad: 1,
-      codigoBarras: "",
-      articulo: "",
-      presentacion: "",
-      precioMenudeo: 0,
-      iva: 16,
-      descuento: 0,
-      precio: 0,
-      importe: 0,
-    }
-    setItems([...items, nuevoItem])
-  }
+  /* =========================
+     CÁLCULOS
+  ========================= */
+  const recibido =
+    formaPago === "efectivo"
+      ? efectivo
+      : formaPago === "tarjeta"
+      ? tarjeta
+      : efectivo + tarjeta
 
-  const eliminarItem = (id) => {
-    setItems(items.filter((item) => item.id !== id))
-  }
+  const cambio = Math.max(0, recibido - granTotal)
 
-  const actualizarItem = (id, campo, valor) => {
-    setItems(
-      items.map((item) => {
-        if (item.id === id) {
-          const itemActualizado = { ...item, [campo]: valor }
-          if (campo === "cantidad" || campo === "precio") {
-            itemActualizado.importe = itemActualizado.cantidad * itemActualizado.precio
-          }
-          return itemActualizado
-        }
-        return item
-      }),
-    )
-  }
-
+  /* =========================
+     RENDER
+  ========================= */
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-5">
+      {/* HEADER */}
+      <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">
+          <h2 className="text-3xl font-bold text-emerald-600">
             Ventas de Contado
           </h2>
-          <p className="text-muted-foreground mt-1">Registra ventas en efectivo - Presiona F11 para cambiar foco</p>
+          <p className="text-sm text-muted-foreground">
+            F11 cambia foco
+          </p>
         </div>
-        <Button onClick={agregarItem} className="gap-2 bg-gradient-to-r from-emerald-500 to-teal-500">
+
+        <Button
+          onClick={agregarItem}
+          className="bg-emerald-600 hover:bg-emerald-700 gap-2"
+        >
           <Plus className="w-4 h-4" />
-          Agregar Producto
+          Agregar
         </Button>
       </div>
 
-      <div
-        ref={grillaRef}
-        className={`bg-card border rounded-lg overflow-hidden shadow-sm transition-all duration-500 ${
-          focusArea === "grilla" ? "ring-2 ring-emerald-500/50 shadow-emerald-500/20 shadow-lg" : ""
-        }`}
-      >
-        <div className="flex">
-          {/* Columnas con scroll (Cantidad, Código Barras, Artículo) */}
-          <div className="overflow-x-auto border-r border-border">
-            <table className="border-collapse">
-              <thead>
-                <tr className="bg-muted/50">
-                  <th className="px-3 py-2 text-left text-xs font-semibold w-20">Cant.</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold w-32">Cód. Barras</th>
-                  <th className="px-3 py-2 text-left text-xs font-semibold w-48">Artículo</th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item, index) => (
-                  <tr
-                    key={item.id}
-                    className={`hover:bg-muted/30 ${index % 2 === 0 ? "bg-transparent" : "bg-muted/10"}`}
-                  >
-                    <td className="px-2 py-1">
-                      <Input
-                        type="number"
-                        value={item.cantidad}
-                        onChange={(e) => actualizarItem(item.id, "cantidad", Number.parseFloat(e.target.value) || 0)}
-                        className="h-8 text-xs border-0 bg-transparent focus-visible:ring-1"
-                        min="1"
-                      />
-                    </td>
-                    <td className="px-2 py-1">
-                      <Input
-                        type="text"
-                        value={item.codigoBarras}
-                        onChange={(e) => actualizarItem(item.id, "codigoBarras", e.target.value)}
-                        className="h-8 text-xs border-0 bg-transparent focus-visible:ring-1"
-                        maxLength={20}
-                      />
-                    </td>
-                    <td className="px-2 py-1">
-                      <Input
-                        type="text"
-                        value={item.articulo}
-                        onChange={(e) => actualizarItem(item.id, "articulo", e.target.value)}
-                        className="h-8 text-xs border-0 bg-transparent focus-visible:ring-1"
-                        maxLength={40}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Columnas congeladas */}
-          <div className="flex-1 overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-muted/50">
-                  <th className="px-3 py-2 text-left text-xs font-semibold w-32">Presentación</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold w-24">P. Menudeo</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold w-20">IVA %</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold w-24">Desc.</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold w-24">Precio</th>
-                  <th className="px-3 py-2 text-right text-xs font-semibold w-28">Importe</th>
-                  <th className="px-3 py-2 text-center text-xs font-semibold w-16"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {items.map((item, index) => (
-                  <tr
-                    key={item.id}
-                    className={`hover:bg-muted/30 ${index % 2 === 0 ? "bg-transparent" : "bg-muted/10"}`}
-                  >
-                    <td className="px-2 py-1">
-                      <Input
-                        type="text"
-                        value={item.presentacion}
-                        onChange={(e) => actualizarItem(item.id, "presentacion", e.target.value)}
-                        className="h-8 text-xs border-0 bg-transparent focus-visible:ring-1"
-                        maxLength={30}
-                      />
-                    </td>
-                    <td className="px-2 py-1">
-                      <Input
-                        type="number"
-                        value={item.precioMenudeo}
-                        onChange={(e) => {
-                          const valor = Number.parseFloat(e.target.value) || 0
-                          actualizarItem(item.id, "precioMenudeo", valor)
-                          actualizarItem(item.id, "precio", valor)
-                        }}
-                        className="h-8 text-xs text-right border-0 bg-transparent focus-visible:ring-1"
-                        step="0.01"
-                        max="99999.99"
-                      />
-                    </td>
-                    <td className="px-2 py-1">
-                      <Input
-                        type="number"
-                        value={item.iva}
-                        onChange={(e) => actualizarItem(item.id, "iva", Number.parseFloat(e.target.value) || 0)}
-                        className="h-8 text-xs text-right border-0 bg-transparent focus-visible:ring-1 opacity-70"
-                        step="0.01"
-                        max="999.99"
-                      />
-                    </td>
-                    <td className="px-2 py-1">
-                      <Input
-                        type="number"
-                        value={item.descuento}
-                        onChange={(e) => actualizarItem(item.id, "descuento", Number.parseFloat(e.target.value) || 0)}
-                        className="h-8 text-xs text-right border-0 bg-transparent focus-visible:ring-1 opacity-70"
-                        step="0.01"
-                      />
-                    </td>
-                    <td className="px-2 py-1">
-                      <Input
-                        type="number"
-                        value={item.precio}
-                        onChange={(e) => actualizarItem(item.id, "precio", Number.parseFloat(e.target.value) || 0)}
-                        className="h-8 text-xs text-right border-0 bg-transparent focus-visible:ring-1"
-                        step="0.01"
-                        max="99999.99"
-                      />
-                    </td>
-                    <td className="px-3 py-2 text-right text-sm font-semibold">${item.importe.toFixed(2)}</td>
-                    <td className="px-2 py-1 text-center">
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => eliminarItem(item.id)}
-                        className="hover:bg-destructive/10 hover:text-destructive h-7 w-7"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+      {/* TOGGLE DESCUENTO */}
+      <div className="flex items-center gap-3">
+        <Switch
+          checked={mostrarDescuento}
+          onCheckedChange={setMostrarDescuento}
+        />
+        <span className="text-sm">Mostrar descuentos</span>
       </div>
 
-      {/* Resumen del Ticket y Pago */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-card border border-border rounded-lg p-6 space-y-2">
-          <div className="flex items-center gap-2 mb-3">
-            <Receipt className="w-5 h-5 text-primary" />
-            <h3 className="text-lg font-semibold">Resumen del Ticket</h3>
-          </div>
+      {/* GRILLA */}
+      <div
+        className={`border rounded-md overflow-hidden ${
+          focusArea === "grilla" ? "ring-2 ring-emerald-500" : ""
+        }`}
+      >
+        <table className="w-full border-collapse text-sm">
+          <thead className="bg-muted/40">
+            <tr>
+              <th className="p-1 w-14 text-center">Cant.</th>
+              <th className="p-1 w-36">Código</th>
+              <th className="p-1">Artículo</th>
+              <th className="p-1 w-28">Present.</th>
+              <th className="p-1 w-24 text-right">Precio</th>
+              {mostrarDescuento && (
+                <>
+                  <th className="p-1 w-20 text-right text-blue-600">
+                    Desc %
+                  </th>
+                  <th className="p-1 w-24 text-right text-blue-600">
+                    Precio c/desc
+                  </th>
+                </>
+              )}
+              <th className="p-1 w-28 text-right">Importe</th>
+              <th className="p-1 w-10"></th>
+            </tr>
+          </thead>
 
-          <div className="space-y-2">
-            <div className="flex justify-between items-center py-1">
-              <span className="text-muted-foreground text-sm">Subtotal:</span>
-              <span className="font-semibold">${subtotal.toFixed(2)}</span>
-            </div>
+          <tbody>
+            {items.map((i, index) => (
+              <tr key={i.id} className="hover:bg-muted/20">
+                {/* Cantidad */}
+                <td className="p-[2px]">
+                  <Input
+                    data-row={index}
+                    data-col="cantidad"
+                    value={i.cantidad}
+                    onChange={(e) =>
+                      actualizarItem(
+                        i.id,
+                        "cantidad",
+                        Number(e.target.value) || 0
+                      )
+                    }
+                    onKeyDown={(e) =>
+                      manejarTeclas(e, index, "cantidad")
+                    }
+                    onFocus={() =>
+                      setActiveCell({ row: index, col: "cantidad" })
+                    }
+                    className={`h-7 text-center ${
+                      activeCell.row === index &&
+                      activeCell.col === "cantidad"
+                        ? "ring-2 ring-emerald-500 bg-emerald-50"
+                        : ""
+                    }`}
+                  />
+                </td>
 
-            <div className="flex justify-between items-center py-1 opacity-60">
-              <span className="text-muted-foreground text-sm">IVA:</span>
-              <span className="font-semibold">${ivaTotal.toFixed(2)}</span>
-            </div>
+                {/* Código */}
+                <td className="p-[2px]">
+                  <Input
+                    data-row={index}
+                    data-col="codigoBarras"
+                    value={i.codigoBarras}
+                    onChange={(e) =>
+                      actualizarItem(
+                        i.id,
+                        "codigoBarras",
+                        e.target.value
+                      )
+                    }
+                    onKeyDown={(e) =>
+                      manejarTeclas(e, index, "codigoBarras")
+                    }
+                    onFocus={() =>
+                      setActiveCell({
+                        row: index,
+                        col: "codigoBarras",
+                      })
+                    }
+                    className={`h-7 ${
+                      activeCell.row === index &&
+                      activeCell.col === "codigoBarras"
+                        ? "ring-2 ring-emerald-500 bg-emerald-50"
+                        : ""
+                    }`}
+                  />
+                </td>
 
-            <div className="flex justify-between items-center py-1">
-              <span className="text-muted-foreground text-sm">Total:</span>
-              <span className="font-semibold">${total.toFixed(2)}</span>
-            </div>
+                {/* Artículo */}
+                <td className="p-[2px]">
+                  <Input
+                    data-row={index}
+                    data-col="articulo"
+                    value={i.articulo}
+                    onChange={(e) =>
+                      actualizarItem(
+                        i.id,
+                        "articulo",
+                        e.target.value
+                      )
+                    }
+                    onKeyDown={(e) =>
+                      manejarTeclas(e, index, "articulo")
+                    }
+                    onFocus={() =>
+                      setActiveCell({ row: index, col: "articulo" })
+                    }
+                    className={`h-7 ${
+                      activeCell.row === index &&
+                      activeCell.col === "articulo"
+                        ? "ring-2 ring-emerald-500 bg-emerald-50"
+                        : ""
+                    }`}
+                  />
+                </td>
 
-            <div className="flex justify-between items-center py-1 opacity-60">
-              <span className="text-muted-foreground text-sm">Descuento:</span>
-              <span className="font-semibold text-destructive">-${descuentoTotal.toFixed(2)}</span>
-            </div>
+                {/* Presentación */}
+                <td className="p-[2px]">
+                  <Input
+                    value={i.presentacion}
+                    disabled
+                    className="h-7"
+                  />
+                </td>
 
-            <div className="flex justify-between items-center pt-3 border-t border-border">
-              <span className="text-lg font-bold">Gran Total:</span>
-              <span className="text-2xl font-bold text-primary">${granTotal.toFixed(2)}</span>
-            </div>
-          </div>
-        </div>
+                {/* Precio */}
+                <td className="p-[2px]">
+                  <Input
+                    data-row={index}
+                    data-col="precio"
+                    value={fmt(i.precio)}
+                    readOnly
+                    onKeyDown={(e) =>
+                      manejarTeclas(e, index, "precio")
+                    }
+                    onFocus={() =>
+                      setActiveCell({ row: index, col: "precio" })
+                    }
+                    className={`h-7 text-right bg-muted/20 ${
+                      activeCell.row === index &&
+                      activeCell.col === "precio"
+                        ? "ring-2 ring-emerald-500 bg-emerald-50"
+                        : ""
+                    }`}
+                  />
+                </td>
 
-        <div
-          ref={pagoRef}
-          className={`bg-card border rounded-lg p-6 space-y-4 transition-all duration-500 ${
-            focusArea === "pago" ? "ring-2 ring-emerald-500/50 shadow-emerald-500/20 shadow-lg" : ""
-          }`}
-        >
-          <div className="flex items-center gap-2 mb-3">
-            <DollarSign className="w-5 h-5 text-emerald-500" />
-            <h3 className="text-lg font-semibold">Forma de Pago</h3>
-          </div>
+                {/* Descuento */}
+                {mostrarDescuento && (
+                  <>
+                    <td className="p-[2px]">
+                      <Input
+                        data-row={index}
+                        data-col="descuento"
+                        value={i.descuentoPct}
+                        onChange={(e) =>
+                          actualizarItem(
+                            i.id,
+                            "descuentoPct",
+                            Number(e.target.value) || 0
+                          )
+                        }
+                        onKeyDown={(e) =>
+                          manejarTeclas(e, index, "descuento")
+                        }
+                        onFocus={() =>
+                          setActiveCell({
+                            row: index,
+                            col: "descuento",
+                          })
+                        }
+                        className={`h-7 text-right text-blue-600 ${
+                          activeCell.row === index &&
+                          activeCell.col === "descuento"
+                            ? "ring-2 ring-emerald-500 bg-emerald-50"
+                            : ""
+                        }`}
+                      />
+                    </td>
 
-          {/* Botones de selección de forma de pago */}
-          <div className="flex gap-2">
-            <Button
-              variant={formaPago === "efectivo" ? "default" : "outline"}
-              onClick={() => setFormaPago("efectivo")}
-              className="flex-1 gap-2"
-            >
-              <Wallet className="w-4 h-4" />
-              Efectivo
-            </Button>
-            <Button
-              variant={formaPago === "tarjeta" ? "default" : "outline"}
-              onClick={() => setFormaPago("tarjeta")}
-              className="flex-1 gap-2"
-            >
-              <CreditCard className="w-4 h-4" />
-              Tarjeta
-            </Button>
-            <Button
-              variant={formaPago === "ambas" ? "default" : "outline"}
-              onClick={() => setFormaPago("ambas")}
-              className="flex-1 gap-2"
-            >
-              Ambas
-            </Button>
-          </div>
+                    <td className="p-[2px]">
+                      <Input
+                        value={fmt(i.precioConDesc)}
+                        readOnly
+                        className="h-7 text-right bg-muted/20"
+                      />
+                    </td>
+                  </>
+                )}
 
-          <div className="space-y-3">
-            {(formaPago === "efectivo" || formaPago === "ambas") && (
-              <div>
-                <Label htmlFor="efectivo" className="text-sm font-medium mb-1 block">
-                  Efectivo Recibido:
-                </Label>
-                <Input
-                  id="efectivo"
-                  type="number"
-                  value={efectivo}
-                  onChange={(e) => setEfectivo(Number.parseFloat(e.target.value) || 0)}
-                  className="text-lg font-semibold h-11"
-                  step="0.01"
-                  placeholder="0.00"
-                />
-              </div>
-            )}
+                {/* Importe */}
+                <td className="p-1 text-right font-semibold">
+                  ${fmt(i.importe)}
+                </td>
 
-            {(formaPago === "tarjeta" || formaPago === "ambas") && (
-              <div>
-                <Label htmlFor="tarjeta" className="text-sm font-medium mb-1 block">
-                  Monto con Tarjeta:
-                </Label>
-                <Input
-                  id="tarjeta"
-                  type="number"
-                  value={tarjeta}
-                  onChange={(e) => setTarjeta(Number.parseFloat(e.target.value) || 0)}
-                  className="text-lg font-semibold h-11"
-                  step="0.01"
-                  placeholder="0.00"
-                />
-              </div>
-            )}
+                {/* Eliminar */}
+                <td className="p-[2px] text-center">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => eliminarItem(i.id)}
+                  >
+                    <Trash2 className="w-4 h-4 text-red-500" />
+                  </Button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
-            {formaPago !== "tarjeta" && (
-              <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg p-3">
-                <div className="flex justify-between items-center">
-                  <span className="text-emerald-600 dark:text-emerald-400 font-medium">Cambio:</span>
-                  <span className="text-xl font-bold text-emerald-600 dark:text-emerald-400">${cambio.toFixed(2)}</span>
-                </div>
-              </div>
-            )}
+      {/* RESUMEN + PAGO */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <Resumen
+          subtotal={subtotal}
+          ivaTotal={ivaTotal}
+          descuentoTotal={descuentoTotal}
+          granTotal={granTotal}
+        />
 
-            <Button className="w-full h-11 text-base font-semibold bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600">
-              <ShoppingCart className="w-5 h-5 mr-2" />
-              Procesar Venta
-            </Button>
-          </div>
-        </div>
+        <Pago
+          focusArea={focusArea}
+          formaPago={formaPago}
+          setFormaPago={setFormaPago}
+          efectivo={efectivo}
+          setEfectivo={setEfectivo}
+          tarjeta={tarjeta}
+          setTarjeta={setTarjeta}
+          cambio={cambio}
+        />
       </div>
     </div>
   )

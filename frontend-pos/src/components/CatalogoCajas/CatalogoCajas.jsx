@@ -1,66 +1,87 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { BoxIcon, Plus, Edit2, Trash2, Key, Hash } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 
-export default function CatalogoCajas() {
-  const [cajas, setCajas] = useState([
-    { id: 1, numero_caja: "001", clave_caja: "1234" },
-    { id: 2, numero_caja: "002", clave_caja: "5678" },
-    { id: 3, numero_caja: "003", clave_caja: "9012" },
-  ])
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
 
+export default function CatalogoCajas() {
+  const [cajas, setCajas] = useState([])
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingCaja, setEditingCaja] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState("")
 
   const [formData, setFormData] = useState({
     numero_caja: "",
-    clave_caja: "",
+    password: "",
+    tipo_caja: "Normal",
   })
+
+  // Cargar cajas al montar
+  useEffect(() => {
+    fetchCajas()
+  }, [])
+
+  const fetchCajas = async () => {
+    try {
+      const res = await fetch(`${API_URL}/cash-registers`)
+      const data = await res.json()
+      setCajas(data)
+    } catch (err) {
+      setError("Error al cargar cajas")
+    }
+  }
 
   const handleInputChange = (e) => {
     const { name, value } = e.target
-    setFormData((prev) => ({
-      ...prev,
-      [name]: value,
-    }))
+    setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
+    setError("")
 
-    // Validar que no exista ya ese número de caja
-    const cajaExistente = cajas.find(
-      (c) => c.numero_caja === formData.numero_caja && (!editingCaja || c.id !== editingCaja.id),
-    )
+    try {
+      setLoading(true)
+      const url = editingCaja
+        ? `${API_URL}/cash-registers/${editingCaja.id}`
+        : `${API_URL}/cash-registers`
 
-    if (cajaExistente) {
-      alert("Ya existe una caja con ese número")
-      return
-    }
+      const method = editingCaja ? "PUT" : "POST"
 
-    if (editingCaja) {
-      setCajas(cajas.map((caja) => (caja.id === editingCaja.id ? { ...formData, id: caja.id } : caja)))
-    } else {
-      const nuevaCaja = {
-        ...formData,
-        id: cajas.length > 0 ? Math.max(...cajas.map((c) => c.id)) + 1 : 1,
+      const body = {
+        numero_caja: formData.numero_caja,
+        password: formData.password,
+        tipo_caja: formData.tipo_caja || "Normal",
       }
-      setCajas([...cajas, nuevaCaja])
-    }
 
-    resetForm()
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })
+
+      if (!res.ok) {
+        const errData = await res.json()
+        throw new Error(errData.error || "Error al guardar")
+      }
+
+      await fetchCajas()
+      resetForm()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   const resetForm = () => {
-    setFormData({
-      numero_caja: "",
-      clave_caja: "",
-    })
+    setFormData({ numero_caja: "", password: "", tipo_caja: "Normal" })
     setIsFormOpen(false)
     setEditingCaja(null)
   }
@@ -69,14 +90,20 @@ export default function CatalogoCajas() {
     setEditingCaja(caja)
     setFormData({
       numero_caja: caja.numero_caja,
-      clave_caja: caja.clave_caja,
+      password: "", // No mostrar contraseña real
+      tipo_caja: caja.tipo_caja,
     })
     setIsFormOpen(true)
   }
 
-  const handleDelete = (id) => {
-    if (confirm("¿Estás seguro de eliminar esta caja?")) {
-      setCajas(cajas.filter((caja) => caja.id !== id))
+  const handleDelete = async (id) => {
+    if (!confirm("¿Eliminar esta caja?")) return
+
+    try {
+      await fetch(`${API_URL}/cash-registers/${id}`, { method: "DELETE" })
+      await fetchCajas()
+    } catch (err) {
+      setError("Error al eliminar")
     }
   }
 
@@ -91,18 +118,21 @@ export default function CatalogoCajas() {
           <p className="text-slate-400 mt-2">Gestiona las cajas del punto de venta</p>
         </div>
 
+        {error && (
+          <div className="mb-6 p-4 bg-red-900/20 border border-red-500/50 rounded-lg text-red-400 text-center">
+            {error}
+          </div>
+        )}
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Panel Izquierdo - Formulario */}
+          {/* Formulario */}
           <div className="lg:col-span-1">
-            <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm transition-all duration-500 ease-out hover:shadow-[0_0_30px_rgba(34,211,238,0.3)] hover:border-cyan-500/50 focus-within:shadow-[0_0_30px_rgba(34,211,238,0.4)] focus-within:border-cyan-500/60">
+            <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
               <CardHeader>
                 <CardTitle className="text-white flex items-center gap-2">
                   <Plus className="h-5 w-5 text-cyan-400" />
                   {editingCaja ? "Editar Caja" : "Nueva Caja"}
                 </CardTitle>
-                <CardDescription className="text-slate-400">
-                  {editingCaja ? "Modifica los datos de la caja" : "Registra una nueva caja"}
-                </CardDescription>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-4">
@@ -117,66 +147,77 @@ export default function CatalogoCajas() {
                         name="numero_caja"
                         value={formData.numero_caja}
                         onChange={handleInputChange}
-                        maxLength={10}
                         required
                         placeholder="001"
-                        className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400 focus:border-cyan-500 pl-10 transition-all duration-500 ease-out hover:shadow-[0_0_15px_rgba(34,211,238,0.2)] focus:shadow-[0_0_20px_rgba(34,211,238,0.3)]"
+                        className="bg-slate-700/50 border-slate-600 text-white pl-10"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="clave_caja" className="text-slate-200">
+                    <Label htmlFor="password" className="text-slate-200">
                       Clave de Caja <span className="text-red-400">*</span>
                     </Label>
                     <div className="relative">
                       <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                       <Input
-                        id="clave_caja"
-                        name="clave_caja"
+                        id="password"
+                        name="password"
                         type="password"
-                        value={formData.clave_caja}
+                        value={formData.password}
                         onChange={handleInputChange}
-                        maxLength={20}
-                        required
-                        placeholder="••••"
-                        className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400 focus:border-cyan-500 pl-10 transition-all duration-500 ease-out hover:shadow-[0_0_15px_rgba(34,211,238,0.2)] focus:shadow-[0_0_20px_rgba(34,211,238,0.3)]"
+                        required={!editingCaja}
+                        placeholder={editingCaja ? "Dejar vacío para no cambiar" : "••••"}
+                        className="bg-slate-700/50 border-slate-600 text-white pl-10"
                       />
                     </div>
                   </div>
 
+                  <div className="space-y-2">
+                    <Label htmlFor="tipo_caja" className="text-slate-200">
+                      Tipo de Caja
+                    </Label>
+                    <select
+                      id="tipo_caja"
+                      name="tipo_caja"
+                      value={formData.tipo_caja}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white"
+                    >
+                      <option value="Normal">Normal</option>
+                      <option value="Extraordinaria">Extraordinaria</option>
+                      <option value="Especial">Especial</option>
+                    </select>
+                  </div>
+
                   <div className="flex gap-2 pt-4">
                     {editingCaja && (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={resetForm}
-                        className="flex-1 border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white bg-transparent"
-                      >
+                      <Button type="button" variant="outline" onClick={resetForm} className="flex-1">
                         Cancelar
                       </Button>
                     )}
-                    <Button
-                      type="submit"
-                      className="flex-1 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 text-white"
-                    >
-                      {editingCaja ? "Actualizar" : "Guardar"}
+                    <Button type="submit" disabled={loading} className="flex-1 bg-gradient-to-r from-cyan-600 to-blue-600">
+                      {loading ? "Guardando..." : editingCaja ? "Actualizar" : "Guardar"}
                     </Button>
                   </div>
                 </form>
               </CardContent>
             </Card>
 
-            {/* Estadísticas */}
-            <Card className="bg-gradient-to-br from-cyan-600 to-cyan-700 border-0 text-white mt-6">
-              <CardHeader className="pb-3">
-                <CardDescription className="text-cyan-100 text-sm">Total de Cajas</CardDescription>
-                <CardTitle className="text-4xl">{cajas.length}</CardTitle>
+           <Card className="bg-gradient-to-br from-cyan-600 to-cyan-700 border-0 text-white mt-6">
+              <CardHeader className="pb-3 flex flex-col items-center text-center">
+                <CardDescription className="text-cyan-100 text-sm">
+                  Total de Cajas
+                </CardDescription>
+                <CardTitle className="text-4xl">
+                  {cajas.length}
+                </CardTitle>
               </CardHeader>
             </Card>
+
           </div>
 
-          {/* Panel Derecho - Lista de Cajas */}
+          {/* Lista */}
           <div className="lg:col-span-2">
             <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
               <CardHeader>
@@ -184,22 +225,17 @@ export default function CatalogoCajas() {
                   <BoxIcon className="h-5 w-5 text-cyan-400" />
                   Cajas Registradas
                 </CardTitle>
-                <CardDescription className="text-slate-400">Listado de todas las cajas del sistema</CardDescription>
               </CardHeader>
               <CardContent>
                 {cajas.length === 0 ? (
                   <div className="text-center py-12">
                     <BoxIcon className="h-16 w-16 text-slate-600 mx-auto mb-3" />
                     <p className="text-slate-400">No hay cajas registradas</p>
-                    <p className="text-sm text-slate-500 mt-1">Comienza agregando una nueva caja</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {cajas.map((caja) => (
-                      <Card
-                        key={caja.id}
-                        className="bg-slate-700/30 border-slate-600/50 hover:bg-slate-700/50 transition-all duration-300 hover:shadow-lg hover:shadow-cyan-500/10"
-                      >
+                      <Card key={caja.id} className="bg-slate-700/30 border-slate-600/50 hover:bg-slate-700/50 transition-all">
                         <CardContent className="p-6">
                           <div className="flex items-start justify-between mb-4">
                             <div className="flex items-center gap-3">
@@ -213,30 +249,16 @@ export default function CatalogoCajas() {
                             </div>
                           </div>
 
-                          <div className="mb-4 p-3 bg-slate-800/50 rounded-lg">
-                            <div className="flex items-center gap-2 text-slate-300">
-                              <Key className="h-4 w-4 text-cyan-400" />
-                              <span className="text-sm">Clave:</span>
-                              <span className="text-sm font-mono">{"•".repeat(caja.clave_caja.length)}</span>
-                            </div>
+                          <div className="mb-4 p-3 bg-slate-800/50 rounded-lg text-center">
+                            <p className="text-sm text-slate-300">Tipo: <span className="font-mono">{caja.tipo_caja}</span></p>
                           </div>
 
                           <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleEdit(caja)}
-                              className="flex-1 border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white hover:border-cyan-500"
-                            >
+                            <Button size="sm" variant="outline" onClick={() => handleEdit(caja)} className="flex-1">
                               <Edit2 className="h-3 w-3 mr-1" />
                               Editar
                             </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleDelete(caja.id)}
-                              className="flex-1 border-red-900/50 text-red-400 hover:bg-red-900/20 hover:text-red-300 hover:border-red-500"
-                            >
+                            <Button size="sm" variant="outline" onClick={() => handleDelete(caja.id)} className="flex-1 border-red-900/50 text-red-400 hover:bg-red-900/20">
                               <Trash2 className="h-3 w-3 mr-1" />
                               Eliminar
                             </Button>

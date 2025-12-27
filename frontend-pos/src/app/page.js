@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { SidebarMenu } from "@/components/SidebarMenu/SidebarMenu"
+import  SidebarMenu  from "@/components/SidebarMenu/SidebarMenu"
 import { Login } from "@/components/Login/Login"
 import { SeleccionCaja } from "@/components/SeleccionCaja/SeleccionCaja"
 

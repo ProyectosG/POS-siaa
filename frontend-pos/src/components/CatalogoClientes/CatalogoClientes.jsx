@@ -526,7 +526,7 @@ export default function CatalogoClientes() {
           {/* Detalle del Cliente - Lado Derecho */}
           <div className="lg:col-span-2">
             {selectedCliente ? (
-              <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
+              <Card className="bg-slate-700/60 border-slate-700 backdrop-blur-sm">
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <div>
