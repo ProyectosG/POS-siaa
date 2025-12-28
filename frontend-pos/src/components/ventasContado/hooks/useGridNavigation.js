@@ -5,13 +5,18 @@ export function useGridNavigation({ columnas, items }) {
   const [activeCell, setActiveCell] = useState({ row: null, col: null })
 
 
-   const moverFoco = (fila, colIndex) => {
-    const col = columnas[colIndex]
-    const el = document.querySelector(
-      `input[data-row="${fila}"][data-col="${col}"]`
-    )
-    el?.focus()
+const moverFoco = (fila, colIndex) => {
+  const col = columnas[colIndex]
+  const el = document.querySelector(
+    `input[data-row="${fila}"][data-col="${col}"]`
+  )
+
+  if (el) {
+    el.focus()
+    setActiveCell({ row: fila, col })
   }
+}
+
 
   const manejarTeclas = (e, fila, columna) => {
     const colIndex = columnas.indexOf(columna)

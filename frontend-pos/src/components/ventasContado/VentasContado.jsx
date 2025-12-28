@@ -12,20 +12,20 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 
-/* =========================
-   UTILIDADES
-========================= */
+const API_URL = process.env.NEXT_PUBLIC_API_URL
+
+const cellActiveClass = (row, col, activeCell) =>
+  activeCell.row === row && activeCell.col === col
+    ? "ring-2 ring-emerald-500 bg-emerald-50"
+    : ""
+
 const fmt = (n) =>
   Number(n || 0).toLocaleString("es-MX", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })
 
-/* =========================
-   COMPONENTE
-========================= */
 export default function VentasContado() {
-  /* ===== NEGOCIO ===== */
   const {
     items,
     mostrarDescuento,
@@ -39,28 +39,24 @@ export default function VentasContado() {
     eliminarItem,
   } = useVentasContado()
 
-  /* ===== PAGO ===== */
   const [formaPago, setFormaPago] = React.useState("efectivo")
   const [efectivo, setEfectivo] = React.useState(0)
   const [tarjeta, setTarjeta] = React.useState(0)
-
-  /* ===== FOCO GENERAL ===== */
   const [focusArea, setFocusArea] = React.useState("grilla")
 
-  /* ===== COLUMNAS (ANTES DEL HOOK) ===== */
+  const [focusPendiente, setFocusPendiente] = React.useState(null)
+
+  /* ===== COLUMNAS NAVEGABLES ===== */
   const columnas = React.useMemo(() => {
     const base = ["cantidad", "codigoBarras", "articulo", "precio"]
-    if (mostrarDescuento) base.push("descuento")
+    if (mostrarDescuento) base.push("descuentoPct")
     return base
   }, [mostrarDescuento])
 
-  /* ===== NAVEGACIÓN ===== */
   const { activeCell, setActiveCell, manejarTeclas } =
     useGridNavigation({ columnas, items })
 
-  /* =========================
-     ATAJO F11
-  ========================= */
+  /* ===== F11 ===== */
   React.useEffect(() => {
     const h = (e) => {
       if (e.key === "F11") {
@@ -72,9 +68,60 @@ export default function VentasContado() {
     return () => window.removeEventListener("keydown", h)
   }, [])
 
-  /* =========================
-     CÁLCULOS
-  ========================= */
+  /* ===== APLICAR FOCO POST-RENDER ===== */
+  React.useEffect(() => {
+    if (!focusPendiente) return
+
+    const el = document.querySelector(
+      `input[data-row="${focusPendiente.row}"][data-col="${focusPendiente.col}"]`
+    )
+
+    if (el) {
+      el.focus()
+      setActiveCell(focusPendiente)
+      setFocusPendiente(null)
+    }
+  }, [items, focusPendiente, setActiveCell])
+
+  /* ===== BUSCAR PRODUCTO ===== */
+  const buscarProductoPorCodigo = async (itemId, codigo, fila) => {
+    if (!codigo) return
+
+    try {
+      const res = await fetch(`${API_URL}/products/barcode/${codigo}`)
+
+      // ❌ NO encontrado → mover a Artículo
+      if (!res.ok) {
+        setTimeout(() => {
+          document.querySelector(
+            `input[data-row="${fila}"][data-col="articulo"]`
+          )?.focus()
+        }, 0)
+        return
+      }
+
+      // ✅ ENCONTRADO
+      const p = await res.json()
+
+      actualizarItem(itemId, "codigoBarras", p.codigo_barras || "")
+      actualizarItem(itemId, "articulo", p.articulo || "")
+      actualizarItem(itemId, "presentacion", p.presentacion || "")
+      actualizarItem(itemId, "precio", Number(p.precio_menudeo) || 0)
+      actualizarItem(itemId, "ivaPct", p.iva ? 16 : 0)
+
+      // ➕ nueva fila
+      agregarItem()
+
+      // 🎯 foco a código de la nueva fila
+      setFocusPendiente({
+        row: fila + 1,
+        col: "codigoBarras",
+      })
+    } catch (err) {
+      console.error("Error buscando producto:", err)
+    }
+  }
+
   const recibido =
     formaPago === "efectivo"
       ? efectivo
@@ -84,9 +131,6 @@ export default function VentasContado() {
 
   const cambio = Math.max(0, recibido - granTotal)
 
-  /* =========================
-     RENDER
-  ========================= */
   return (
     <div className="space-y-5">
       {/* HEADER */}
@@ -95,21 +139,16 @@ export default function VentasContado() {
           <h2 className="text-3xl font-bold text-emerald-600">
             Ventas de Contado
           </h2>
-          <p className="text-sm text-muted-foreground">
-            F11 cambia foco
-          </p>
+          <p className="text-sm text-muted-foreground">F11 cambia foco</p>
         </div>
 
-        <Button
-          onClick={agregarItem}
-          className="bg-emerald-600 hover:bg-emerald-700 gap-2"
-        >
+        <Button onClick={agregarItem} className="bg-emerald-600 gap-2">
           <Plus className="w-4 h-4" />
           Agregar
         </Button>
       </div>
 
-      {/* TOGGLE DESCUENTO */}
+      {/* TOGGLE */}
       <div className="flex items-center gap-3">
         <Switch
           checked={mostrarDescuento}
@@ -120,38 +159,30 @@ export default function VentasContado() {
 
       {/* GRILLA */}
       <div
-        className={`border rounded-md overflow-hidden ${
+        className={`border rounded-md ${
           focusArea === "grilla" ? "ring-2 ring-emerald-500" : ""
         }`}
       >
-        <table className="w-full border-collapse text-sm">
+        <table className="w-full text-sm">
           <thead className="bg-muted/40">
             <tr>
-              <th className="p-1 w-14 text-center">Cant.</th>
-              <th className="p-1 w-36">Código</th>
-              <th className="p-1">Artículo</th>
-              <th className="p-1 w-28">Present.</th>
-              <th className="p-1 w-24 text-right">Precio</th>
+              <th>Cant.</th>
+              <th>Código</th>
+              <th>Artículo</th>
+              <th>Present.</th>
+              <th className="text-right">Precio</th>
               {mostrarDescuento && (
-                <>
-                  <th className="p-1 w-20 text-right text-blue-600">
-                    Desc %
-                  </th>
-                  <th className="p-1 w-24 text-right text-blue-600">
-                    Precio c/desc
-                  </th>
-                </>
+                <th className="text-right text-blue-600">Desc %</th>
               )}
-              <th className="p-1 w-28 text-right">Importe</th>
-              <th className="p-1 w-10"></th>
+              <th className="text-right">Importe</th>
+              <th />
             </tr>
           </thead>
 
           <tbody>
             {items.map((i, index) => (
-              <tr key={i.id} className="hover:bg-muted/20">
-                {/* Cantidad */}
-                <td className="p-[2px]">
+              <tr key={i.id}>
+                <td>
                   <Input
                     data-row={index}
                     data-col="cantidad"
@@ -169,58 +200,54 @@ export default function VentasContado() {
                     onFocus={() =>
                       setActiveCell({ row: index, col: "cantidad" })
                     }
-                    className={`h-7 text-center ${
-                      activeCell.row === index &&
-                      activeCell.col === "cantidad"
-                        ? "ring-2 ring-emerald-500 bg-emerald-50"
-                        : ""
-                    }`}
+                    className={`h-7 w-[7ch] ${cellActiveClass(
+                      index,
+                      "cantidad",
+                      activeCell
+                    )}`}
                   />
                 </td>
 
-                {/* Código */}
-                <td className="p-[2px]">
+                <td>
                   <Input
                     data-row={index}
                     data-col="codigoBarras"
                     value={i.codigoBarras}
                     onChange={(e) =>
-                      actualizarItem(
-                        i.id,
-                        "codigoBarras",
-                        e.target.value
-                      )
+                      actualizarItem(i.id, "codigoBarras", e.target.value)
                     }
-                    onKeyDown={(e) =>
+                    onKeyDown={(e) => {
                       manejarTeclas(e, index, "codigoBarras")
-                    }
+                      if (e.key === "Enter") {
+                        e.preventDefault()
+                        buscarProductoPorCodigo(
+                          i.id,
+                          i.codigoBarras,
+                          index
+                        )
+                      }
+                    }}
                     onFocus={() =>
                       setActiveCell({
                         row: index,
                         col: "codigoBarras",
                       })
                     }
-                    className={`h-7 ${
-                      activeCell.row === index &&
-                      activeCell.col === "codigoBarras"
-                        ? "ring-2 ring-emerald-500 bg-emerald-50"
-                        : ""
-                    }`}
+                    className={`h-7 w-[18ch] ${cellActiveClass(
+                      index,
+                      "codigoBarras",
+                      activeCell
+                    )}`}
                   />
                 </td>
 
-                {/* Artículo */}
-                <td className="p-[2px]">
+                <td>
                   <Input
                     data-row={index}
                     data-col="articulo"
                     value={i.articulo}
                     onChange={(e) =>
-                      actualizarItem(
-                        i.id,
-                        "articulo",
-                        e.target.value
-                      )
+                      actualizarItem(i.id, "articulo", e.target.value)
                     }
                     onKeyDown={(e) =>
                       manejarTeclas(e, index, "articulo")
@@ -228,96 +255,75 @@ export default function VentasContado() {
                     onFocus={() =>
                       setActiveCell({ row: index, col: "articulo" })
                     }
-                    className={`h-7 ${
-                      activeCell.row === index &&
-                      activeCell.col === "articulo"
-                        ? "ring-2 ring-emerald-500 bg-emerald-50"
-                        : ""
-                    }`}
+                    className={`h-7 w-[30ch] ${cellActiveClass(
+                      index,
+                      "articulo",
+                      activeCell
+                    )}`}
                   />
                 </td>
 
-                {/* Presentación */}
-                <td className="p-[2px]">
-                  <Input
-                    value={i.presentacion}
-                    disabled
-                    className="h-7"
-                  />
+                <td>
+                  <Input value={i.presentacion} disabled className="w-[15ch]" />
                 </td>
 
-                {/* Precio */}
-                <td className="p-[2px]">
+                <td>
                   <Input
                     data-row={index}
                     data-col="precio"
                     value={fmt(i.precio)}
                     readOnly
+                    onChange={() => {}}
                     onKeyDown={(e) =>
                       manejarTeclas(e, index, "precio")
                     }
                     onFocus={() =>
                       setActiveCell({ row: index, col: "precio" })
                     }
-                    className={`h-7 text-right bg-muted/20 ${
-                      activeCell.row === index &&
-                      activeCell.col === "precio"
-                        ? "ring-2 ring-emerald-500 bg-emerald-50"
-                        : ""
-                    }`}
+                    className={`h-7 text-right bg-muted/20 w-[10ch] ${cellActiveClass(
+                      index,
+                      "precio",
+                      activeCell
+                    )}`}
                   />
                 </td>
 
-                {/* Descuento */}
                 {mostrarDescuento && (
-                  <>
-                    <td className="p-[2px]">
-                      <Input
-                        data-row={index}
-                        data-col="descuento"
-                        value={i.descuentoPct}
-                        onChange={(e) =>
-                          actualizarItem(
-                            i.id,
-                            "descuentoPct",
-                            Number(e.target.value) || 0
-                          )
-                        }
-                        onKeyDown={(e) =>
-                          manejarTeclas(e, index, "descuento")
-                        }
-                        onFocus={() =>
-                          setActiveCell({
-                            row: index,
-                            col: "descuento",
-                          })
-                        }
-                        className={`h-7 text-right text-blue-600 ${
-                          activeCell.row === index &&
-                          activeCell.col === "descuento"
-                            ? "ring-2 ring-emerald-500 bg-emerald-50"
-                            : ""
-                        }`}
-                      />
-                    </td>
-
-                    <td className="p-[2px]">
-                      <Input
-                        value={fmt(i.precioConDesc)}
-                        readOnly
-                        className="h-7 text-right bg-muted/20"
-                      />
-                    </td>
-                  </>
+                  <td>
+                    <Input
+                      data-row={index}
+                      data-col="descuentoPct"
+                      value={i.descuentoPct}
+                      onChange={(e) =>
+                        actualizarItem(
+                          i.id,
+                          "descuentoPct",
+                          Number(e.target.value) || 0
+                        )
+                      }
+                      onKeyDown={(e) =>
+                        manejarTeclas(e, index, "descuentoPct")
+                      }
+                      onFocus={() =>
+                        setActiveCell({
+                          row: index,
+                          col: "descuentoPct",
+                        })
+                      }
+                      className={`h-7 text-right text-blue-600 w-[6ch] ${cellActiveClass(
+                        index,
+                        "descuentoPct",
+                        activeCell
+                      )}`}
+                    />
+                  </td>
                 )}
 
-                {/* Importe */}
-                <td className="p-1 text-right font-semibold">
+                <td className="text-right font-semibold w-[12ch]">
                   ${fmt(i.importe)}
                 </td>
 
-                {/* Eliminar */}
-                <td className="p-[2px] text-center">
+                <td>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -332,15 +338,13 @@ export default function VentasContado() {
         </table>
       </div>
 
-      {/* RESUMEN + PAGO */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <div className="grid lg:grid-cols-2 gap-5">
         <Resumen
           subtotal={subtotal}
           ivaTotal={ivaTotal}
           descuentoTotal={descuentoTotal}
           granTotal={granTotal}
         />
-
         <Pago
           focusArea={focusArea}
           formaPago={formaPago}
