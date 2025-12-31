@@ -1,15 +1,16 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
 
-
 export const useAuthStore = create(
   persist(
-    (set, get) => ({
+    (set) => ({
       user: null,
       role: null,
       token: null,
       caja: null,
       isAuthenticated: false,
+
+      hydrated: false, // 👈 FLAG REAL
 
       login: (userData) =>
         set({
@@ -19,10 +20,7 @@ export const useAuthStore = create(
           isAuthenticated: true,
         }),
 
-      setCaja: (cajaData) =>
-        set({
-          caja: cajaData,
-        }),
+      setCaja: (cajaData) => set({ caja: cajaData }),
 
       logout: () =>
         set({
@@ -34,7 +32,14 @@ export const useAuthStore = create(
         }),
     }),
     {
-      name: "pos-auth-storage", // localStorage
+      name: "pos-auth-storage",
+
+      // 🔥 FORMA CORRECTA
+      onRehydrateStorage: () => (state) => {
+        state?.hydrated === false &&
+          state &&
+          (state.hydrated = true)
+      },
     }
   )
 )

@@ -17,43 +17,50 @@ db.serialize(() => {
     subfamily TEXT
   )`);
 
-  db.run(`CREATE TABLE IF NOT EXISTS products (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    articulo TEXT NOT NULL,
-    presentacion TEXT,
-    unidad_medida TEXT,
-    precio_menudeo REAL,
-    precio_mayoreo REAL,
-    precio_especial REAL,
-    precio_oferta REAL,
-    iva REAL,
-    ieps REAL,
-    stock INTEGER DEFAULT 0,
-    category_id INTEGER NOT NULL,
-    photo_url TEXT,
-    FOREIGN KEY (category_id) REFERENCES categories(id)
-  )`);
+db.run(`CREATE TABLE IF NOT EXISTS products (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  codigo_barras TEXT UNIQUE,
+  codigo_interno TEXT,
+  articulo TEXT NOT NULL,
+  presentacion TEXT,
+  unidad_medida TEXT,
+  precio_menudeo REAL,
+  precio_mayoreo REAL,
+  precio_especial REAL,
+  precio_oferta REAL,
+  iva REAL,
+  ieps REAL,
+  stock INTEGER DEFAULT 0,
+  category_id INTEGER NOT NULL,
+  photo_url TEXT,
+  activo INTEGER DEFAULT 1,
+  FOREIGN KEY (category_id) REFERENCES categories(id)
+)`);
 
-  db.run(`CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    nickname TEXT UNIQUE,
-    full_name TEXT,
-    phone TEXT,
-    email TEXT UNIQUE,
-    password TEXT,
-    access_level INTEGER
-  )`);
+db.run(`CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  nickname TEXT UNIQUE,
+  full_name TEXT,
+  phone TEXT,
+  email TEXT UNIQUE,
+  password TEXT,
+  access_level INTEGER,
+  photo_url TEXT
+)`);
 
-  db.run(`CREATE TABLE IF NOT EXISTS customers (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    first_name TEXT,
-    last_name_paternal TEXT,
-    last_name_maternal TEXT,
-    phone TEXT,
-    email TEXT,
-    address TEXT,
-    current_balance REAL DEFAULT 0
-  )`);
+db.run(`CREATE TABLE IF NOT EXISTS customers (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  first_name TEXT,
+  last_name_paternal TEXT,
+  last_name_maternal TEXT,
+  phone TEXT,
+  email TEXT,
+  address TEXT,
+  rfc TEXT,
+  postal_code TEXT,
+  city TEXT,
+  current_balance REAL DEFAULT 0
+)`);
 
   db.run(`CREATE TABLE IF NOT EXISTS sales (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -107,5 +114,22 @@ db.serialize(() => {
     FOREIGN KEY (product_id) REFERENCES products(id)
   )`);
 });
+
+db.run(`CREATE TABLE IF NOT EXISTS cash_registers (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  numero_caja TEXT UNIQUE NOT NULL,
+  tipo_caja TEXT DEFAULT 'Normal',
+  password TEXT NOT NULL
+)`);
+
+db.run(`CREATE TABLE IF NOT EXISTS codigo_barras_historial (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  product_id INTEGER NOT NULL,
+  codigo_anterior TEXT,
+  codigo_nuevo TEXT,
+  fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY(product_id) REFERENCES products(id)
+)`)
+
 
 module.exports = db;

@@ -1,40 +1,51 @@
-// hooks/useGridNavigation.js
-import { useEffect, useState } from "react"
+import { useState } from "react"
 
-export function useGridNavigation({ columnas, items }) {
+export function useGridNavigation({
+  columnas,
+  items,
+  onDeleteRow,
+  disabled = false,
+}) {
   const [activeCell, setActiveCell] = useState({ row: null, col: null })
 
+  const moverFoco = (fila, colIndex) => {
+    if (disabled) return
 
-const moverFoco = (fila, colIndex) => {
-  const col = columnas[colIndex]
-  const el = document.querySelector(
-    `input[data-row="${fila}"][data-col="${col}"]`
-  )
+    const col = columnas[colIndex]
 
-  if (el) {
-    el.focus()
-    setActiveCell({ row: fila, col })
+    const el = document.querySelector(
+      `input[data-row="${fila}"][data-col="${col}"]`
+    )
+
+    if (el) {
+      el.focus()
+      setActiveCell({ row: fila, col })
+    }
   }
-}
-
 
   const manejarTeclas = (e, fila, columna) => {
+    // 🚫 SOLO ignorar, NO bloquear
+    if (disabled) return
+
     const colIndex = columnas.indexOf(columna)
     if (colIndex === -1) return
 
+    // CTRL + DELETE
+    if (e.ctrlKey && e.key === "Delete") {
+      e.preventDefault()
+      onDeleteRow?.(fila)
+      return
+    }
+
     switch (e.key) {
       case "ArrowRight":
-        if (colIndex < columnas.length - 1) {
-          e.preventDefault()
-          moverFoco(fila, colIndex + 1)
-        }
+        e.preventDefault()
+        moverFoco(fila, Math.min(colIndex + 1, columnas.length - 1))
         break
 
       case "ArrowLeft":
-        if (colIndex > 0) {
-          e.preventDefault()
-          moverFoco(fila, colIndex - 1)
-        }
+        e.preventDefault()
+        moverFoco(fila, Math.max(colIndex - 1, 0))
         break
 
       case "ArrowDown":
@@ -48,7 +59,6 @@ const moverFoco = (fila, colIndex) => {
         break
     }
   }
-
 
   return {
     activeCell,

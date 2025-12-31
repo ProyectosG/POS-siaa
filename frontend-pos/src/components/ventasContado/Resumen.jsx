@@ -13,7 +13,9 @@ export default function Resumen({
   ivaTotal,
   descuentoTotal,
   granTotal,
+  mostrarDescuento,
 }) {
+
   return (
     <div className="border rounded-md p-5">
       <h3 className="flex items-center gap-2 font-semibold mb-3">
@@ -32,10 +34,13 @@ export default function Resumen({
           <span>${fmt(ivaTotal)}</span>
         </div>
 
+        {mostrarDescuento && descuentoTotal > 0 && (
         <div className="flex justify-between text-blue-600">
           <span>Descuento</span>
           <span>- ${fmt(descuentoTotal)}</span>
         </div>
+      )}
+
 
         <div className="flex justify-between font-bold text-lg pt-2 border-t">
           <span>Total</span>
