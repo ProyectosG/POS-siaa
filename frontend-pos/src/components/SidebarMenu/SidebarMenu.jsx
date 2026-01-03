@@ -1,22 +1,33 @@
 "use client"
-import Link from "next/link";
-
 
 import * as React from "react"
-import { ChevronDown, Menu, X, LogOut } from "lucide-react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
+import {
+  ChevronDown,
+  Menu,
+  X,
+  LogOut,
+  ShoppingCart,
+  ShoppingBag,
+  Package,
+  CreditCard,
+  FolderOpen,
+  FileText,
+  Wrench,
+  Receipt,
+} from "lucide-react"
+
 import { cn } from "@/lib/utils"
-import { ShoppingCart, ShoppingBag, Package, CreditCard, FolderOpen, FileText, Wrench, Receipt } from "lucide-react"
+import { useAuthStore } from "@/store/useAuthStore"
+import { useCajaStore } from "@/store/useCajaStore"
 
 const menuItems = [
   {
     label: "VENTAS",
     icon: <ShoppingCart className="w-5 h-5" />,
     iconColor: "text-emerald-500",
-    subItems: [
-      { label: "Ventas Contado", href: "/dashboard/ventas/contado" }
-      // { label: "Ventas a Crédito", href: "/dashboard/ventas/credito" },
-      // { label: "Ventas Apartados", href: "/dashboard/ventas/apartados" },
-    ],
+    subItems: [{ label: "Ventas Contado", href: "/dashboard/ventas/contado" }],
   },
   {
     label: "COMPRAS",
@@ -79,120 +90,151 @@ const menuItems = [
       { label: "Seguridad", href: "/dashboard/tools/seguridad" },
     ],
   },
-];
-
+]
 
 export default function SidebarMenu() {
+  const router = useRouter()
+
+  const user = useAuthStore((s) => s.user)
+  const logout = useAuthStore((s) => s.logout)
+  const clearCaja = useCajaStore((s) => s.clearCaja)
+
   const [openItems, setOpenItems] = React.useState([])
   const [isMobileOpen, setIsMobileOpen] = React.useState(false)
 
   const toggleItem = (label) => {
     setOpenItems((prev) =>
-      prev.includes(label) ? prev.filter((item) => item !== label) : [...prev, label]
+      prev.includes(label)
+        ? prev.filter((item) => item !== label)
+        : [...prev, label]
     )
   }
 
-  const closeMobile = () => {
-    setIsMobileOpen(false)
-  }
+  const closeMobile = () => setIsMobileOpen(false)
 
   const handleLogout = () => {
-    console.log("Logout clicked")
-    // Aquí puedes agregar tu lógica de logout
+    clearCaja()
+    logout()
+    router.replace("/login")
   }
+
+  const hasPhoto =
+    typeof user?.photoUrl === "string" &&
+    user.photoUrl.trim() !== ""
 
   return (
     <>
+      {/* BOTÓN HAMBURGUESA (SIEMPRE VISIBLE) */}
       <button
         onClick={() => setIsMobileOpen(!isMobileOpen)}
-        className="fixed top-4 left-4 z-50 lg:hidden bg-sidebar text-sidebar-foreground p-2 rounded-md shadow-lg"
+        className="fixed top-4 left-4 z-50 bg-sidebar text-sidebar-foreground p-2 rounded-md shadow-lg"
       >
         {isMobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
       </button>
 
+      {/* OVERLAY */}
       {isMobileOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-30 lg:hidden transition-opacity duration-500 ease-out"
+          className="fixed inset-0 bg-black/50 z-30"
           onClick={closeMobile}
         />
       )}
 
+      {/* SIDEBAR */}
       <aside
         className={cn(
-          "fixed left-0 top-0 h-screen bg-sidebar border-r border-sidebar-border z-40 flex flex-col transition-all duration-500 ease-out",
+          "fixed left-0 top-0 h-screen bg-sidebar border-r border-sidebar-border z-40 flex flex-col transition-all duration-500",
           "w-72 md:w-80",
-          isMobileOpen ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0 lg:translate-x-0 lg:opacity-100"
+          isMobileOpen
+            ? "translate-x-0 opacity-100"
+            : "-translate-x-full opacity-0"
         )}
       >
+        {/* HEADER */}
         <div className="p-6 border-b border-sidebar-border">
-          <h2 className="text-xl font-semibold text-sidebar-foreground tracking-tight">Sistema POS</h2>
-          <p className="text-sm text-sidebar-foreground/60 mt-1">Panel de Control</p>
+          <h2 className="text-xl font-semibold text-sidebar-foreground">
+            Sistema POS
+          </h2>
+          <p className="text-sm text-sidebar-foreground/60 mt-1">
+            Panel de Control
+          </p>
         </div>
 
+        {/* MENU */}
         <nav className="flex-1 overflow-y-auto py-4 px-3">
           <div className="space-y-1">
             {menuItems.map((item) => (
               <div key={item.label}>
                 <button
-                  onClick={() => item.subItems && item.subItems.length > 0 && toggleItem(item.label)}
-                  className={cn(
-                    "w-full flex items-center justify-between px-4 py-3 rounded-lg text-left transition-all duration-200",
-                    "text-sidebar-foreground hover:bg-sidebar-hover",
-                    "group"
-                  )}
+                  onClick={() =>
+                    item.subItems.length > 0 && toggleItem(item.label)
+                  }
+                  className="w-full flex items-center justify-between px-4 py-3 rounded-lg text-sidebar-foreground hover:bg-sidebar-hover"
                 >
                   <div className="flex items-center gap-3">
-                    <div className={cn("transition-colors", item.iconColor)}>{item.icon}</div>
-                    <span className="font-medium text-sm tracking-wide">{item.label}</span>
+                    <div className={item.iconColor}>{item.icon}</div>
+                    <span className="text-sm font-medium">{item.label}</span>
                   </div>
-                  {item.subItems && item.subItems.length > 0 && (
+                  {item.subItems.length > 0 && (
                     <ChevronDown
                       className={cn(
-                        "w-4 h-4 text-sidebar-foreground/60 transition-transform duration-200",
+                        "w-4 h-4 text-sidebar-foreground/60 transition-transform",
                         openItems.includes(item.label) && "rotate-180"
                       )}
                     />
                   )}
                 </button>
 
-                {item.subItems && item.subItems.length > 0 && openItems.includes(item.label) && (
-                  <div className="mt-1 ml-4 space-y-1 animate-in fade-in-0 slide-in-from-top-2 duration-400 ease-out">
-                    {item.subItems.map((subItem) => (
-                      <Link
-                        key={subItem.label}
-                        href={subItem.href}
-                        onClick={closeMobile}
-                        className={cn(
-                          "block px-4 py-2.5 pl-12 rounded-md text-sm transition-all duration-300 ease-out",
-                          "text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent"
-                        )}
-                      >
-                        {subItem.label}
-                      </Link>
-                    ))}
-                  </div>
-                )}
+                {item.subItems.length > 0 &&
+                  openItems.includes(item.label) && (
+                    <div className="mt-1 ml-4 space-y-1">
+                      {item.subItems.map((subItem) => (
+                        <Link
+                          key={subItem.label}
+                          href={subItem.href}
+                          onClick={closeMobile}
+                          className="block px-4 py-2.5 pl-12 rounded-md text-sm transition-all text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                        >
+                          {subItem.label}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
               </div>
             ))}
           </div>
         </nav>
 
+        {/* FOOTER USUARIO */}
         <div className="p-4 border-t border-sidebar-border">
-          <div className="flex items-center gap-3 px-2 py-3">
-            <div className="relative">
-              <div className="w-12 h-12 rounded-full bg-gradient-to-br from-sidebar-primary to-accent overflow-hidden ring-2 ring-sidebar-border">
-                <img src="/cashier.png" alt="Cajero" className="w-full h-full object-cover" />
+          <div className="flex items-center gap-3">
+            {hasPhoto ? (
+              <img
+                src={user.photoUrl}
+                alt="Avatar de usuario"
+                className="w-12 h-12 rounded-full object-cover"
+              />
+            ) : (
+              <div className="w-12 h-12 rounded-full bg-sidebar-accent flex items-center justify-center">
+                <span className="text-sm font-semibold text-sidebar-foreground/80">
+                  {user?.nickname?.[0]?.toUpperCase() ?? "U"}
+                </span>
               </div>
-              <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-green-500 rounded-full ring-2 ring-sidebar" />
-            </div>
+            )}
+
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-sidebar-foreground truncate">María González</p>
-              <p className="text-xs text-sidebar-foreground/60 truncate">Cajera Principal</p>
+              <p className="text-sm font-semibold text-sidebar-foreground truncate">
+                {user?.nickname ?? "Usuario"}
+              </p>
+              <p className="text-xs text-sidebar-foreground/60 truncate">
+                {user?.role ?? ""}
+              </p>
             </div>
+
             <button
               onClick={handleLogout}
-              className="p-2 rounded-md hover:bg-sidebar-hover text-sidebar-foreground/60 hover:text-red-500 transition-all duration-200"
-              title="Cerrar Sesión"
+              className="p-2 rounded-md text-sidebar-foreground/70 hover:text-red-400 hover:bg-sidebar-accent transition-colors"
+              title="Cerrar sesión"
             >
               <LogOut className="w-5 h-5" />
             </button>

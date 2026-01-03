@@ -46,6 +46,7 @@ export function useVentasContado() {
         ...p,
         {
           id: Date.now(),
+          productId: null,   // 👈 CLAVE
           cantidad: 1,
           codigoBarras: "",
           articulo: "",
@@ -67,6 +68,7 @@ export function useVentasContado() {
 
   return {
     items,
+    setItems,
     mostrarDescuento,
     setMostrarDescuento,
     subtotal,

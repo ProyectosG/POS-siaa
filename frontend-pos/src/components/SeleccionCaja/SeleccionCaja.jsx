@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation"
 import { useCajaStore } from "@/store/useCajaStore"
 import { cn } from "@/lib/utils"
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL
+
 export function SeleccionCaja() {
   const router = useRouter()
   const setCaja = useCajaStore((state) => state.setCaja)
@@ -14,7 +16,7 @@ export function SeleccionCaja() {
   const [numeroCaja, setNumeroCaja] = React.useState("")
   const [claveCaja, setClaveCaja] = React.useState("")
   const [error, setError] = React.useState("")
-  const [isAnimating, setIsAnimating] = React.useState(false)
+  const [loading, setLoading] = React.useState(false)
 
   const handleCajaSubmit = async (e) => {
     e.preventDefault()
@@ -26,111 +28,124 @@ export function SeleccionCaja() {
     }
 
     try {
-      setIsAnimating(true)
+      setLoading(true)
 
-      // 🔥 Aquí luego validas contra backend
+      // 🔥 ABRIR / VALIDAR CAJA (BACKEND)
+      const res = await fetch(`${API_URL}/cash-registers/abrir`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          numero_caja: numeroCaja,
+          password: claveCaja,
+        }),
+      })
+
+      const data = await res.json()
+      console.log(data)
+
+      if (!res.ok) {
+        throw new Error(data.error || "Error al abrir la caja")
+      }
+
+      // 🔐 GUARDAR CAJA VALIDADA (STORE GLOBAL)
       setCaja({
-        numero: numeroCaja,
-        abiertaEn: new Date().toISOString(),
+        id: data.id,
+        numero: data.numero_caja,
+        tipo: data.tipo_caja,
+        abiertaEn: data.abierta_en,
       })
 
       router.replace("/dashboard")
-
     } catch (err) {
-      setError("Error al abrir la caja")
+      setError(err.message)
     } finally {
-      setIsAnimating(false)
+      setLoading(false)
     }
   }
 
   return (
-
-    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950 relative overflow-hidden">
-      {/* Animated Background Elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-500/10 rounded-full blur-3xl animate-pulse delay-700" />
-      </div>
-
-      {/* Caja Selection Card */}
+    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950">
       <div
         className={cn(
-          "relative z-10 w-full max-w-md mx-4 transition-all duration-500 ease-out",
-          isAnimating && "scale-95 opacity-50",
+          "w-full max-w-md mx-4 transition-all",
+          loading && "opacity-60 pointer-events-none"
         )}
       >
-        <div className="bg-slate-900/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-800 p-8 transition-all duration-700 ease-out hover:border-blue-500/50">
-          {/* Header */}
+        <div className="bg-slate-900/80 backdrop-blur-xl rounded-2xl border border-slate-800 p-8">
+          {/* HEADER */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full mb-4 animate-in zoom-in-50 duration-500">
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full mb-4">
               <CreditCard className="w-8 h-8 text-white" />
             </div>
-            <h1 className="text-3xl font-bold text-white mb-2 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <h1 className="text-3xl font-bold text-white mb-2">
               Seleccionar Caja
             </h1>
-            <p className="text-slate-400 animate-in fade-in slide-in-from-bottom-4 duration-500 delay-100">
-              Configura tu punto de venta
+            <p className="text-slate-400">
+              Ingresa el número de caja asignado
             </p>
           </div>
 
-          {/* Error Message */}
           {error && (
-            <div className="mb-6 p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm text-center animate-in fade-in slide-in-from-top-2 duration-300">
+            <div className="mb-6 p-3 bg-red-500/10 border border-red-500/40 rounded-lg text-red-400 text-sm text-center">
               {error}
             </div>
           )}
 
-          {/* Caja Selection Form */}
           <form onSubmit={handleCajaSubmit} className="space-y-6">
-            {/* Numero de Caja Field */}
-            <div className="group">
-              <label className="block text-sm font-medium text-slate-300 mb-2">Número de Caja</label>
+            {/* NUMERO CAJA */}
+            <div>
+              <label className="block text-sm text-slate-300 mb-2">
+                Número de Caja
+              </label>
               <div className="relative">
-                <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-hover:text-blue-400 transition-colors duration-300" />
+                <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                 <input
-                  type="text"
                   value={numeroCaja}
                   onChange={(e) => setNumeroCaja(e.target.value)}
-                  placeholder="Ej: 001, 002, 003"
-                  className="w-full pl-11 pr-4 py-3 bg-slate-800/50 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-500 ease-out hover:border-blue-500/50 hover:bg-slate-800"
+                  className="w-full pl-11 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white"
+                  placeholder="Ej: 001"
                 />
               </div>
             </div>
 
-            {/* Clave de Caja Field */}
-            <div className="group">
-              <label className="block text-sm font-medium text-slate-300 mb-2">Clave de Caja</label>
+            {/* CLAVE (VISUAL / FUTURA VALIDACIÓN BACKEND) */}
+            <div>
+              <label className="block text-sm text-slate-300 mb-2">
+                Clave de Caja
+              </label>
               <div className="relative">
-                <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 group-hover:text-blue-400 transition-colors duration-300" />
+                <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                 <input
                   type={showCajaKey ? "text" : "password"}
                   value={claveCaja}
                   onChange={(e) => setClaveCaja(e.target.value)}
+                  className="w-full pl-11 pr-12 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white"
                   placeholder="••••••••"
-                  className="w-full pl-11 pr-12 py-3 bg-slate-800/50 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-500 ease-out hover:border-blue-500/50 hover:bg-slate-800"
                 />
                 <button
                   type="button"
                   onClick={() => setShowCajaKey(!showCajaKey)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-blue-400 transition-colors duration-300"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
                 >
-                  {showCajaKey ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showCajaKey ? <EyeOff /> : <Eye />}
                 </button>
               </div>
             </div>
 
-            {/* Submit Button */}
             <button
               type="submit"
-              className="w-full py-3 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-semibold rounded-lg shadow-lg shadow-blue-500/30 transition-all duration-300 ease-out hover:shadow-blue-500/50 hover:scale-[1.02] active:scale-95"
+              className="w-full py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-semibold rounded-lg"
             >
-              Iniciar Sistema
+              {loading ? "Validando caja..." : "Iniciar Sistema"}
             </button>
           </form>
         </div>
 
-        {/* Footer */}
-        <p className="text-center mt-6 text-slate-500 text-sm">Sistema POS v1.0 - © 2025</p>
+        <p className="text-center mt-6 text-slate-500 text-sm">
+          Sistema POS v1.0
+        </p>
       </div>
     </div>
   )

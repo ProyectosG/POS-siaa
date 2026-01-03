@@ -16,6 +16,9 @@ const fmt = (n) =>
   })
 
 export default function VentaGrid({
+  /* 🔥 CONTROL DE FOCO */
+  focusArea,
+
   items,
   columnas,
   mostrarDescuento,
@@ -34,8 +37,27 @@ export default function VentaGrid({
   mostrarPrecios,
   abrirMenuPrecios,
 }) {
+  const grillaActiva = focusArea === "grilla"
+
   return (
-    <div className="border rounded-md ring-2 ring-emerald-500">
+    <div
+      className={`
+        rounded-md transition-all duration-300
+        ${
+          grillaActiva
+            ? `
+              border-2 border-emerald-500
+              ring-4 ring-emerald-400/30
+              shadow-[0_0_0_3px_rgba(16,185,129,0.25)]
+            `
+            : `
+              border border-neutral-300
+              ring-0
+              shadow-sm
+            `
+        }
+      `}
+    >
       <table className="w-full text-sm">
         <thead className="bg-muted/40">
           <tr>
@@ -66,7 +88,11 @@ export default function VentaGrid({
                   }
                   onKeyDown={(e) => manejarTeclas(e, index, "cantidad")}
                   onFocus={() => setActiveCell({ row: index, col: "cantidad" })}
-                  className={`h-7 w-[7ch] ${cellActiveClass(index, "cantidad", activeCell)}`}
+                  className={`h-7 w-[7ch] ${cellActiveClass(
+                    index,
+                    "cantidad",
+                    activeCell
+                  )}`}
                 />
               </td>
 
@@ -89,7 +115,11 @@ export default function VentaGrid({
                   onFocus={() =>
                     setActiveCell({ row: index, col: "codigoBarras" })
                   }
-                  className={`h-7 w-[18ch] ${cellActiveClass(index, "codigoBarras", activeCell)}`}
+                  className={`h-7 w-[18ch] ${cellActiveClass(
+                    index,
+                    "codigoBarras",
+                    activeCell
+                  )}`}
                 />
               </td>
 
@@ -109,12 +139,20 @@ export default function VentaGrid({
                   onFocus={() =>
                     setActiveCell({ row: index, col: "articulo" })
                   }
-                  className={`h-7 w-[30ch] ${cellActiveClass(index, "articulo", activeCell)}`}
+                  className={`h-7 w-[30ch] ${cellActiveClass(
+                    index,
+                    "articulo",
+                    activeCell
+                  )}`}
                 />
               </td>
 
               <td>
-                <Input value={i.presentacion} disabled className="w-[15ch]" />
+                <Input
+                  value={i.presentacion}
+                  disabled
+                  className="w-[15ch]"
+                />
               </td>
 
               {/* PRECIO */}
@@ -135,8 +173,14 @@ export default function VentaGrid({
                       manejarTeclas(e, index, "precio")
                     }
                   }}
-                  onFocus={() => setActiveCell({ row: index, col: "precio" })}
-                  className={`h-7 text-right bg-muted/20 w-[10ch] ${cellActiveClass(index, "precio", activeCell)}`}
+                  onFocus={() =>
+                    setActiveCell({ row: index, col: "precio" })
+                  }
+                  className={`h-7 text-right bg-muted/20 w-[10ch] ${cellActiveClass(
+                    index,
+                    "precio",
+                    activeCell
+                  )}`}
                 />
               </td>
 
@@ -157,7 +201,10 @@ export default function VentaGrid({
                       manejarTeclas(e, index, "descuentoPct")
                     }
                     onFocus={() =>
-                      setActiveCell({ row: index, col: "descuentoPct" })
+                      setActiveCell({
+                        row: index,
+                        col: "descuentoPct",
+                      })
                     }
                     className="h-7 text-right text-blue-600 w-[6ch]"
                   />

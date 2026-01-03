@@ -7,7 +7,7 @@ import {
   ShoppingCart,
   Building2,
 } from "lucide-react"
-import { useRef } from "react"
+import { useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -46,9 +46,25 @@ export default function Pago({
   setUltimos4Tarjeta,
   tarjeta,
   setTarjeta,
+  onProcesarVenta,
 }) {
   const efectivoRef = useRef(null)
   const procesarRef = useRef(null)
+
+  useEffect(() => {
+    if (focusArea === "pago" && formaPago === "efectivo") {
+      requestAnimationFrame(() => {
+        efectivoRef.current?.focus()
+        efectivoRef.current?.select()
+      })
+    }
+  }, [focusArea, formaPago])
+
+  useEffect(() => {
+    if (focusArea === "pago") {
+      setFormaPago("efectivo")
+    }
+  }, [focusArea])
 
   const montoEfectivo = Math.max(0, total - Number(tarjeta || 0))
   const pagoCompleto = montoEfectivo + Number(tarjeta || 0) === total
@@ -65,10 +81,18 @@ export default function Pago({
 
   return (
     <div
-      className={`border rounded-md p-5 transition-all ${
-        focusArea === "pago" ? "ring-2 ring-emerald-500 shadow-lg" : ""
-      }`}
+      className={`
+        relative rounded-md p-5 transition-all duration-300
+        ${focusArea === "pago"
+          ? `
+            border-2 border-emerald-500
+            ring-4 ring-emerald-400/30
+            shadow-[0_0_0_3px_rgba(16,185,129,0.25),0_10px_25px_-5px_rgba(0,0,0,0.4)]
+            `
+          : "border"}
+      `}
     >
+
       <h3 className="flex items-center gap-2 font-semibold mb-4">
         <DollarSign className="w-5 h-5" />
         Pago
@@ -253,6 +277,11 @@ export default function Pago({
         className="w-full mt-6 text-lg py-6"
         variant={puedeProcesar ? "default" : "secondary"}
         disabled={!puedeProcesar}
+        onClick={() => {
+          if (puedeProcesar) {
+            onProcesarVenta({ formaPago, efectivo, tarjeta, bancoTarjeta, ultimos4Tarjeta });
+          }
+        }}
         onKeyDown={(e) => {
           if (e.key === "ArrowUp") {
             e.preventDefault()

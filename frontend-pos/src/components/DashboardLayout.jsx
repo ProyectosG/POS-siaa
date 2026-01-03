@@ -1,4 +1,5 @@
 "use client"
+
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import SidebarMenu from "@/components/SidebarMenu/SidebarMenu"
@@ -7,16 +8,16 @@ import { useAuthStore } from "@/store/useAuthStore"
 export default function DashboardLayout({ children }) {
   const router = useRouter()
 
-  const user = useAuthStore((s) => s.user)
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const hydrated = useAuthStore((s) => s.hydrated)
 
   useEffect(() => {
     if (!hydrated) return
 
-    if (!user) {
+    if (!isAuthenticated) {
       router.replace("/login")
     }
-  }, [hydrated, user, router])
+  }, [hydrated, isAuthenticated, router])
 
   if (!hydrated) {
     return (
@@ -26,7 +27,7 @@ export default function DashboardLayout({ children }) {
     )
   }
 
-  if (!user) return null
+  if (!isAuthenticated) return null
 
   return (
     <div className="flex min-h-screen bg-background">
