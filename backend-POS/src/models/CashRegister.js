@@ -32,6 +32,23 @@ class CashRegister {
     });
   }
 
+  // models/CashRegister.js
+ static findByNumeroCaja(numero_caja) {
+  return new Promise((resolve, reject) => {
+    db.get(
+      `SELECT * FROM cash_registers WHERE numero_caja = ? LIMIT 1`,
+      [numero_caja],
+      (err, row) => {
+        if (err) reject(err);
+        resolve(row); // puede ser undefined si no existe
+      }
+    );
+  });
+}
+
+
+
+
   static update(id, { numero_caja, tipo_caja }) {
     return new Promise((resolve, reject) => {
       db.run(

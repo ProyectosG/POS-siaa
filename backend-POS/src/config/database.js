@@ -75,23 +75,36 @@ db.run(`CREATE TABLE IF NOT EXISTS customers (
   )`);
 
   db.run(`CREATE TABLE IF NOT EXISTS sale_details (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    sale_id INTEGER,
-    product_id INTEGER,
-    quantity INTEGER,
-    price REAL,
-    subtotal REAL,
-    FOREIGN KEY (sale_id) REFERENCES sales(id),
-    FOREIGN KEY (product_id) REFERENCES products(id)
-  )`);
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+
+  sale_id INTEGER NOT NULL,
+  product_id INTEGER NOT NULL,
+
+  quantity INTEGER NOT NULL,
+  price REAL NOT NULL,
+  subtotal REAL NOT NULL,
+  base_price REAL,      
+  discount_pct REAL,    
+  discount_amount REAL, 
+
+  FOREIGN KEY (sale_id) REFERENCES sales(id),
+  FOREIGN KEY (product_id) REFERENCES products(id)
+);
+`);
 
   db.run(`CREATE TABLE IF NOT EXISTS payments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    sale_id INTEGER,
-    amount REAL,
-    date TEXT,
+
+    sale_id INTEGER NOT NULL,
+    method TEXT NOT NULL,  
+    amount REAL NOT NULL,
+    bank TEXT,             
+    last4 TEXT,                  
+    reference TEXT,              
+    date TEXT NOT NULL,
     FOREIGN KEY (sale_id) REFERENCES sales(id)
-  )`);
+  );
+  `);
 
   db.run(`CREATE TABLE IF NOT EXISTS cuts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
