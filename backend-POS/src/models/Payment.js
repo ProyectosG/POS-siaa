@@ -1,3 +1,4 @@
+// src/models/Payment.js
 const db = require('../config/database');
 
 class Payment {
@@ -5,6 +6,7 @@ class Payment {
     sale_id,
     method,
     amount,
+    payment_type = 'normal',
     bank,
     last4,
     reference,
@@ -14,28 +16,39 @@ class Payment {
       throw new Error('payment.method es obligatorio');
     }
 
+    // FORZAR formato YYYY-MM-DD (elimina / o cualquier cosa rara)
+    let safeDate = (date || new Date().toISOString().split('T')[0])
+      .replace(/\//g, '-')        // Cambia / por -
+      .replace(/[^0-9-]/g, '');   // Elimina cualquier carácter inválido
+
     return new Promise((resolve, reject) => {
       db.run(
         `INSERT INTO payments (
           sale_id,
           method,
           amount,
+          payment_type,
           bank,
           last4,
           reference,
           date
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           sale_id,
-          method,              // 👈 CRÍTICO
+          method,
           amount,
+          payment_type,
           bank ?? null,
           last4 ?? null,
           reference ?? null,
-          date
+          safeDate   // ← Fecha segura
         ],
         function (err) {
-          if (err) return reject(err);
+          if (err) {
+            console.error('❌ Error al insertar pago:', err.message);
+            console.error('Valor de date que se intentó insertar:', safeDate);
+            return reject(err);
+          }
           resolve(this.lastID);
         }
       );
@@ -49,7 +62,7 @@ class Payment {
         [sale_id],
         (err, rows) => {
           if (err) reject(err);
-          resolve(rows);
+          else resolve(rows);
         }
       );
     });

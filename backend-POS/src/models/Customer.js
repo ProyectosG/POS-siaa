@@ -58,11 +58,34 @@ class Customer {
     });
   }
 
-  static updateBalance(id, newBalance) {
+  // Método para actualizar saldo + registrar historia
+  static updateBalance(id, amount, saleId, description) {
     return new Promise((resolve, reject) => {
-      db.run(`UPDATE customers SET current_balance = ? WHERE id = ?`, [newBalance, id], err => {
-        if (err) reject(err);
-        resolve();
+      db.get(`SELECT current_balance FROM customers WHERE id = ?`, [id], (err, row) => {
+        if (err) return reject(err);
+        if (!row) return reject(new Error('Cliente no encontrado'));
+
+        const previousBalance = row.current_balance;
+        const newBalance = previousBalance + amount;  // amount positivo para incremento
+
+        db.run(`UPDATE customers SET current_balance = ? WHERE id = ?`, [newBalance, id], err => {
+          if (err) return reject(err);
+
+          const now = new Date();
+          const date = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+          const time = now.toLocaleTimeString('es-MX', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+          db.run(
+            `INSERT INTO customer_balance_history 
+             (customer_id, date, time, sale_id, previous_balance, amount, new_balance, description) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+            [id, date, time, saleId, previousBalance, amount, newBalance, description],
+            err => {
+              if (err) return reject(err);
+              resolve(newBalance);
+            }
+          );
+        });
       });
     });
   }
@@ -73,6 +96,35 @@ class Customer {
         if (err) reject(err);
         resolve();
       });
+    });
+  }
+
+  static search(q) {
+    return new Promise((resolve, reject) => {
+      const like = `%${q}%`;
+      db.all(
+        `
+        SELECT
+          id,
+          first_name,
+          last_name_paternal,
+          last_name_maternal,
+          phone,
+          current_balance
+        FROM customers
+        WHERE
+          first_name LIKE ?
+          OR last_name_paternal LIKE ?
+          OR last_name_maternal LIKE ?
+          OR phone LIKE ?
+        LIMIT 20
+        `,
+        [like, like, like, like],
+        (err, rows) => {
+          if (err) reject(err);
+          else resolve(rows);
+        }
+      );
     });
   }
 }

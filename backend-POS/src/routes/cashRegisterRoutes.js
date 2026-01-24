@@ -9,6 +9,7 @@ router.post('/', cashRegisterController.create);
 router.put('/:id', cashRegisterController.update);
 router.delete('/:id', cashRegisterController.delete);
 
+
 // 🔥 ABRIR / VALIDAR CAJA
 router.post('/abrir', cashRegisterController.abrirCaja);
 

@@ -36,63 +36,84 @@ class Product {
 
   static findAll() {
     return new Promise((resolve, reject) => {
-      db.all(`SELECT * FROM products ORDER BY articulo`, [], (err, rows) => {
-        if (err) reject(err);
-        resolve(rows);
-      });
+      db.all(
+        `SELECT products.*, categories.family, categories.subfamily 
+         FROM products 
+         JOIN categories ON products.category_id = categories.id 
+         ORDER BY articulo`, 
+        [], 
+        (err, rows) => {
+          if (err) reject(err);
+          resolve(rows);
+        }
+      );
     });
   }
+
   static findByBarcode(codigo) {
-  return new Promise((resolve, reject) => {
-    db.get(
-      `SELECT * 
-       FROM products 
-       WHERE codigo_barras = ? 
-       LIMIT 1`,
-      [codigo],
-      (err, row) => {
-        if (err) reject(err)
-        resolve(row)
-      }
-    )
-  })
-}
-static searchByName(texto) {
-  return new Promise((resolve, reject) => {
-    db.all(
-      `
-      SELECT 
-        codigo_barras,
-        articulo,
-        presentacion,
-        precio_menudeo,
-        precio_mayoreo,
-        precio_especial,
-        precio_oferta,
-        iva
-      FROM products
-      WHERE articulo LIKE ?
-        AND activo = 1
-      ORDER BY articulo
-      LIMIT 20
-      `,
-      [`%${texto}%`],
-      (err, rows) => {
-        if (err) reject(err)
-        resolve(rows)
-      }
-    )
-  })
-}
+    return new Promise((resolve, reject) => {
+      db.get(
+        `SELECT products.*, categories.family, categories.subfamily 
+         FROM products 
+         JOIN categories ON products.category_id = categories.id 
+         WHERE products.codigo_barras = ? 
+         LIMIT 1`,
+        [codigo],
+        (err, row) => {
+          if (err) reject(err)
+          resolve(row)
+        }
+      )
+    })
+  }
 
-
+  static searchByName(texto) {
+    return new Promise((resolve, reject) => {
+      db.all(
+        `
+        SELECT 
+          products.id,
+          products.codigo_barras,
+          products.articulo,
+          products.presentacion,
+          products.stock,
+          products.precio_menudeo,
+          products.precio_mayoreo,
+          products.precio_especial,
+          products.precio_oferta,
+          products.iva,
+          products.category_id,
+          categories.family,
+          categories.subfamily
+        FROM products
+        JOIN categories ON products.category_id = categories.id
+        WHERE products.articulo LIKE ?
+          AND products.activo = 1
+        ORDER BY products.articulo
+        LIMIT 20
+        `,
+        [`%${texto}%`],
+        (err, rows) => {
+          if (err) reject(err)
+          resolve(rows)
+        }
+      )
+    })
+  }
 
   static findById(id) {
     return new Promise((resolve, reject) => {
-      db.get(`SELECT * FROM products WHERE id = ?`, [id], (err, row) => {
-        if (err) reject(err);
-        resolve(row);
-      });
+      db.get(
+        `SELECT products.*, categories.family, categories.subfamily 
+         FROM products 
+         JOIN categories ON products.category_id = categories.id 
+         WHERE products.id = ?`,
+        [id], 
+        (err, row) => {
+          if (err) reject(err);
+          resolve(row);
+        }
+      );
     });
   }
 

@@ -1,4 +1,6 @@
+const db = require('../config/database');
 const Product = require('../models/Product');
+const Kardex = require('../models/Kardex');
 
 exports.getAll = async (req, res) => {
   try {
@@ -26,8 +28,13 @@ exports.create = async (req, res) => {
     if (!data.articulo || data.articulo.trim() === '') {
       return res.status(400).json({ error: 'articulo es requerido' });
     }
+
     if (!data.category_id) {
       return res.status(400).json({ error: 'category_id es requerido' });
+    }
+
+    if (!data.id_user || !data.nickname_user) {
+      return res.status(400).json({ error: 'Usuario no válido' });
     }
 
     const cleanData = {
@@ -48,9 +55,43 @@ exports.create = async (req, res) => {
       activo: data.activo !== undefined ? data.activo : true
     };
 
-    const id = await Product.create(cleanData);
-    res.status(201).json({ id, message: 'Producto creado' });
+    // 1️⃣ Crear producto
+    const productId = await Product.create(cleanData);
+
+    // 2️⃣ Registrar Kardex (ALTA DE PRODUCTO) con fecha y hora LOCALES
+    const now = new Date();
+
+    const date = now.getFullYear() + '-' +
+      String(now.getMonth() + 1).padStart(2, '0') + '-' +
+      String(now.getDate()).padStart(2, '0');
+
+    const time = now.toLocaleTimeString('es-MX', {
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+
+    await Kardex.logMovement({
+      product_id: productId,
+      id_user: data.id_user,
+      nickname_user: data.nickname_user,
+      movement_type: "ALTA",
+      previous_stock: 0,
+      moved_quantity: 0,
+      new_stock: 0,
+      date,
+      time,
+      related_folio: null
+    });
+
+    res.status(201).json({
+      id: productId,
+      message: 'Producto creado y registrado en kardex'
+    });
+
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -79,9 +120,43 @@ exports.update = async (req, res) => {
     if (data.codigo_interno !== undefined) cleanData.codigo_interno = data.codigo_interno || null;
     if (data.activo !== undefined) cleanData.activo = data.activo ? 1 : 0;
 
+    // Fecha y hora actuales (para kardex si decides registrar cambio)
+    const now = new Date();
+    const date = now.getFullYear() + '-' +
+      String(now.getMonth() + 1).padStart(2, '0') + '-' +
+      String(now.getDate()).padStart(2, '0');
+
+    const time = now.toLocaleTimeString('es-MX', {
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+
+    // 1️⃣ Actualizar producto
     await Product.update(req.params.id, cleanData);
-    res.json({ message: 'Producto actualizado' });
+
+    // 2️⃣ (Opcional) Registrar en kardex como CAMBIO
+    // Descomenta si quieres registrar cada modificación en kardex
+    /*
+    await Kardex.logMovement({
+      product_id: req.params.id,
+      id_user: data.id_user || null,           // Si envías id_user desde frontend
+      nickname_user: data.nickname_user || null,
+      movement_type: "CAMBIO",
+      movement_reason: "MODIFICACIÓN CATÁLOGO",
+      previous_stock: 0,                       // Puedes obtener stock anterior si quieres
+      moved_quantity: 0,
+      new_stock: 0,
+      date,
+      time,
+      related_folio: null
+    });
+    */
+
+    res.json({ message: 'Producto actualizado correctamente' });
   } catch (err) {
+    console.error('Error al actualizar producto:', err);
     res.status(500).json({ error: err.message });
   }
 };
@@ -111,18 +186,16 @@ exports.getByBarcode = async (req, res) => {
 
 exports.searchByName = async (req, res) => {
   try {
-    const term = req.query.term || req.query.query
+    const term = req.query.term || req.query.query;
 
     if (!term || term.trim().length < 2) {
-      return res.json([])
+      return res.json([]);
     }
 
-    const products = await Product.searchByName(term.trim())
- 
-    res.json(products)
+    const products = await Product.searchByName(term.trim());
+
+    res.json(products);
   } catch (err) {
-    res.status(500).json({ error: err.message })
+    res.status(500).json({ error: err.message });
   }
-}
-
-
+};
