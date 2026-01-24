@@ -141,59 +141,84 @@ export default function CatalogoProductos() {
         {error && <div className="p-4 bg-red-900/20 border border-red-500/50 rounded-lg text-red-400 text-center">{error}</div>}
 
         {/* Tabla */}
-        <div className="border rounded-lg bg-card overflow-hidden">
-          {loading ? (
-            <div className="p-12 text-center text-muted-foreground">Cargando...</div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50">
-                  <TableHead>Artículo</TableHead>
-                  <TableHead>Presentación</TableHead>
-                  <TableHead>Código</TableHead>
-                  <TableHead className="text-right">P. Menudeo</TableHead>
-                  <TableHead className="text-right">P. Mayoreo</TableHead>
-                  <TableHead className="text-right">Stock</TableHead>
-                  <TableHead>Estado</TableHead>
-                  <TableHead className="text-right">Acciones</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredProducts.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
-                      No se encontraron productos
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  filteredProducts.map((p) => (
-                    <TableRow key={p.id}>
-                      <TableCell className="font-medium">{p.articulo}</TableCell>
-                      <TableCell>{p.presentacion || "—"}</TableCell>
-                      <TableCell className="font-mono">{p.codigo_barras || "—"}</TableCell>
-                      <TableCell className="text-right">${Number(p.precio_menudeo || 0).toFixed(2)}</TableCell>
-                      <TableCell className="text-right">${Number(p.precio_mayoreo || 0).toFixed(2)}</TableCell>
-                      <TableCell className="text-right">{p.stock || 0}</TableCell>
-                      <TableCell>
-                        <Badge variant={p.stock > 50 ? "default" : p.stock > 10 ? "secondary" : "destructive"}>
-                          {p.stock > 50 ? "Disponible" : p.stock > 10 ? "Bajo" : "Crítico"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button variant="ghost" size="icon-sm" onClick={() => { setCurrentProduct(p); setShowForm(true) }}>
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon-sm" onClick={() => { setProductToDelete(p); setIsDeleteDialogOpen(true) }}>
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          )}
-        </div>
+
+
+<div className="border rounded-lg bg-card overflow-hidden shadow-sm">
+  {loading ? (
+    <div className="p-12 text-center text-muted-foreground">Cargando...</div>
+  ) : (
+    <Table>
+      <TableHeader>
+        <TableRow className="bg-muted/80 border-b border-border">
+          <TableHead className="text-foreground font-semibold">Artículo</TableHead>
+          <TableHead className="text-foreground font-semibold">Presentación</TableHead>
+          <TableHead className="text-foreground font-semibold">Código</TableHead>
+          <TableHead className="text-right text-foreground font-semibold">P. Menudeo</TableHead>
+          <TableHead className="text-right text-foreground font-semibold">P. Mayoreo</TableHead>
+          <TableHead className="text-right text-foreground font-semibold">Stock</TableHead>
+          <TableHead className="text-foreground font-semibold">Estado</TableHead>
+          <TableHead className="text-right text-foreground font-semibold">Acciones</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {filteredProducts.length === 0 ? (
+          <TableRow>
+            <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
+              No se encontraron productos
+            </TableCell>
+          </TableRow>
+        ) : (
+          filteredProducts.map((p) => (
+            <TableRow
+              key={p.id}
+              className="hover:bg-blue-900/30 transition-colors border-b border-border/50 last:border-b-0 focus-within:bg-blue-900/40"
+            >
+              <TableCell className="font-medium text-foreground">{p.articulo}</TableCell>
+              <TableCell className="text-foreground">{p.presentacion || "—"}</TableCell>
+              <TableCell className="font-mono text-foreground">{p.codigo_barras || "—"}</TableCell>
+              <TableCell className="text-right text-foreground">
+                ${Number(p.precio_menudeo || 0).toFixed(2)}
+              </TableCell>
+              <TableCell className="text-right text-foreground">
+                ${Number(p.precio_mayoreo || 0).toFixed(2)}
+              </TableCell>
+              <TableCell className="text-right text-foreground">{p.stock || 0}</TableCell>
+              <TableCell>
+                <Badge
+                  variant={p.stock > 50 ? "default" : p.stock > 10 ? "secondary" : "destructive"}
+                  className="font-medium"
+                >
+                  {p.stock > 50 ? "Disponible" : p.stock > 10 ? "Bajo" : "Crítico"}
+                </Badge>
+              </TableCell>
+              <TableCell className="text-right flex items-center justify-end gap-1">
+                {/* Botón Editar - más visible */}
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => { setCurrentProduct(p); setShowForm(true) }}
+                  className="text-blue-400 hover:text-blue-300 hover:bg-blue-950/50 transition-colors"
+                >
+                  <Pencil className="w-4 h-4" />
+                </Button>
+
+                {/* Botón Eliminar - más visible */}
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  onClick={() => { setProductToDelete(p); setIsDeleteDialogOpen(true) }}
+                  className="text-red-400 hover:text-red-300 hover:bg-red-950/50 transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))
+        )}
+      </TableBody>
+    </Table>
+  )}
+</div>
 
         {/* Diálogo eliminar */}
         <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>

@@ -132,7 +132,7 @@ export default function ListaArticulosPorNombre({
 
         {/* FOOTER */}
         <div className="px-4 py-2 border-t text-xs text-muted-foreground">
-          ↑ ↓ navegar · Enter seleccionar · Esc cancelar
+          ↑ ↓ navegar · [Enter] seleccionar · [Esc] cancelar
         </div>
       </div>
     </>

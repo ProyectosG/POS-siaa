@@ -1,6 +1,9 @@
 "use client"
 
 import * as React from "react"
+import { useAuthStore } from "@/store/useAuthStore"
+import toast from "react-hot-toast"
+
 import { Plus } from "lucide-react"
 
 import { useVentasContado } from "./hooks/useVentasContado"
@@ -15,7 +18,6 @@ import Pago from "./Pago"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { useCajaStore } from "@/store/useCajaStore"
-
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
@@ -38,6 +40,8 @@ const beep = (ok = true) => {
 
 export default function VentasContado() {
   const caja = useCajaStore((s) => s.caja)
+  const user = useAuthStore((s) => s.user)
+  const inicializadoRef = React.useRef(false)
 
   /* ===== HOOK PRINCIPAL ===== */
   const {
@@ -89,7 +93,7 @@ export default function VentasContado() {
   const { activeCell, setActiveCell, manejarTeclas } = useGridNavigation({
     columnas,
     items,
-    onDeleteRow: (fila) => eliminarItem(items[fila].id),
+    onDeleteRow: (fila) => eliminarItemSeguro(items[fila].id),
     disabled: mostrarLista || mostrarPrecios,
   })
 
@@ -138,7 +142,6 @@ export default function VentasContado() {
         { tipo: "oferta", label: "Oferta", valor: p.precio_oferta },
       ].filter((p) => p.valor > 0)
 
-      console.log(p.id)
       actualizarItem(itemId, "productId", p.id)
       actualizarItem(itemId, "codigoBarras", p.codigo_barras || "")
       actualizarItem(itemId, "articulo", p.articulo || "")
@@ -204,99 +207,169 @@ export default function VentasContado() {
       ? precios.filter((p) => p.valor > 0)
       : []
 
-  /* ===== PROCESAR VENTA ===== */
- const handleProcesarVenta = async ({ formaPago, efectivo, tarjeta }) => {
-  const date = new Date().toISOString().split('T')[0];
+  /* ===== ELIMINAR ITEM SEGURO ===== */
+  const eliminarItemSeguro = (id) => {
+    if (items.length === 1) {
+      beep(false)
 
-  const efectivoRecibido = Number(efectivo || 0);
-  const tarjetaPagada = Number(tarjeta || 0);
+      actualizarItem(id, "productId", null)
+      actualizarItem(id, "codigoBarras", "")
+      actualizarItem(id, "articulo", "")
+      actualizarItem(id, "presentacion", "")
+      actualizarItem(id, "cantidad", 1)
+      actualizarItem(id, "precio", 0)
+      actualizarItem(id, "descuentoPct", 0)
+      actualizarItem(id, "ivaPct", 16)
+      actualizarItem(id, "precios", [])
+      actualizarItem(id, "tipoPrecio", null)
 
-  // ✅ EFECTIVO REAL APLICADO A LA VENTA
-  const efectivoAplicado = Math.min(
-    efectivoRecibido,
-    granTotal - tarjetaPagada
-  );
-
-  // ✅ TOTAL PAGADO REAL
-  const paid = efectivoAplicado + tarjetaPagada;
-
-  const payments = [];
-
-  if (efectivoAplicado > 0) {
-    payments.push({
-      method: 'efectivo',
-      amount: efectivoAplicado,
-      date
-    });
-  }
-
-  if (tarjetaPagada > 0) {
-    payments.push({
-      method: 'tarjeta',
-      amount: tarjetaPagada,
-      bank: bancoTarjeta || null,
-      last4: ultimos4Tarjeta || null,
-      reference: null,
-      date
-    });
-  }
-
-  const details = items
-    .filter(i => i.productId)
-    .map(i => ({
-      product_id: i.productId,
-      quantity: i.cantidad,
-
-      // 💰 PRECIO FINAL
-      price: i.precioConDesc || i.precio,
-      subtotal: i.importe,
-
-      // 🧾 AUDITORÍA
-      base_price: i.precio,
-      discount_pct: i.descuentoPct || 0,
-      discount_amount: i.descuentoMonto || 0,
-    }));
-
-  const saleData = {
-    date,
-    type: 'contado',
-    customer_id: null,
-    total: granTotal,
-    paid,
-    status: paid >= granTotal ? 'completed' : 'pending',
-    details,
-    payments
-  };
-
-  try {
-    const res = await fetch(`${API_URL}/sales`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(saleData),
-    });
-
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Error al guardar venta');
+      return
     }
 
+    eliminarItem(id)
+  }
 
-    setItems([]);
-    setEfectivo(0);
-    setTarjeta(0);
-    setBancoTarjeta("");
-    setUltimos4Tarjeta("");
-    setFocusArea("grilla");
 
-    alert('Venta procesada');
-  } catch (err) {
-    console.error(err);
-    alert(err.message); // 👈 muestra "Stock insuficiente..."
-}
 
-};
+  /* ===== PROCESAR VENTA ===== */
+  const handleProcesarVenta = async ({ formaPago, efectivo, tarjeta }) => {
+    const now = new Date()
+    const date =
+      now.getFullYear() + "-" +
+      String(now.getMonth() + 1).padStart(2, "0") + "-" +
+      String(now.getDate()).padStart(2, "0")
 
-   /*-------------------------------------------------------------------------*/
+    const time = now.toLocaleTimeString('es-MX', {
+      hour12: false,
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    })
+
+  const efectivoRecibido = Number(efectivo || 0);
+const tarjetaPagada = Number(tarjeta || 0);
+
+// Calculamos cambio (ya lo tienes en UI)
+const cambio = Math.max(efectivoRecibido - (granTotal - tarjetaPagada), 0);
+
+// Efectivo que se aplica a la venta
+const efectivoAplicado = efectivoRecibido - cambio;
+
+// Total entregado por el cliente (esto será el nuevo `paid`)
+const paid = efectivoAplicado + tarjetaPagada;  // 263 + 77 = 340 (aplicado)
+// O si quieres que paid sea lo entregado real: paid = efectivoRecibido + tarjetaPagada;
+
+
+    const payments = []
+
+    if (efectivoAplicado > 0) {
+      payments.push({
+        method: "efectivo",
+        amount: efectivoAplicado,
+        date,
+      })
+    }
+
+    if (tarjetaPagada > 0) {
+      payments.push({
+        method: "tarjeta",
+        amount: tarjetaPagada,
+        bank: bancoTarjeta || null,
+        last4: ultimos4Tarjeta || null,
+        reference: null,
+        date,
+      })
+    }
+
+    const details = items
+      .filter(i => i.productId)
+      .map(i => ({
+        product_id: i.productId,
+        quantity: i.cantidad,
+        base_price: i.precio,
+        price: i.precioConDesc || i.precio,
+        subtotal: i.importeBase,
+        discount_pct: i.descuentoPct || 0,
+        discount_amount: i.descuentoMonto || 0,
+        tax_rate: i.ivaPct || 0,
+        tax_amount: i.ivaMonto || 0,
+        tax_type: i.ivaPct > 0 ? "IVA" : "EXENTO",
+      }))
+
+    if (!user?.id || !user?.nickname) {
+      toast.error("Sesión no válida")
+      return
+    }
+
+    const saleData = {
+      date,
+      time,   // ← ahora enviamos time también
+      type: "contado",
+      movement_reason: "VENTA_CONTADO",
+      customer_id: null,
+      subtotal,
+      tax_total: ivaTotal,
+      discount_total: descuentoTotal,
+      total: granTotal,
+      paid,
+      efectivo_recibido: efectivoRecibido,
+      cambio,
+      pending_balance: Math.max(granTotal - paid, 0),
+      status: paid >= granTotal ? "completed" : "pending",
+      id_user: user.id,
+      nickname_user: user.nickname,
+      details,
+      payments,
+    }
+
+    // Limpieza forzada de todos los strings (por seguridad)
+    Object.keys(saleData).forEach(key => {
+      if (typeof saleData[key] === 'string') {
+        saleData[key] = saleData[key].replace(/\//g, '-').trim();
+      }
+    });
+
+    console.log('Valores ENVIADOS al backend (revisa si hay "/"):', saleData);
+
+    try {
+      const res = await fetch(`${API_URL}/sales`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(saleData),
+      })
+
+      if (!res.ok) {
+        const err = await res.json()
+        throw new Error(err.error || "Error al guardar venta")
+      }
+
+      inicializadoRef.current = false
+      setItems([])
+      setEfectivo(0)
+      setTarjeta(0)
+      setBancoTarjeta("")
+      setUltimos4Tarjeta("")
+      setFocusArea("grilla")
+
+      toast.success("Venta guardada ✅")
+    } catch (err) {
+      console.error(err)
+      toast.error(err.message)
+    }
+  }
+
+  /* ===== ASEGURAR FILA INICIAL SOLO UNA VEZ ===== */
+  React.useEffect(() => {
+    if (inicializadoRef.current) return
+
+    if (items.length === 0) {
+      agregarItem()
+      setFocusPendiente({ row: 0, col: "codigoBarras" })
+    }
+
+    inicializadoRef.current = true
+  }, [items.length])
+
   /* ===== RENDER ===== */
   return (
     <div className="space-y-5">
@@ -310,7 +383,6 @@ export default function VentasContado() {
             Caja: <span className="font-semibold">{caja?.numero}</span>{" "}
             <span className="opacity-60">({caja?.tipo})</span>
           </div>
-
         </div>
 
         <Button onClick={agregarItem} className="bg-emerald-600 gap-2">
@@ -339,7 +411,7 @@ export default function VentasContado() {
         setActiveCell={setActiveCell}
         manejarTeclas={manejarTeclas}
         actualizarItem={actualizarItem}
-        eliminarItem={eliminarItem}
+        eliminarItemSeguro={eliminarItemSeguro}
         buscarProductoPorCodigo={buscarProductoPorCodigo}
         buscarProductoPorNombre={buscarProductoPorNombre}
         mostrarLista={mostrarLista}

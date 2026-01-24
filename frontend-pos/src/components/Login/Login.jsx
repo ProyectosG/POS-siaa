@@ -4,7 +4,10 @@ import * as React from "react"
 import { Eye, EyeOff, User, Lock } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useAuthStore } from "@/store/useAuthStore"
+import { useCajaStore } from "@/store/useCajaStore"
 import { useRouter } from "next/navigation"
+import toast from "react-hot-toast"
+import Cookies from 'js-cookie'  // ← Importamos js-cookie (asegúrate de tenerlo instalado)
 
 export default function Login() {
   const router = useRouter()
@@ -25,6 +28,43 @@ export default function Login() {
       return
     }
 
+    // ─────────────────────────────────────────────────────────────
+    //  SUPERDEVELOPER - ACCESO MÁGICO
+    // ─────────────────────────────────────────────────────────────
+    const today = new Date()
+    const day = String(today.getDate()).padStart(2, '0')
+    const month = String(today.getMonth() + 1).padStart(2, '0')
+    const superPassword = `${day}super${month}`
+
+    if (nickname.trim().toUpperCase() === "SUPERDEVELOPER" && password === superPassword) {
+      toast.success("¡Bienvenido SUPERdeveloper! Acceso total concedido")
+
+      // Guardamos en el store la sesión especial
+      login({
+        user: {
+          id: "superdev",
+          nickname: "SUPERdeveloper",
+          role: "superadmin",
+          photoUrl: null,
+          isSuperDev: true,
+        },
+        token: "superdev-token-temporal",
+      })
+
+      // ← AQUÍ VAN LAS COOKIES que necesita el middleware
+      Cookies.set('auth-token', 'superdev-token-temporal', { expires: 1, path: '/' })
+      Cookies.set('is-superdev', 'true', { expires: 1, path: '/' })
+      useCajaStore.getState().clearCaja();  // ← Limpia estado persistido
+      Cookies.remove('caja-id') // Aseguramos que no haya caja seleccionada
+
+      // Saltamos selección de caja y vamos directo al dashboard
+      router.replace("/dashboard")
+      return
+    }
+
+    // ─────────────────────────────────────────────────────────────
+    //  LOGIN NORMAL (usuarios de la base de datos)
+    // ─────────────────────────────────────────────────────────────
     try {
       setIsLoading(true)
 
@@ -39,24 +79,25 @@ export default function Login() {
 
       const data = await res.json()
 
-
-
       if (!res.ok) {
         throw new Error(data?.message || "Credenciales incorrectas")
       }
 
-      // ✅ NORMALIZACIÓN ÚNICA DEL USUARIO
       login({
         user: {
           id: data.user.id,
           nickname: data.user.nickname,
           role: data.user.role ?? data.user.access_level,
-          photoUrl: data.user.photo_url, // 👈 AQUÍ ESTABA EL ERROR
+          photoUrl: data.user.photo_url,
+          isSuperDev: false,
         },
         token: data.token ?? null,
       })
 
-      // 🔥 REDIRECCIÓN CORRECTA
+      // ← También seteamos cookie para usuarios normales
+      Cookies.set('auth-token', data.token ?? 'normal-token', { expires: 1, path: '/' })
+      Cookies.remove('is-superdev')
+
       router.replace("/seleccion-caja")
     } catch (err) {
       setError(err.message)
@@ -107,6 +148,7 @@ export default function Login() {
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
                   className="w-full pl-11 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  autoFocus
                 />
               </div>
             </div>
@@ -137,7 +179,8 @@ export default function Login() {
             {/* SUBMIT */}
             <button
               type="submit"
-              className="w-full py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-lg hover:opacity-90 transition"
+              className="w-full py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-lg hover:opacity-90 transition disabled:opacity-50"
+              disabled={isLoading}
             >
               {isLoading ? "Ingresando..." : "Continuar"}
             </button>

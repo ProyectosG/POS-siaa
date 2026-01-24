@@ -12,13 +12,13 @@ export default function Home() {
 
   useEffect(() => {
     if (!user) {
-      router.replace("/login")
-    } else if (!caja) {
-      router.replace("/seleccion-caja")
+      router.replace("/login");
+    } else if (!caja && !user.isSuperDev) {  // ← Añade !user.isSuperDev
+      router.replace("/seleccion-caja");
     } else {
-      router.replace("/dashboard")
+      router.replace("/dashboard");
     }
-  }, [user, caja])
+  }, [user, caja, router]);
 
   return (
     <div className="min-h-screen flex items-center justify-center text-muted-foreground">

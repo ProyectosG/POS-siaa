@@ -122,3 +122,30 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* En globals.css o en un componente */
+.custom-dialog-content {
+  width: 94vw !important;
+  max-width: 1650px !important;
+  max-height: 96vh !important;
+  padding: 2.5rem !important; /* p-10 */
+}
+
+/* Animación sutil de pulso (glow) para cantidades centrales */
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 15px rgba(34, 197, 94, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(34, 197, 94, 0.6);
+  }
+}
+
+.animate-glow {
+  animation: glow 3s infinite ease-in-out;
+}
+
+.glow-text {
+  animation: glow 3s infinite ease-in-out;
+  text-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
+}

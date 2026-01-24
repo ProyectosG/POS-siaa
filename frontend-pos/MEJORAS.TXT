@@ -1,0 +1,7 @@
+1. en vents de contado la leyenda descuento abajo en resumen cambiarla x ahorro.
+2. algunas teclas para aplicar descuento totales al tcket a todas las partidas, o solo a categorias
+3. faltan las salidas
+4. Enmradas y saidas no permitir cantidades negativas
+5; lapantalla iicial al ingresar por primera vez
+6. el monto a cobrar en la tarajeta se pone un cero que siempre estorba
+7. EN ENTADAS Y SALIDAS CAPTURAR FLUIDAMENTE SIN MOUSE, IR MOVIENDO EL FCUS ALELEMENTO SIGUIENTE..

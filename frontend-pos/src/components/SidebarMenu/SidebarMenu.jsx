@@ -27,7 +27,10 @@ const menuItems = [
     label: "VENTAS",
     icon: <ShoppingCart className="w-5 h-5" />,
     iconColor: "text-emerald-500",
-    subItems: [{ label: "Ventas Contado", href: "/dashboard/ventas/contado" }],
+    subItems: [
+      { label: "Ventas Contado", href: "/dashboard/ventas/contado" },
+      { label: "Ventas Apartado", href: "/dashboard/ventas/apartado" }
+    ],
   },
   {
     label: "COMPRAS",
@@ -40,7 +43,7 @@ const menuItems = [
     icon: <Receipt className="w-5 h-5" />,
     iconColor: "text-amber-500",
     subItems: [
-      { label: "Cortes X", href: "/dashboard/cortes/x" },
+      { label: "Cortes X", href: "/dashboard/cortes/cortesx" },
       { label: "Cortes Z", href: "/dashboard/cortes/z" },
     ],
   },
@@ -58,8 +61,9 @@ const menuItems = [
     icon: <CreditCard className="w-5 h-5" />,
     iconColor: "text-rose-500",
     subItems: [
-      { label: "Registro de Abonos", href: "/dashboard/cxc/abonos" },
-      { label: "Estados de Cuenta", href: "/dashboard/cxc/estados" },
+      { label: "Registro de Abonos", href: "/dashboard/cxc/registroAbonosApartados" },
+      { label: "Estados de Cuenta", href: "/dashboard/cxc/estadodecuenta" },
+      
     ],
   },
   {
@@ -73,13 +77,20 @@ const menuItems = [
       { label: "Proveedores", href: "/dashboard/catalogos/proveedores" },
       { label: "Usuarios", href: "/dashboard/catalogos/usuarios" },
       { label: "Cajas", href: "/dashboard/catalogos/cajas" },
+
+
+
     ],
   },
   {
     label: "REPORTES",
     icon: <FileText className="w-5 h-5" />,
     iconColor: "text-orange-500",
-    subItems: [],
+    subItems: [
+         { label: "ListarTodosProductos", href: "/dashboard/reportes/listarTodosProductos" },
+         { label: "Kardex", href: "/dashboard/inventario/kardex" },
+         { label: "Lista de Ventas", href: "/dashboard/reportes/listaVentas" },     
+    ],
   },
   {
     label: "TOOLS",
@@ -88,6 +99,7 @@ const menuItems = [
     subItems: [
       { label: "Tickets", href: "/dashboard/tools/tickets" },
       { label: "Seguridad", href: "/dashboard/tools/seguridad" },
+      { label: "Resetear Datos", href: "/dashboard/tools/resetDatos" },
     ],
   },
 ]

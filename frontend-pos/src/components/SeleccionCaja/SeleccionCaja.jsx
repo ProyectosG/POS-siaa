@@ -1,68 +1,95 @@
 "use client"
 
 import * as React from "react"
-import { Eye, EyeOff, CreditCard, Key } from "lucide-react"
+import { useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { useAuthStore } from "@/store/useAuthStore"
 import { useCajaStore } from "@/store/useCajaStore"
+import { Eye, EyeOff, CreditCard, Key } from "lucide-react"
 import { cn } from "@/lib/utils"
+import toast from "react-hot-toast"
+import Cookies from 'js-cookie';  
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 export function SeleccionCaja() {
   const router = useRouter()
+  const user = useAuthStore((state) => state.user)
   const setCaja = useCajaStore((state) => state.setCaja)
 
+  // Si es SUPERdeveloper → saltar directamente al dashboard
+  useEffect(() => {
+    if (user?.isSuperDev) {
+      toast.success("SUPERdeveloper detectado → Acceso directo al dashboard")
+      router.replace("/dashboard")
+    }
+  }, [user, router])
+
+  // ─────────────────────────────────────────────────────────────
+  //  Si NO es superdev → mostrar pantalla normal de selección de caja
+  // ─────────────────────────────────────────────────────────────
   const [showCajaKey, setShowCajaKey] = React.useState(false)
   const [numeroCaja, setNumeroCaja] = React.useState("")
   const [claveCaja, setClaveCaja] = React.useState("")
   const [error, setError] = React.useState("")
   const [loading, setLoading] = React.useState(false)
 
-  const handleCajaSubmit = async (e) => {
-    e.preventDefault()
-    setError("")
 
-    if (!numeroCaja || !claveCaja) {
-      setError("Por favor ingresa número y clave de caja")
-      return
+
+const handleCajaSubmit = async (e) => {
+  e.preventDefault();
+  setError("");
+
+  if (!numeroCaja || !claveCaja) {
+    setError("Por favor ingresa número y clave de caja");
+    return;
+  }
+
+  try {
+    setLoading(true);
+
+    const res = await fetch(`${API_URL}/cash-registers/abrir`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        numero_caja: numeroCaja,
+        password: claveCaja,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.error || "Error al abrir la caja");
     }
 
-    try {
-      setLoading(true)
+    // Guardar en Zustand store
+    setCaja({
+      id: data.id,
+      numero: data.numero_caja,
+      tipo: data.tipo_caja,
+      abiertaEn: data.abierta_en,
+    });
 
-      // 🔥 ABRIR / VALIDAR CAJA (BACKEND)
-      const res = await fetch(`${API_URL}/cash-registers/abrir`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          numero_caja: numeroCaja,
-          password: claveCaja,
-        }),
-      })
+    // ← ¡ESTO ES LO QUE FALTABA! Middleware lo necesita
+    Cookies.set('caja-id', data.id.toString(), { 
+      expires: 1, 
+      path: '/', 
+      sameSite: 'strict' 
+    });
 
-      const data = await res.json()
-      console.log(data)
+    toast.success(`Caja ${data.numero_caja} abierta`);
+    router.replace("/dashboard");
+  } catch (err) {
+    setError(err.message || "Error desconocido al abrir caja");
+  } finally {
+    setLoading(false);
+  }
+};
 
-      if (!res.ok) {
-        throw new Error(data.error || "Error al abrir la caja")
-      }
-
-      // 🔐 GUARDAR CAJA VALIDADA (STORE GLOBAL)
-      setCaja({
-        id: data.id,
-        numero: data.numero_caja,
-        tipo: data.tipo_caja,
-        abiertaEn: data.abierta_en,
-      })
-
-      router.replace("/dashboard")
-    } catch (err) {
-      setError(err.message)
-    } finally {
-      setLoading(false)
-    }
+  // Si es superdev, no renderizamos nada (ya se redirigió)
+  if (user?.isSuperDev) {
+    return null // o un loader muy breve
   }
 
   return (
@@ -110,7 +137,7 @@ export function SeleccionCaja() {
               </div>
             </div>
 
-            {/* CLAVE (VISUAL / FUTURA VALIDACIÓN BACKEND) */}
+            {/* CLAVE */}
             <div>
               <label className="block text-sm text-slate-300 mb-2">
                 Clave de Caja

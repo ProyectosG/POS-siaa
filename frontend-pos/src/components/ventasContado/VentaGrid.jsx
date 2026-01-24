@@ -4,6 +4,8 @@ import { Trash2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
+
+
 const cellActiveClass = (row, col, activeCell) =>
   activeCell.row === row && activeCell.col === col
     ? "ring-2 ring-emerald-500 bg-emerald-50"
@@ -27,7 +29,7 @@ export default function VentaGrid({
   manejarTeclas,
 
   actualizarItem,
-  eliminarItem,
+  eliminarItemSeguro,
 
   buscarProductoPorCodigo,
   buscarProductoPorNombre,
@@ -58,21 +60,33 @@ export default function VentaGrid({
         }
       `}
     >
-      <table className="w-full text-sm">
-        <thead className="bg-muted/40">
-          <tr>
-            <th>Cant.</th>
-            <th>Código</th>
-            <th>Artículo</th>
-            <th>Present.</th>
-            <th className="text-right">Precio</th>
-            {mostrarDescuento && (
-              <th className="text-right text-blue-600">Desc %</th>
-            )}
-            <th className="text-right">Importe</th>
-            <th />
-          </tr>
-        </thead>
+   <table className="w-full text-sm">
+  <colgroup>
+    <col style={{ width: "7ch" }} />
+    <col style={{ width: "18ch" }} />
+    <col style={{ width: "30ch" }} />
+    <col style={{ width: "15ch" }} />
+    <col style={{ width: "10ch" }} />
+    <col style={{ width: mostrarDescuento ? "6ch" : "0ch" }} />
+    <col style={{ width: "12ch" }} />
+    <col style={{ width: "4ch" }} />
+  </colgroup>
+
+<thead className="bg-muted/40">
+  <tr>
+    <th className="text-centerpx-3">Cant.</th>
+    <th className="text-center px-3">Código</th>
+    <th className="text-center px-3">Artículo</th>
+    <th className="text-center px-3">Presentacion</th>
+    <th className="text-center px-3">Precio</th>
+    {mostrarDescuento && (
+      <th className="text-right px-3 text-blue-600">Desc %</th>
+    )}
+    <th className="text-right px-3">Importe</th>
+    <th />
+  </tr>
+</thead>
+
 
         <tbody>
           {items.map((i, index) => (
@@ -103,7 +117,7 @@ export default function VentaGrid({
                   data-col="codigoBarras"
                   value={i.codigoBarras}
                   onChange={(e) =>
-                    actualizarItem(i.id, "codigoBarras", e.target.value)
+                    actualizarItem(i.id, "codigoBarras", e.target.value.toUpperCase())
                   }
                   onKeyDown={(e) => {
                     manejarTeclas(e, index, "codigoBarras")
@@ -130,9 +144,9 @@ export default function VentaGrid({
                   data-col="articulo"
                   value={i.articulo}
                   onChange={(e) => {
-                    buscarProductoPorNombre(e.target.value, index)
+                    buscarProductoPorNombre(e.target.value.toUpperCase(), index)
                     if (!i.precios || i.precios.length === 0) {
-                      actualizarItem(i.id, "articulo", e.target.value)
+                      actualizarItem(i.id, "articulo", e.target.value.toUpperCase())
                     }
                   }}
                   onKeyDown={(e) => manejarTeclas(e, index, "articulo")}
@@ -215,11 +229,11 @@ export default function VentaGrid({
                 ${fmt(i.importe)}
               </td>
 
-              <td>
+             <td className="pl-2">
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => eliminarItem(i.id)}
+                  onClick={() => eliminarItemSeguro(i.id)}
                 >
                   <Trash2 className="w-4 h-4 text-red-500" />
                 </Button>

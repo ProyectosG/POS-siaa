@@ -1,6 +1,8 @@
 "use client"
 
 import React, { useEffect, useMemo, useState } from "react"
+import { useAuthStore } from "@/store/useAuthStore"
+
 import { Save, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -33,9 +35,13 @@ export default function CatalogoProductosForm({ product, onSave, onCancel }) {
     subfamily: "",
   })
 
+  const { user } = useAuthStore()
+
   const [imagePreview, setImagePreview] = useState(product?.photo_url || "")
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(false)
+  const [activeTab, setActiveTab] = useState("general")
+
 
   useEffect(() => {
     fetch(`${API_URL}/categories`)
@@ -144,6 +150,13 @@ export default function CatalogoProductosForm({ product, onSave, onCancel }) {
       return
     }
 
+    if (!user?.id || !user?.nickname) {
+      alert("Sesión no válida")
+      setLoading(false)
+    return
+}
+
+
     const method = product ? "PUT" : "POST"
     const url = product
       ? `${API_URL}/products/${product.id}`
@@ -159,6 +172,10 @@ export default function CatalogoProductosForm({ product, onSave, onCancel }) {
       ieps: parseFloat(formData.ieps) || null,
       stock: parseInt(formData.stock) || 0,
       category_id: selectedCategory.id,
+
+      // 🔥 CONTEXTO DE USUARIO
+        id_user: user.id,
+        nickname_user: user.nickname,
       // photo_url ya está en base64
     }
 
@@ -198,44 +215,54 @@ export default function CatalogoProductosForm({ product, onSave, onCancel }) {
         </div>
       </header>
 
-      <Tabs defaultValue="general">
-        <TabsList className="grid grid-cols-4">
-          <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="precios">Precios</TabsTrigger>
-          <TabsTrigger value="inventario">Inventario</TabsTrigger>
-          <TabsTrigger value="imagen">Imagen</TabsTrigger>
-        </TabsList>
+ <Tabs value={activeTab} onValueChange={setActiveTab}>
+      {/* ===== LISTA DE TABS ===== */}
+      <TabsList className="grid grid-cols-4">
+        <TabsTrigger value="general">General</TabsTrigger>
+        <TabsTrigger value="precios">Precios</TabsTrigger>
+        <TabsTrigger value="inventario">Inventario</TabsTrigger>
+        <TabsTrigger value="imagen">Imagen</TabsTrigger>
+      </TabsList>
 
-        <TabsContent value="general">
-          <TabGeneral
-            formData={formData}
-            onChange={update}
-            imagePreview={imagePreview}
-            isEditing={!!product}
-          />
-        </TabsContent>
+      {/* ===== GENERAL ===== */}
+      <TabsContent value="general">
+        <TabGeneral
+          formData={formData}
+          onChange={update}
+          imagePreview={imagePreview}
+          isEditing={!!product}
+          // 🔥 CUANDO TERMINA UNIDAD → SALTA A PRECIOS
+          onGoToPrecios={() => setActiveTab("precios")}
+        />
+      </TabsContent>
 
-        <TabsContent value="precios">
-          <TabPrecios formData={formData} onChange={update} />
-        </TabsContent>
+      {/* ===== PRECIOS ===== */}
+      <TabsContent value="precios">
+        <TabPrecios
+          formData={formData}
+          onChange={update}
+        />
+      </TabsContent>
 
-        <TabsContent value="inventario">
-          <TabInventario
-            formData={formData}
-            categories={categories}
-            subfamilies={subfamilies}
-            onChange={update}
-          />
-        </TabsContent>
+      {/* ===== INVENTARIO ===== */}
+      <TabsContent value="inventario">
+        <TabInventario
+          formData={formData}
+          categories={categories}
+          subfamilies={subfamilies}
+          onChange={update}
+        />
+      </TabsContent>
 
-        <TabsContent value="imagen">
-          <TabImagen
-            imagePreview={imagePreview}
-            onSelect={handleImageSelect}
-            onRemove={removeImage}
-          />
-        </TabsContent>
-      </Tabs>
+      {/* ===== IMAGEN ===== */}
+      <TabsContent value="imagen">
+        <TabImagen
+          imagePreview={imagePreview}
+          onSelect={handleImageSelect}
+          onRemove={removeImage}
+        />
+      </TabsContent>
+    </Tabs>
     </form>
   )
 }
