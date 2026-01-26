@@ -1,101 +1,98 @@
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import { Printer, DollarSign, CheckCircle } from "lucide-react";
-import { useReactToPrint } from "react-to-print";
 import { useCajaStore } from "@/store/useCajaStore";
-import { cn } from "@/lib/utils";
 import toast from "react-hot-toast";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 export default function CorteDeCaja() {
   const { caja } = useCajaStore();
   const [data, setData] = useState(null);
   const [ticketRange, setTicketRange] = useState({ firstTicket: null, lastTicket: null });
   const [loading, setLoading] = useState(true);
-  const printRef = useRef();
+  const [confirming, setConfirming] = useState(false); // ← Nuevo estado para deshabilitar botón
 
   // Cargar datos del corte + rango de tickets
-  useEffect(() => {
-    const fetchCorte = async () => {
-      try {
-        // 1. Datos principales del corte
-        const corteRes = await fetch(`${API_URL}/cuts/current`);
-        if (!corteRes.ok) throw new Error("Error al obtener datos del corte");
-        const corteData = await corteRes.json();
-        setData(corteData);
+  const fetchCorte = async () => {
+    try {
+      setLoading(true);
+      const corteRes = await fetch(`${API_URL}/cuts/current`);
+      if (!corteRes.ok) throw new Error("Error al obtener datos del corte");
+      const corteData = await corteRes.json();
+      setData(corteData);
 
-        // 2. Rango de tickets
-        const rangeRes = await fetch(
-          `${API_URL}/sales/range?desde=${corteData.desde}&hasta=${corteData.hasta}`
-        );
-        if (!rangeRes.ok) throw new Error("Error al obtener rango de tickets");
-        const rangeData = await rangeRes.json();
-        setTicketRange({
-          firstTicket: rangeData.firstTicket,
-          lastTicket: rangeData.lastTicket
-        });
-      } catch (err) {
-        toast.error(err.message || "No se pudo cargar el corte 😔");
-      } finally {
-        setLoading(false);
-      }
-    };
+      const rangeRes = await fetch(
+        `${API_URL}/sales/range?desde=${corteData.desde}&hasta=${corteData.hasta}`
+      );
+      if (!rangeRes.ok) throw new Error("Error al obtener rango de tickets");
+      const rangeData = await rangeRes.json();
+      setTicketRange({
+        firstTicket: rangeData.firstTicket,
+        lastTicket: rangeData.lastTicket
+      });
+    } catch (err) {
+      toast.error(err.message || "No se pudo cargar el corte 😔");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchCorte();
   }, []);
 
-  const handlePrint = useReactToPrint({
-    content: () => printRef.current,
-    documentTitle: `Corte_X_${new Date().toLocaleDateString('es-MX')}`,
-    onAfterPrint: () => toast.success("¡Ticket impreso! 🖨️💸"),
-  });
+  // HANDLER IMPRIMIR CORTE DIRECTAMENTE
+  const handlePrint = async () => {
+    try {
+      const printUrl = `${API_URL}/cuts/print/current`;
+      const res = await fetch(printUrl);
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Error ${res.status} al imprimir corte`);
+      }
+
+      const data = await res.json();
+      toast.success("¡Corte X impreso directamente en impresora! 🖨️💸");
+    } catch (err) {
+      toast.error("No se pudo imprimir el corte: " + err.message);
+    }
+  };
 
   // HANDLER CONFIRMAR CORTE
   const handleConfirmarCorte = async () => {
-    if (!data || !ticketRange) return;
+    if (!data || !ticketRange || confirming) return;
+
+    setConfirming(true); // Deshabilitar botón
 
     try {
       const payload = {
-        // Tipo de corte
         type: "X",
-
-        // Fechas
         date: new Date().toISOString().split("T")[0],
         desde: data.desde,
         hasta: data.hasta,
-
-        // Identidad
         cash_register: data.cash_register || null,
         user_nickname: data.user_nickname || null,
-
-        // Ventas
         total_sales: data.ventas.total_ventas_monto || 0,
         ventas_contado: data.ventas.ventas_contado || 0,
         ventas_credito: data.ventas.ventas_credito || 0,
         ventas_apartado: data.ventas.ventas_apartado || 0,
         total_iva_gravado: data.ventas.total_iva_gravado || 0,
-
-        // Pagos (desglosados por método)
         pago_efectivo: data.pagos.efectivo || 0,
         pago_tarjeta: data.pagos.tarjeta || 0,
         pago_transferencia: data.pagos.transferencia || 0,
         pago_otros: data.pagos.otros || 0,
-
-        // Totales derivados
         total_recibido: data.total_recibido || 0,
         total_anticipos: data.total_anticipos || 0,
         total_abonos: data.total_abonos || 0,
-
-        // Caja
         cash_in_box: data.pagos.efectivo || 0,
-
-        // Tickets
         first_ticket: ticketRange.firstTicket,
         last_ticket: ticketRange.lastTicket,
       };
 
-      console.log("📦 Payload corte:", payload);
+      console.log("📦 Payload corte:", JSON.stringify(payload, null, 2));
 
       const res = await fetch(`${API_URL}/cuts`, {
         method: "POST",
@@ -103,15 +100,22 @@ export default function CorteDeCaja() {
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) throw new Error("Error al registrar corte");
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Error al registrar corte");
+      }
 
       toast.success("¡Corte X registrado con éxito! 🎉");
+
+      // 4. Recargar datos inmediatamente (el nuevo corte será el "último")
+      await fetchCorte();
     } catch (err) {
-      console.error("❌ Error corte:", err);
+      console.error("❌ Error al registrar corte:", err);
       toast.error("No se pudo registrar el corte 😢");
+    } finally {
+      setConfirming(false); // Habilitar botón de nuevo
     }
   };
-  // FINALIZA HANDLE-CONFIRMAR-CORTE
 
   if (loading) {
     return (
@@ -126,17 +130,15 @@ export default function CorteDeCaja() {
     return <div className="text-center text-red-400 text-xl">No hay datos para mostrar 😔</div>;
   }
 
-  // Cálculos corregidos y seguros
   const totalRecibido = Object.values(data.pagos).reduce((sum, amt) => sum + Number(amt || 0), 0);
 
   const totalContado = data.ventas.ventas_contado || 0;
-  const totalAnticipos = data.total_anticipos || 0;   // Solo anticipos reales (payment_type='anticipo')
-  const totalAbonos = data.total_abonos || 0;         // Solo abonos reales (payment_type='abono')
+  const totalAnticipos = data.total_anticipos || 0;
+  const totalAbonos = data.total_abonos || 0;
 
-  // Aseguramos que "tarjeta" siempre aparezca (incluso si es 0)
   const pagosConTarjeta = {
     ...data.pagos,
-    tarjeta: data.pagos.tarjeta || 0  // Forzamos que exista con 0 si no hay
+    tarjeta: data.pagos.tarjeta || 0
   };
 
   return (
@@ -163,7 +165,6 @@ export default function CorteDeCaja() {
           <DollarSign size={28} /> Ventas Totales
         </h2>
 
-        {/* Cards de totales por tipo */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="p-5 bg-slate-800/80 rounded-xl border border-slate-700 text-center shadow-lg animate-pulse-slow">
             <p className="text-slate-300 mb-1 text-base">Total Ventas</p>
@@ -183,7 +184,6 @@ export default function CorteDeCaja() {
           </div>
         </div>
 
-        {/* IVA Gravado - DISCRETO */}
         <div className="text-center bg-slate-800/20 p-3 rounded-lg border border-yellow-500/10 shadow-sm max-w-xs mx-auto mt-2">
           <h3 className="text-sm font-normal text-yellow-400 mb-0.5">Ventas Gravadas con IVA</h3>
           <p className="text-lg text-white font-normal">
@@ -199,7 +199,6 @@ export default function CorteDeCaja() {
           <DollarSign size={28} /> Dinero Recibido
         </h2>
 
-        {/* Card verde centrada del TOTAL RECIBIDO EN CORTE - PRIMERO */}
         <div className="text-center bg-gradient-to-r from-green-900/30 to-green-800/30 p-8 rounded-2xl border border-green-500/40 shadow-2xl max-w-lg mx-auto mb-6 animate-glow">
           <h3 className="text-xl font-semibold text-green-400 mb-2">TOTAL RECIBIDO EN CORTE</h3>
           <p className="text-5xl font-extrabold text-green-300 glow-text">
@@ -208,9 +207,7 @@ export default function CorteDeCaja() {
           <p className="text-sm text-slate-400 mt-3">(Efectivo + Tarjeta + Otros)</p>
         </div>
 
-        {/* Dos columnas simétricas */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          {/* Columna izquierda: Totales específicos */}
           <div className="flex flex-col justify-center items-center min-h-[220px] space-y-6 bg-slate-800/40 rounded-xl border border-slate-600 p-6">
             <div className="border-b border-slate-600 pb-3 w-full text-center">
               <p className="text-slate-300 text-base mb-1">Total de Contado</p>
@@ -226,7 +223,6 @@ export default function CorteDeCaja() {
             </div>
           </div>
 
-          {/* Columna derecha: Formas de pago (forzamos "tarjeta" siempre) */}
           <div className="flex flex-col justify-center items-center min-h-[220px] space-y-6 bg-slate-800/40 rounded-xl border border-slate-600 p-6">
             <div className="border-b border-slate-600 pb-3 w-full text-center">
               <p className="text-slate-300 text-base mb-1">Formas de Pago</p>
@@ -260,58 +256,21 @@ export default function CorteDeCaja() {
       <div className="flex flex-col sm:flex-row justify-center gap-6 mt-12">
         <button
           onClick={handleConfirmarCorte}
-          className="px-10 py-5 bg-gradient-to-r from-green-600 to-green-500 text-white font-bold text-lg rounded-xl hover:from-green-700 hover:to-green-600 transition flex items-center justify-center gap-3 shadow-lg"
+          disabled={confirming || loading}
+          className={`px-10 py-5 bg-gradient-to-r from-green-600 to-green-500 text-white font-bold text-lg rounded-xl hover:from-green-700 hover:to-green-600 transition flex items-center justify-center gap-3 shadow-lg ${
+            confirming || loading ? 'opacity-50 cursor-not-allowed' : ''
+          }`}
         >
-          <CheckCircle size={24} /> Confirmar Corte X
+          <CheckCircle size={24} />
+          {confirming ? 'Confirmando...' : 'Confirmar Corte X'}
         </button>
+
         <button
           onClick={handlePrint}
           className="px-10 py-5 bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-bold text-lg rounded-xl hover:from-blue-700 hover:to-cyan-600 transition flex items-center justify-center gap-3 shadow-lg"
         >
-          <Printer size={24} /> Imprimir Ticket
+          <Printer size={24} /> Imprimir Corte (Térmica)
         </button>
-      </div>
-
-      {/* Contenido imprimible oculto */}
-      <div ref={printRef} className="hidden print:block p-8 bg-white text-black font-mono text-sm">
-        <div className="text-center mb-6">
-          <h1 className="text-2xl font-bold">CORTE X DE CAJA</h1>
-          <p>Caja: {caja?.numero || "N/A"} | Fecha: {data.hasta}</p>
-          <p>Desde: {data.desde} | Hasta: {data.hasta}</p>
-          {ticketRange.firstTicket && ticketRange.lastTicket && (
-            <p>Del Ticket: {ticketRange.firstTicket} al Ticket: {ticketRange.lastTicket}</p>
-          )}
-        </div>
-        <hr className="my-4 border-black" />
-
-        <h2 className="font-bold text-lg mt-4">VENTAS TOTALES</h2>
-        <p>Total Ventas: ${data.ventas.total_ventas_monto?.toFixed(2) || "0.00"}</p>
-        <p>Contado: ${data.ventas.ventas_contado?.toFixed(2) || "0.00"}</p>
-        <p>Crédito: ${data.ventas.ventas_credito?.toFixed(2) || "0.00"}</p>
-        <p>Apartado: ${data.ventas.ventas_apartado?.toFixed(2) || "0.00"}</p>
-
-        <p className="font-bold mt-4">IVA TOTAL GRAVADO: ${data.ventas.total_iva_gravado?.toFixed(2) || "0.00"}</p>
-
-        <hr className="my-4 border-black" />
-
-        <h2 className="font-bold text-lg mt-4">DINERO RECIBIDO</h2>
-        <p>Total de Contado: ${totalContado.toFixed(2)}</p>
-        <p>Total Anticipos: ${totalAnticipos.toFixed(2)}</p>
-        <p>Total Abonos: ${totalAbonos.toFixed(2)}</p>
-        {Object.entries(pagosConTarjeta).map(([method, amount]) => (
-          <p key={method}>
-            {method.toUpperCase()}: ${Number(amount).toFixed(2)}
-          </p>
-        ))}
-        <p className="font-bold mt-2">
-          TOTAL RECIBIDO EN CORTE: ${totalRecibido.toFixed(2)}
-        </p>
-
-        <hr className="my-4 border-black" />
-
-        <div className="text-center mt-10 text-sm">
-          <p>¡Gracias por tu turno! 🎉 Sigue rockeándola 💪</p>
-        </div>
       </div>
     </div>
   );
