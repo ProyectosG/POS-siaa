@@ -10,11 +10,9 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 export default function CorteDeCaja() {
   const { caja } = useCajaStore();
   const [data, setData] = useState(null);
-  const [ticketRange, setTicketRange] = useState({ firstTicket: null, lastTicket: null });
   const [loading, setLoading] = useState(true);
-  const [confirming, setConfirming] = useState(false); // ← Nuevo estado para deshabilitar botón
+  const [confirming, setConfirming] = useState(false);
 
-  // Cargar datos del corte + rango de tickets
   const fetchCorte = async () => {
     try {
       setLoading(true);
@@ -22,16 +20,6 @@ export default function CorteDeCaja() {
       if (!corteRes.ok) throw new Error("Error al obtener datos del corte");
       const corteData = await corteRes.json();
       setData(corteData);
-
-      const rangeRes = await fetch(
-        `${API_URL}/sales/range?desde=${corteData.desde}&hasta=${corteData.hasta}`
-      );
-      if (!rangeRes.ok) throw new Error("Error al obtener rango de tickets");
-      const rangeData = await rangeRes.json();
-      setTicketRange({
-        firstTicket: rangeData.firstTicket,
-        lastTicket: rangeData.lastTicket
-      });
     } catch (err) {
       toast.error(err.message || "No se pudo cargar el corte 😔");
     } finally {
@@ -43,7 +31,6 @@ export default function CorteDeCaja() {
     fetchCorte();
   }, []);
 
-  // HANDLER IMPRIMIR CORTE DIRECTAMENTE
   const handlePrint = async () => {
     try {
       const printUrl = `${API_URL}/cuts/print/current`;
@@ -61,11 +48,10 @@ export default function CorteDeCaja() {
     }
   };
 
-  // HANDLER CONFIRMAR CORTE
   const handleConfirmarCorte = async () => {
-    if (!data || !ticketRange || confirming) return;
+    if (!data || confirming) return;
 
-    setConfirming(true); // Deshabilitar botón
+    setConfirming(true);
 
     try {
       const payload = {
@@ -88,11 +74,9 @@ export default function CorteDeCaja() {
         total_anticipos: data.total_anticipos || 0,
         total_abonos: data.total_abonos || 0,
         cash_in_box: data.pagos.efectivo || 0,
-        first_ticket: ticketRange.firstTicket,
-        last_ticket: ticketRange.lastTicket,
+        first_ticket: data.ticketRange?.firstTicket || null,
+        last_ticket: data.ticketRange?.lastTicket || null,
       };
-
-      console.log("📦 Payload corte:", JSON.stringify(payload, null, 2));
 
       const res = await fetch(`${API_URL}/cuts`, {
         method: "POST",
@@ -106,14 +90,12 @@ export default function CorteDeCaja() {
       }
 
       toast.success("¡Corte X registrado con éxito! 🎉");
-
-      // 4. Recargar datos inmediatamente (el nuevo corte será el "último")
-      await fetchCorte();
+      await fetchCorte(); // Recargar datos
     } catch (err) {
       console.error("❌ Error al registrar corte:", err);
       toast.error("No se pudo registrar el corte 😢");
     } finally {
-      setConfirming(false); // Habilitar botón de nuevo
+      setConfirming(false);
     }
   };
 
@@ -141,6 +123,11 @@ export default function CorteDeCaja() {
     tarjeta: data.pagos.tarjeta || 0
   };
 
+  // Determinar si hay tickets nuevos y válidos
+  const first = data.ticketRange?.firstTicket;
+  const last = data.ticketRange?.lastTicket;
+  const hasTickets = first && last && first <= last;
+
   return (
     <div className="max-w-4xl mx-auto p-6 bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl border border-slate-700 shadow-2xl">
       {/* Header */}
@@ -152,10 +139,16 @@ export default function CorteDeCaja() {
           Caja: <span className="font-bold text-cyan-400">{caja?.numero || "Sin caja"}</span> | 
           Desde: <span className="font-bold">{data.desde}</span> | Hasta: <span className="font-bold">{data.hasta}</span>
         </p>
-        {ticketRange.firstTicket && ticketRange.lastTicket && (
-          <div className="text-center mt-2 text-slate-400 text-sm font-medium">
-            Del Ticket: <span className="text-green-300 font-bold">{ticketRange.firstTicket}</span> al Ticket: <span className="text-green-300 font-bold">{ticketRange.lastTicket}</span>
-          </div>
+
+        {/* Leyenda del rango de tickets - ¡Pulida y correcta! */}
+        {hasTickets ? (
+          <p className="text-center mt-2 text-slate-400 text-sm font-medium">
+            Del Ticket: <span className="text-green-300 font-bold">{first}</span> al Ticket: <span className="text-green-300 font-bold">{last}</span>
+          </p>
+        ) : (
+          <p className="text-center mt-2 text-slate-500 text-sm italic">
+            Sin tickets nuevos en este período
+          </p>
         )}
       </div>
 
