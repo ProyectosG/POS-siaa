@@ -3,16 +3,16 @@ const sqlite3 = require('sqlite3').verbose();
 require('dotenv').config();
 const path = require('path');
 
-const dbPath = path.join(__dirname, '../pos.db'); // Mantengo tu ruta
+const dbPath = path.join(__dirname, '../pos.db');
 
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
     console.error('❌ Error al conectar a la base de datos:', err.message);
-    process.exit(1); // Salir si falla la conexión
+    process.exit(1);
   } else {
     console.log('✅ Conectado correctamente a SQLite →', dbPath);
 
-    // Habilitar foreign keys (muy importante para integridad)
+    // Habilitar foreign keys
     db.run('PRAGMA foreign_keys = ON;', (err) => {
       if (err) {
         console.error('Error al habilitar foreign keys:', err.message);
@@ -110,6 +110,7 @@ db.serialize(() => {
     nickname_user TEXT,
     efectivo_recibido REAL DEFAULT 0,
     cambio REAL DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,  -- ← Agregamos created_at aquí también
     FOREIGN KEY (customer_id) REFERENCES customers(id)
   )`);
 
@@ -123,7 +124,8 @@ db.serialize(() => {
     "ALTER TABLE sales ADD COLUMN status TEXT DEFAULT 'pending'",
     "ALTER TABLE sales ADD COLUMN time TEXT",
     "ALTER TABLE sales ADD COLUMN efectivo_recibido REAL DEFAULT 0",
-    "ALTER TABLE sales ADD COLUMN cambio REAL DEFAULT 0"
+    "ALTER TABLE sales ADD COLUMN cambio REAL DEFAULT 0",
+    "ALTER TABLE sales ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP"
   ];
 
   salesMigrations.forEach((sql) => {
@@ -172,7 +174,7 @@ db.serialize(() => {
   )`);
 
   // =========================
-  // CUTS
+  // CUTS ← Aquí agregamos created_at si no existe
   // =========================
   db.run(`CREATE TABLE IF NOT EXISTS cuts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -197,8 +199,32 @@ db.serialize(() => {
     cash_in_box REAL DEFAULT 0,
     first_ticket INTEGER,
     last_ticket INTEGER,
-    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   )`);
+
+  // Migración para agregar created_at a cuts (solo si no existe)
+  db.run(
+    `ALTER TABLE cuts ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP`,
+    (err) => {
+      if (err && !err.message.includes('duplicate column name')) {
+        console.error('Error al agregar columna created_at a cuts:', err.message);
+      } else if (!err) {
+        console.log('Columna created_at agregada a cuts correctamente');
+      }
+    }
+  );
+
+  // Si la tabla ya existía sin created_at, actualizamos los registros viejos con fecha actual
+  db.run(
+    `UPDATE cuts SET created_at = datetime('now') WHERE created_at IS NULL`,
+    (err) => {
+      if (err) {
+        console.error('Error al actualizar created_at en cortes existentes:', err.message);
+      } else {
+        console.log('created_at actualizado en registros existentes de cuts');
+      }
+    }
+  );
 
   // =========================
   // KARDEX
@@ -222,7 +248,7 @@ db.serialize(() => {
   )`);
 
   // =========================
-  // KARDEX REASONS (con seed si está vacío)
+  // KARDEX REASONS
   // =========================
   db.run(`CREATE TABLE IF NOT EXISTS kardex_reasons (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -4,32 +4,34 @@ const Cut = require('../models/Cut');
 
 /**
  * GET /api/cuts/current
- * Calcula el corte actual (X) desde el último corte hasta ahora
+ * Calcula el corte actual (X) desde el último corte registrado hasta la fecha/hora actual
  */
 exports.getCurrentCorte = async (req, res) => {
   try {
     // 1. Obtener el último corte registrado
     const ultimoCorte = await Cut.findLast();
 
-    // Definir rango de fechas
     let desde;
     if (ultimoCorte) {
-      // Desde la fecha del último corte + 1 segundo (para no incluirlo)
-      const fechaUltimo = new Date(ultimoCorte.date + ' ' + (ultimoCorte.time || '00:00:00'));
+      // Usamos el timestamp completo del último corte (created_at si existe, sino date + 00:00:00)
+      const fechaUltimo = ultimoCorte.created_at 
+        ? new Date(ultimoCorte.created_at)
+        : new Date(ultimoCorte.date + ' 00:00:00');
+
+      // Desde el último corte + 1 segundo (para no incluir ventas del corte anterior)
       fechaUltimo.setSeconds(fechaUltimo.getSeconds() + 1);
-      desde = fechaUltimo.toISOString().split('T')[0]; // Solo fecha YYYY-MM-DD
+      desde = fechaUltimo.toISOString(); // Formato completo: YYYY-MM-DDTHH:mm:ss.sssZ
     } else {
-      // Si no hay cortes previos, desde el inicio del sistema (ej: 2024-01-01)
-      desde = '2024-01-01';
+      // Si no hay cortes previos, desde una fecha inicial razonable
+      desde = '2024-01-01T00:00:00.000Z';
     }
 
-    // Hasta: fecha actual
-    const ahora = new Date();
-    const hasta = ahora.toISOString().split('T')[0];
+    // Hasta: fecha y hora actual exacta
+    const hasta = new Date().toISOString();
 
     console.log(`[Corte Actual] Calculando desde ${desde} hasta ${hasta}`);
 
-    // 2. Obtener totales de ventas en el rango
+    // 2. Obtener totales de ventas en el rango (usando timestamp completo)
     const ventas = await new Promise((resolve, reject) => {
       db.get(
         `
@@ -41,7 +43,7 @@ exports.getCurrentCorte = async (req, res) => {
           COALESCE(SUM(CASE WHEN type = 'apartado' THEN total ELSE 0 END), 0) AS ventas_apartado,
           COALESCE(SUM(tax_total), 0) AS total_iva_gravado
         FROM sales
-        WHERE date BETWEEN ? AND ?
+        WHERE datetime(created_at) >= datetime(?) AND datetime(created_at) <= datetime(?)
         `,
         [desde, hasta],
         (err, row) => {
@@ -51,7 +53,7 @@ exports.getCurrentCorte = async (req, res) => {
       );
     });
 
-    // 3. Dinero recibido correctamente clasificado
+    // 3. Dinero recibido clasificado por tipo (anticipos, abonos, pagos normales)
     const money = await new Promise((resolve, reject) => {
       db.get(
         `
@@ -61,7 +63,7 @@ exports.getCurrentCorte = async (req, res) => {
           COALESCE(SUM(CASE WHEN payment_type = 'normal' THEN amount ELSE 0 END), 0) AS total_normal
         FROM payments p
         JOIN sales s ON s.id = p.sale_id
-        WHERE s.date BETWEEN ? AND ?
+        WHERE datetime(s.created_at) >= datetime(?) AND datetime(s.created_at) <= datetime(?)
         `,
         [desde, hasta],
         (err, row) => {
@@ -71,14 +73,14 @@ exports.getCurrentCorte = async (req, res) => {
       );
     });
 
-    // 4. Pagos por método (desglose)
+    // 4. Pagos por método (efectivo, tarjeta, transferencia, otros)
     const pagosRows = await new Promise((resolve, reject) => {
       db.all(
         `
         SELECT method, SUM(amount) AS total
         FROM payments p
         JOIN sales s ON s.id = p.sale_id
-        WHERE s.date BETWEEN ? AND ?
+        WHERE datetime(s.created_at) >= datetime(?) AND datetime(s.created_at) <= datetime(?)
         GROUP BY method
         `,
         [desde, hasta],
@@ -94,21 +96,40 @@ exports.getCurrentCorte = async (req, res) => {
       return acc;
     }, {});
 
-    // 5. Total recibido
+    // 5. Total recibido (suma de todos los pagos)
     const total_recibido =
       money.total_anticipos +
       money.total_abonos +
       money.total_normal;
 
+    // 6. Rango de tickets (opcional, pero útil para el frontend)
+    const ticketRange = await new Promise((resolve, reject) => {
+      db.get(
+        `
+        SELECT 
+          MIN(id) AS first_ticket,
+          MAX(id) AS last_ticket
+        FROM sales
+        WHERE datetime(created_at) >= datetime(?) AND datetime(created_at) <= datetime(?)
+        `,
+        [desde, hasta],
+        (err, row) => {
+          if (err) reject(err);
+          else resolve(row || { first_ticket: null, last_ticket: null });
+        }
+      );
+    });
+
     // Respuesta completa
     res.json({
-      desde,
-      hasta,
+      desde: new Date(desde).toISOString().split('T')[0],
+      hasta: new Date(hasta).toISOString().split('T')[0],
       ventas,
       pagos,
       total_anticipos: money.total_anticipos,
       total_abonos: money.total_abonos,
       total_recibido,
+      ticketRange,
       ultimo_corte: ultimoCorte || null
     });
   } catch (err) {

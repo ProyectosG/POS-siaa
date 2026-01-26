@@ -84,11 +84,32 @@ app.use('/api/cuts', require('./src/routes/cutRoutes'));
 // =========================
 app.use('/api/reset', require('./src/routes/resetRoutes'));
 
+
+// =========================
+// RUTA DE HEALTH CHECK (nueva y útil)
+// =========================
+app.get('/health', (req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    message: 'Servidor POS activo',
+    database: 'conectado',
+    timestamp: new Date().toISOString(),
+    port: PORT
+  });
+});
+
+
 // Puerto
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-  console.log('CORS configurado para origin: http://localhost:3000');
-  console.log('Middleware de SUPERdeveloper activo');
+  console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
+  console.log('   - CORS habilitado para http://localhost:3000');
+  console.log('   - Middleware SUPERdeveloper activo');
+  console.log('   - Base de datos inicializada correctamente');
+  console.log('   - Rutas disponibles:');
+  console.log('     - /api/cuts/current → Corte actual');
+  console.log('     - /api/cuts → Registrar corte');
+  console.log('     - /api/cuts/print/current → Imprimir corte actual');
+  console.log('     - /health → Estado del servidor');
 });
