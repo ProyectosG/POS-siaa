@@ -1,192 +1,311 @@
-// src/controllers/cutController.js
 const db = require('../config/database');
 const Cut = require('../models/Cut');
 
 /**
- * GET /api/cuts/current
- * Calcula el corte actual (X) desde el último corte registrado hasta la última venta
+ * =========================================
+ * UTILIDADES DE TICKETS
+ * =========================================
+ */
+const getLastTicket = () =>
+  new Promise((resolve, reject) => {
+    db.get(
+      `SELECT MAX(id) AS last_ticket FROM sales`,
+      [],
+      (err, row) => {
+        if (err) reject(err);
+        else resolve(row?.last_ticket ?? null);
+      }
+    );
+  });
+
+const getFirstRealTicket = () =>
+  new Promise((resolve, reject) => {
+    db.get(
+      `SELECT id FROM sales ORDER BY id ASC LIMIT 1`,
+      [],
+      (err, row) => {
+        if (err) reject(err);
+        else resolve(row?.id ?? null);
+      }
+    );
+  });
+
+/**
+ * =========================================
+ * GET /api/cuts/current → Corte X actual
+ * =========================================
  */
 exports.getCurrentCorte = async (req, res) => {
   try {
-    // 1. Obtener el último corte registrado
     const ultimoCorte = await Cut.findLast();
 
-    // 2. Determinar el ticket inicial del corte actual
-    let lastTicketAnterior = ultimoCorte ? ultimoCorte.last_ticket : 0; // Si no hay corte previo, empezamos desde 0
-
-    // El primer ticket del corte actual será el siguiente al último del corte anterior
-    const firstTicketCurrent = lastTicketAnterior + 1;
-
-    // 3. Obtener la última venta registrada (para saber hasta qué ticket va el corte)
-    const ultimaVenta = await new Promise((resolve, reject) => {
-      db.get(
-        `SELECT MAX(id) AS last_ticket, 
-                MIN(id) AS first_ticket_periodo
-         FROM sales`,
-        [],
-        (err, row) => {
-          if (err) reject(err);
-          else resolve(row || { last_ticket: null, first_ticket_periodo: null });
-        }
-      );
-    });
-
-    const lastTicketActual = ultimaVenta.last_ticket || null;
-
-    console.log(`[Corte Actual] Rango de tickets: desde ${firstTicketCurrent} hasta ${lastTicketActual || 'sin ventas'}`);
-
-    // 4. Si no hay ventas nuevas, el corte actual estará en cero
-    if (!lastTicketActual || lastTicketActual < firstTicketCurrent) {
-      console.log('[Corte Actual] No hay ventas nuevas desde el último corte');
+    let desdeTicket;
+    if (ultimoCorte?.last_ticket != null) {
+      desdeTicket = ultimoCorte.last_ticket + 1;
+    } else {
+      desdeTicket = await getFirstRealTicket();
     }
 
-    // 5. Obtener totales de ventas en el rango de tickets
+    const hastaTicket = await getLastTicket();
+
+    if (desdeTicket === null || hastaTicket === null || desdeTicket > hastaTicket) {
+      return res.json({
+        ventas: {},
+        pagos: {},
+        total_recibido: 0,
+        total_anticipos: 0,
+        total_abonos: 0,
+        ticketRange: { first_ticket: null, last_ticket: null },
+        ultimo_corte: ultimoCorte || null,
+        tipo: 'X'
+      });
+    }
+
+    console.log(`[Corte X] Tickets ${desdeTicket} → ${hastaTicket}`);
+
     const ventas = await new Promise((resolve, reject) => {
       db.get(
         `
         SELECT 
           COUNT(*) AS total_ventas,
-          COALESCE(SUM(total), 0) AS total_ventas_monto,
-          COALESCE(SUM(CASE WHEN type = 'contado' THEN total ELSE 0 END), 0) AS ventas_contado,
-          COALESCE(SUM(CASE WHEN type = 'credito' THEN total ELSE 0 END), 0) AS ventas_credito,
-          COALESCE(SUM(CASE WHEN type = 'apartado' THEN total ELSE 0 END), 0) AS ventas_apartado,
-          COALESCE(SUM(tax_total), 0) AS total_iva_gravado
+          COALESCE(SUM(total),0) AS total_ventas_monto,
+          COALESCE(SUM(CASE WHEN type='contado' THEN total ELSE 0 END),0) AS ventas_contado,
+          COALESCE(SUM(CASE WHEN type='credito' THEN total ELSE 0 END),0) AS ventas_credito,
+          COALESCE(SUM(CASE WHEN type='apartado' THEN total ELSE 0 END),0) AS ventas_apartado,
+          COALESCE(SUM(tax_total),0) AS total_iva_gravado
         FROM sales
-        WHERE id >= ? AND id <= ?
+        WHERE id BETWEEN ? AND ?
         `,
-        [firstTicketCurrent, lastTicketActual || 0],
-        (err, row) => {
-          if (err) reject(err);
-          else resolve(row || {});
-        }
+        [desdeTicket, hastaTicket],
+        (err, row) => (err ? reject(err) : resolve(row))
       );
     });
 
-    // 6. Dinero recibido clasificado por tipo (anticipos, abonos, pagos normales)
     const money = await new Promise((resolve, reject) => {
       db.get(
         `
         SELECT
-          COALESCE(SUM(CASE WHEN payment_type = 'anticipo' THEN amount ELSE 0 END), 0) AS total_anticipos,
-          COALESCE(SUM(CASE WHEN payment_type = 'abono' THEN amount ELSE 0 END), 0) AS total_abonos,
-          COALESCE(SUM(CASE WHEN payment_type = 'normal' THEN amount ELSE 0 END), 0) AS total_normal
+          COALESCE(SUM(CASE WHEN payment_type='anticipo' THEN amount ELSE 0 END),0) AS total_anticipos,
+          COALESCE(SUM(CASE WHEN payment_type='abono' THEN amount ELSE 0 END),0) AS total_abonos,
+          COALESCE(SUM(CASE WHEN payment_type='normal' THEN amount ELSE 0 END),0) AS total_normal
         FROM payments p
         JOIN sales s ON s.id = p.sale_id
-        WHERE s.id >= ? AND s.id <= ?
+        WHERE s.id BETWEEN ? AND ?
         `,
-        [firstTicketCurrent, lastTicketActual || 0],
-        (err, row) => {
-          if (err) reject(err);
-          else resolve(row || {});
-        }
+        [desdeTicket, hastaTicket],
+        (err, row) => (err ? reject(err) : resolve(row))
       );
     });
 
-    // 7. Pagos por método (efectivo, tarjeta, transferencia, otros)
     const pagosRows = await new Promise((resolve, reject) => {
       db.all(
         `
         SELECT method, SUM(amount) AS total
         FROM payments p
         JOIN sales s ON s.id = p.sale_id
-        WHERE s.id >= ? AND s.id <= ?
+        WHERE s.id BETWEEN ? AND ?
         GROUP BY method
         `,
-        [firstTicketCurrent, lastTicketActual || 0],
-        (err, rows) => {
-          if (err) reject(err);
-          else resolve(rows || []);
-        }
+        [desdeTicket, hastaTicket],
+        (err, rows) => (err ? reject(err) : resolve(rows))
       );
     });
 
     const pagos = pagosRows.reduce((acc, r) => {
-      acc[r.method] = r.total || 0;
+      acc[r.method] = r.total;
       return acc;
     }, {});
 
-    // 8. Total recibido
-    const total_recibido =
-      money.total_anticipos +
-      money.total_abonos +
-      money.total_normal;
+    const total_recibido = money.total_anticipos + money.total_abonos + money.total_normal;
 
-    // Respuesta completa
     res.json({
-      // Fechas aproximadas solo para mostrar (ya no son el criterio principal)
-      desde: ultimoCorte ? ultimoCorte.hasta : 'Inicio del sistema',
-      hasta: new Date().toISOString().split('T')[0],
       ventas,
       pagos,
       total_anticipos: money.total_anticipos,
       total_abonos: money.total_abonos,
       total_recibido,
-      // Rango de tickets (esto es lo importante ahora)
-      ticketRange: {
-        firstTicket: firstTicketCurrent,
-        lastTicket: lastTicketActual
-      },
+      ticketRange: { first_ticket: desdeTicket, last_ticket: hastaTicket },
       ultimo_corte: ultimoCorte || null,
-      last_ticket_anterior: lastTicketAnterior
+      tipo: 'X'
     });
   } catch (err) {
-    console.error('❌ Error en getCurrentCorte:', err.message);
-    res.status(500).json({ error: 'Error al calcular corte actual' });
+    console.error('❌ Error Corte X:', err);
+    res.status(500).json({ error: 'Error al calcular corte X' });
   }
 };
 
 /**
- * POST /api/cuts
- * Guarda un corte COMPLETO (snapshot)
+ * =========================================
+ * GET /api/cuts/current-z → Corte Z actual
+ * =========================================
+ */
+exports.getCurrentCorteZ = async (req, res) => {
+  try {
+    const ultimoCorteZ = await new Promise((resolve, reject) => {
+      db.get(
+        `SELECT * FROM cuts WHERE type='Z' ORDER BY id DESC LIMIT 1`,
+        [],
+        (err, row) => (err ? reject(err) : resolve(row))
+      );
+    });
+
+    let desdeTicket;
+    if (ultimoCorteZ?.last_ticket != null) {
+      desdeTicket = ultimoCorteZ.last_ticket + 1;
+    } else {
+      desdeTicket = await getFirstRealTicket();
+    }
+
+    const hastaTicket = await getLastTicket();
+
+    if (desdeTicket === null || hastaTicket === null || desdeTicket > hastaTicket) {
+      return res.json({
+        ventas: {},
+        pagos: {},
+        total_recibido: 0,
+        total_anticipos: 0,
+        total_abonos: 0,
+        ticketRange: { first_ticket: null, last_ticket: null },
+        ultimo_corte: ultimoCorteZ || null,
+        tipo: 'Z'
+      });
+    }
+
+    console.log(`[Corte Z] Tickets ${desdeTicket} → ${hastaTicket}`);
+
+    // (el resto del cálculo es idéntico al de Corte X, solo cambia el tipo)
+    const ventas = await new Promise((resolve, reject) => {
+      db.get(
+        `
+        SELECT 
+          COUNT(*) AS total_ventas,
+          COALESCE(SUM(total),0) AS total_ventas_monto,
+          COALESCE(SUM(CASE WHEN type='contado' THEN total ELSE 0 END),0) AS ventas_contado,
+          COALESCE(SUM(CASE WHEN type='credito' THEN total ELSE 0 END),0) AS ventas_credito,
+          COALESCE(SUM(CASE WHEN type='apartado' THEN total ELSE 0 END),0) AS ventas_apartado,
+          COALESCE(SUM(tax_total),0) AS total_iva_gravado
+        FROM sales
+        WHERE id BETWEEN ? AND ?
+        `,
+        [desdeTicket, hastaTicket],
+        (err, row) => (err ? reject(err) : resolve(row))
+      );
+    });
+
+    const money = await new Promise((resolve, reject) => {
+      db.get(
+        `
+        SELECT
+          COALESCE(SUM(CASE WHEN payment_type='anticipo' THEN amount ELSE 0 END),0) AS total_anticipos,
+          COALESCE(SUM(CASE WHEN payment_type='abono' THEN amount ELSE 0 END),0) AS total_abonos,
+          COALESCE(SUM(CASE WHEN payment_type='normal' THEN amount ELSE 0 END),0) AS total_normal
+        FROM payments p
+        JOIN sales s ON s.id = p.sale_id
+        WHERE s.id BETWEEN ? AND ?
+        `,
+        [desdeTicket, hastaTicket],
+        (err, row) => (err ? reject(err) : resolve(row))
+      );
+    });
+
+    const pagosRows = await new Promise((resolve, reject) => {
+      db.all(
+        `
+        SELECT method, SUM(amount) AS total
+        FROM payments p
+        JOIN sales s ON s.id = p.sale_id
+        WHERE s.id BETWEEN ? AND ?
+        GROUP BY method
+        `,
+        [desdeTicket, hastaTicket],
+        (err, rows) => (err ? reject(err) : resolve(rows))
+      );
+    });
+
+    const pagos = pagosRows.reduce((acc, r) => {
+      acc[r.method] = r.total;
+      return acc;
+    }, {});
+
+    const total_recibido = money.total_anticipos + money.total_abonos + money.total_normal;
+
+    res.json({
+      ventas,
+      pagos,
+      total_anticipos: money.total_anticipos,
+      total_abonos: money.total_abonos,
+      total_recibido,
+      ticketRange: { first_ticket: desdeTicket, last_ticket: hastaTicket },
+      ultimo_corte: ultimoCorteZ || null,
+      tipo: 'Z'
+    });
+  } catch (err) {
+    console.error('❌ Error Corte Z:', err);
+    res.status(500).json({ error: 'Error al calcular corte Z' });
+  }
+};
+
+/**
+ * =========================================
+ * POST /api/cuts → Crear corte X o Z
+ * =========================================
  */
 exports.createCorte = async (req, res) => {
   try {
     const data = req.body;
 
-    // Validaciones mínimas
-    if (!data.type || !data.date || !data.desde || !data.hasta) {
+    if (!data.type || data.first_ticket === null || data.last_ticket === null) {
       return res.status(400).json({
-        error: 'type, date, desde y hasta son obligatorios'
+        error: 'type, first_ticket y last_ticket son obligatorios'
       });
     }
 
-    const cutId = await Cut.create({
-      type: data.type,
-      date: data.date,
-      desde: data.desde,
-      hasta: data.hasta,
-      cash_register: data.cash_register || null,
-      user_nickname: data.user_nickname || null,
-
-      total_sales: data.total_sales || 0,
-      ventas_contado: data.ventas_contado || 0,
-      ventas_credito: data.ventas_credito || 0,
-      ventas_apartado: data.ventas_apartado || 0,
-      total_iva_gravado: data.total_iva_gravado || 0,
-
-      total_recibido: data.total_recibido || 0,
-      total_anticipos: data.total_anticipos || 0,
-      total_abonos: data.total_abonos || 0,
-
-      pago_efectivo: data.pago_efectivo || 0,
-      pago_tarjeta: data.pago_tarjeta || 0,
-      pago_transferencia: data.pago_transferencia || 0,
-      pago_otros: data.pago_otros || 0,
-
-      cash_in_box: data.cash_in_box || 0,
-      first_ticket: data.first_ticket || null,
-      last_ticket: data.last_ticket || null
-    });
+    const cutId = await Cut.create({ ...data });
 
     res.status(201).json({
       id: cutId,
-      message: `Corte ${data.type} registrado correctamente`
+      message: data.type === 'Z' ? '¡Corte Z registrado correctamente!' : 'Corte X registrado correctamente'
     });
   } catch (err) {
-    console.error('❌ Error al crear corte:', err.message);
-    res.status(500).json({
-      error: 'Error interno al registrar corte'
-    });
+    console.error('❌ Error al guardar corte:', err);
+    res.status(500).json({ error: 'Error interno al guardar corte' });
+  }
+};
+
+/**
+ * =========================================
+ * NUEVOS MÉTODOS PARA EL REPORTE
+ * =========================================
+ */
+
+/**
+ * GET /api/cuts → Listar todos los cortes (con filtros opcionales)
+ */
+exports.getAllCuts = async (req, res) => {
+  try {
+    const { type, fromDate, toDate } = req.query;
+    const cuts = await Cut.findAll({ type, fromDate, toDate });
+    res.json(cuts);
+  } catch (err) {
+    console.error('❌ Error al obtener lista de cortes:', err);
+    res.status(500).json({ error: 'Error al obtener los cortes' });
+  }
+};
+
+/**
+ * GET /api/cuts/:id → Obtener un corte específico
+ */
+exports.getCutById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const cut = await Cut.findById(id);
+    if (!cut) {
+      return res.status(404).json({ error: 'Corte no encontrado' });
+    }
+    res.json(cut);
+  } catch (err) {
+    console.error('❌ Error al obtener corte específico:', err);
+    res.status(500).json({ error: 'Error al obtener el corte' });
   }
 };
 
