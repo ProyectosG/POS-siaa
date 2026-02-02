@@ -33,27 +33,12 @@ const menuItems = [
     ],
   },
   {
-    label: "COMPRAS",
-    icon: <ShoppingBag className="w-5 h-5" />,
-    iconColor: "text-blue-500",
-    subItems: [],
-  },
-  {
     label: "CORTES",
     icon: <Receipt className="w-5 h-5" />,
     iconColor: "text-amber-500",
     subItems: [
       { label: "Cortes X", href: "/dashboard/cortes/cortesx" },
-      { label: "Cortes Z", href: "/dashboard/cortes/z" },
-    ],
-  },
-  {
-    label: "INVENTARIO",
-    icon: <Package className="w-5 h-5" />,
-    iconColor: "text-violet-500",
-    subItems: [
-      { label: "Registro de Entradas", href: "/dashboard/inventario/entradas" },
-      { label: "Registro de Salidas", href: "/dashboard/inventario/salidas" },
+      { label: "Cortes Z", href: "/dashboard/cortes/cortesz" },
     ],
   },
   {
@@ -77,10 +62,22 @@ const menuItems = [
       { label: "Proveedores", href: "/dashboard/catalogos/proveedores" },
       { label: "Usuarios", href: "/dashboard/catalogos/usuarios" },
       { label: "Cajas", href: "/dashboard/catalogos/cajas" },
-
-
-
     ],
+  },
+  {
+    label: "INVENTARIO",
+    icon: <Package className="w-5 h-5" />,
+    iconColor: "text-violet-500",
+    subItems: [
+      { label: "Registro de Entradas", href: "/dashboard/inventario/entradas" },
+      { label: "Registro de Salidas", href: "/dashboard/inventario/salidas" },
+    ],
+  },
+  {
+    label: "COMPRAS",
+    icon: <ShoppingBag className="w-5 h-5" />,
+    iconColor: "text-blue-500",
+    subItems: [],
   },
   {
     label: "REPORTES",
@@ -89,7 +86,9 @@ const menuItems = [
     subItems: [
          { label: "ListarTodosProductos", href: "/dashboard/reportes/listarTodosProductos" },
          { label: "Kardex", href: "/dashboard/inventario/kardex" },
-         { label: "Lista de Ventas", href: "/dashboard/reportes/listaVentas" },     
+         { label: "Lista de Ventas", href: "/dashboard/reportes/listaVentas" },  
+         { label: "Reporte de Cortes", href: "/dashboard/reportes/reportecortes" },   
+         {label: "Reporte de Entradas", href: "/dashboard/reportes/reporteentradas"  },
     ],
   },
   {
