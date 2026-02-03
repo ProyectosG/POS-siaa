@@ -1,4 +1,4 @@
-import VentasContado from "@/components/1VentasContado/VentasContado"
+import VentasContado from "@/components/VentasContado/VentasContado"
 import DashboardLayout from "@/components/DashboardLayout"
 
 export default function Page() {
