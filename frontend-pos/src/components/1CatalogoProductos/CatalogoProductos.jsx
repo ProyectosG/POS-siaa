@@ -16,7 +16,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import CatalogoProductosForm from "@/components/CatalogoProductos/CatalogoProductosForm"
+import CatalogoProductosForm from "@/components/1CatalogoProductos/CatalogoProductosForm"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
 

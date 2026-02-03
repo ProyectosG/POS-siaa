@@ -7,10 +7,10 @@ import { Save, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
-import TabGeneral from "./tabs/TabGeneral"
-import TabPrecios from "./tabs/TabPrecios"
-import TabInventario from "./tabs/TabInventario"
-import TabImagen from "./tabs/TabImagen"
+import TabGeneral from "./T`abs/TabGeneral"
+import TabPrecios from "./Tabs/TabPrecios"
+import TabInventario from "./Tabs/TabInventario"
+import TabImagen from "./Tabs/TabImagen"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
 
