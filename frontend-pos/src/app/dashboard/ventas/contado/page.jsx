@@ -1,4 +1,3 @@
-import SidebarMenu from "@/components/SidebarMenu/SidebarMenu"
 import VentasContado from "@/components/VentasContado/VentasContado"
 import DashboardLayout from "@/components/DashboardLayout"
 
