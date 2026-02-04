@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
-//const kardexController = require('../controllers/kardexController');
-const kardexController = require(__dirname + '/../controllers/kardexController');
 
+// Esta ruta debe coincidir exactamente con el nombre del archivo
+const kardexController = require('../controllers/kardexController');
 
 // Registrar movimiento en kardex
 router.post('/', kardexController.createMovement);
