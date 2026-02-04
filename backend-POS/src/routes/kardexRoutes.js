@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const kardexController = require('../controllers/1kardexController');
+const kardexController = require('../controllers/kardexController');
 
 // Registrar movimiento en kardex
 router.post('/', kardexController.createMovement);
