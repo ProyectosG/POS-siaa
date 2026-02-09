@@ -3,21 +3,41 @@
 import { useEffect } from "react"
 import { cn } from "@/lib/utils"
 
-/* ===== NORMALIZAR PRODUCTO ===== */
+/**
+ * Normaliza los datos de un producto para que siempre tenga los campos básicos
+ * Puedes agregar más campos si lo necesitas
+ */
 const normalizarProducto = (p) => ({
   ...p,
-  stock: Number(p.stock) || 0,
+  codigo_barras: p.codigo_barras || p.codigo || "-",
+  articulo: p.articulo || p.name || "-",
+  presentacion: p.presentacion || p.presentation || "-",
+  stock: Number(p.stock ?? p.quantity ?? 0),
 })
 
-export default function OverlayProductosPorNombre({
+/**
+ * OverlayProductos
+ *
+ * Componente genérico para mostrar productos en un modal tipo overlay.
+ * Recibe:
+ * - resultados: array de objetos con datos de productos
+ * - columns: array de columnas { key, label, align? }
+ * - selectedIndex / setSelectedIndex: para navegación con teclado
+ * - onSelect: función que recibe el producto seleccionado
+ * - onClose: función para cerrar el overlay
+ * - selectedColor: color para el fondo del producto seleccionado (tailwind color, ej. "emerald")
+ */
+export default function OverlayProductos({
   resultados = [],
+  columns = [],
   selectedIndex = 0,
   setSelectedIndex,
   onSelect,
   onClose,
+  selectedColor = "emerald",
 }) {
 
-  /* ===== TECLADO GLOBAL ===== */
+  /* ===== TECLADO GLOBAL (↑ ↓ Enter Esc) ===== */
   useEffect(() => {
     const handler = (e) => {
       if (e.key === "ArrowDown") {
@@ -29,15 +49,13 @@ export default function OverlayProductosPorNombre({
 
       if (e.key === "ArrowUp") {
         e.preventDefault()
-        setSelectedIndex((i) => Math.max(i - 1, 0))
+        setSelectedIndex((i) => Math.max(i - 0, 0))
       }
 
       if (e.key === "Enter") {
         e.preventDefault()
         const seleccionado = resultados[selectedIndex]
-        if (seleccionado) {
-          onSelect(normalizarProducto(seleccionado))
-        }
+        if (seleccionado) onSelect(normalizarProducto(seleccionado))
       }
 
       if (e.key === "Escape") {
@@ -46,6 +64,7 @@ export default function OverlayProductosPorNombre({
       }
     }
 
+    // Bloquea el scroll del fondo mientras el overlay está abierto
     document.body.style.overflow = "hidden"
     window.addEventListener("keydown", handler)
 
@@ -57,13 +76,13 @@ export default function OverlayProductosPorNombre({
 
   return (
     <>
-      {/* BACKDROP */}
+      {/* ===== BACKDROP ===== */}
       <div
         className="fixed inset-0 bg-black/30 z-40"
         onClick={onClose}
       />
 
-      {/* MODAL */}
+      {/* ===== MODAL ===== */}
       <div
         className={cn(
           "fixed top-28 left-1/2 -translate-x-1/2",
@@ -75,7 +94,7 @@ export default function OverlayProductosPorNombre({
       >
         {/* HEADER */}
         <div className="px-4 py-2 border-b bg-muted/40 font-semibold text-sm">
-          Buscar producto por nombre
+          Buscar producto
         </div>
 
         {/* LISTA */}
@@ -83,10 +102,17 @@ export default function OverlayProductosPorNombre({
           <table className="w-full text-sm">
             <thead className="sticky top-0 bg-muted/30">
               <tr>
-                <th className="text-left px-3 py-2">Código</th>
-                <th className="text-left px-3 py-2">Artículo</th>
-                <th className="text-left px-3 py-2">Presentación</th>
-                <th className="text-right px-3 py-2">Stock</th>
+                {columns.map((col) => (
+                  <th
+                    key={col.key}
+                    className={cn(
+                      "text-left px-3 py-2",
+                      col.align === "right" && "text-right"
+                    )}
+                  >
+                    {col.label}
+                  </th>
+                ))}
               </tr>
             </thead>
 
@@ -97,27 +123,28 @@ export default function OverlayProductosPorNombre({
 
                 return (
                   <tr
-                    key={`${prod.id}-${i}`}
+                    key={`${prod.id ?? prod.codigo_barras}-${i}`}
                     onClick={() => onSelect(prod)}
                     className={cn(
                       "cursor-pointer",
                       seleccionado
-                        ? "bg-emerald-100 ring-1 ring-emerald-400"
+                        ? `bg-${selectedColor}-100 ring-1 ring-${selectedColor}-400`
                         : "hover:bg-muted/40"
                     )}
                   >
-                    <td className="px-3 py-2 font-mono">
-                      {prod.codigo_barras || "-"}
-                    </td>
-                    <td className="px-3 py-2">
-                      {prod.articulo}
-                    </td>
-                    <td className="px-3 py-2">
-                      {prod.presentacion}
-                    </td>
-                    <td className="px-3 py-2 text-right font-semibold">
-                      {prod.stock}
-                    </td>
+                    {columns.map((col) => (
+                      <td
+                        key={col.key}
+                        className={cn(
+                          "px-3 py-2",
+                          col.align === "right" && "text-right",
+                          col.key === "codigo_barras" && "font-mono",
+                          col.key === "stock" && "font-semibold"
+                        )}
+                      >
+                        {prod[col.key] ?? "-"}
+                      </td>
+                    ))}
                   </tr>
                 )
               })}

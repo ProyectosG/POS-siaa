@@ -137,22 +137,18 @@ export default function CorteDeCaja() {
         <h1 className="text-2xl font-extrabold text-white mb-1 flex items-center justify-center gap-2">
           <DollarSign size={24} className="text-green-400" /> Corte X del Turno 💸
         </h1>
-        <p className="text-slate-400 text-sm">
-          Caja: <span className="font-bold text-cyan-400">{caja?.numero || "Sin caja"}</span> | 
-          Desde: <span className="font-bold">{data.desde}</span> | Hasta: <span className="font-bold">{data.hasta}</span>
+        <p className="text-slate-400 text-sm font-medium">
+          Caja: <span className="font-bold text-cyan-400">{caja?.numero || "Sin caja"}</span> |{" "}
+          {hasTickets ? (
+            <>
+              TICKETS: Desde: <span className="text-green-300 font-bold">{first}</span> | Hasta: <span className="text-green-300 font-bold">{last}</span>
+            </>
+          ) : (
+            <>Sin tickets nuevos en este período</>
+          )}
         </p>
-
-        {hasTickets ? (
-          <p className="text-center mt-1 text-slate-400 text-xs font-medium">
-            Del Ticket <span className="text-green-300 font-bold">{first}</span> al{" "}
-            <span className="text-green-300 font-bold">{last}</span>
-          </p>
-        ) : (
-          <p className="text-center mt-1 text-slate-500 text-xs italic">
-            Sin tickets nuevos en este período
-          </p>
-        )}
       </div>
+
 
       {/* SECCIÓN VENTAS TOTALES + IVA */}
       <section className="mb-6">

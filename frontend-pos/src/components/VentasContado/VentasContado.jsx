@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useState, useRef } from "react"
 import { useAuthStore } from "@/store/useAuthStore"
 import toast from "react-hot-toast"
 
@@ -10,10 +11,11 @@ import { useVentasContado } from "./hooks/useVentasContado"
 import { useGridNavigation } from "./hooks/useGridNavigation"
 
 import VentaGrid from "./VentaGrid"
-import ListaArticulosPorNombre from "./ListaArticulosPorNombre"
-import MenuPrecios from "./MenuPrecios"
+import OverlayProductos from "@/components/siaa-ui/OverlayProductos";
+import MenuPrecios from "../siaa-ui/MenuPrecios"
 import Resumen from "./Resumen"
-import Pago from "./Pago"
+import PagoVenta from "../siaa-ui/PagoVenta"
+
 
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
@@ -42,6 +44,13 @@ export default function VentasContado() {
   const caja = useCajaStore((s) => s.caja)
   const user = useAuthStore((s) => s.user)
   const inicializadoRef = React.useRef(false)
+
+  /* Overlay */
+  const [mostrarOverlay, setMostrarOverlay] = useState(false)
+  const [productoTmp, setProductoTmp] = useState(null)
+  const [cantidad, setCantidad] = useState("")
+  const refNombre = useRef(null)
+  const refCodigo = useRef(null)
 
   /* ===== HOOK PRINCIPAL ===== */
   const {
@@ -171,6 +180,18 @@ export default function VentasContado() {
     if (!res.ok) return
 
     const data = await res.json()
+
+              // normalizar para overlay
+
+      const normalizados = data.map(p => ({
+        ...p,
+        codigo_barras: p.codigo_barras || p.codigo || "-",
+        articulo: p.articulo || p.name || "-",
+        presentacion: p.presentacion || p.presentation || "-",
+        precio_menudeo: p.precio_menudeo ?? p.retail_price ?? 0,
+        stock: Number(p.stock ?? p.quantity ?? 0),
+      }))
+
     setResultadosNombre(data)
     setFilaBusqueda(fila)
     setSelectedIndexNombre(0)
@@ -370,6 +391,35 @@ const paid = efectivoAplicado + tarjetaPagada;  // 263 + 77 = 340 (aplicado)
     inicializadoRef.current = true
   }, [items.length])
 
+    /* ================= MANEJAR SELECCIÓN DEL OVERLAY ================= */
+const handleSeleccionProducto = (producto) => {
+  if (!producto) return
+  const fila = filaBusqueda ?? items.length - 1  // fila actual de la grilla
+  const item = items[fila]
+  if (!item) return
+
+  const precios = [
+    { tipo: "menudeo", label: "Menudeo", valor: producto.precio_menudeo },
+    { tipo: "mayoreo", label: "Mayoreo", valor: producto.precio_mayoreo },
+    { tipo: "especial", label: "Especial", valor: producto.precio_especial },
+    { tipo: "oferta", label: "Oferta", valor: producto.precio_oferta },
+  ].filter(p => p.valor > 0)
+
+  actualizarItem(item.id, "productId", producto.id)
+  actualizarItem(item.id, "codigoBarras", producto.codigo_barras || "")
+  actualizarItem(item.id, "articulo", producto.articulo || "")
+  actualizarItem(item.id, "presentacion", producto.presentacion || "")
+  actualizarItem(item.id, "precios", precios)
+  actualizarItem(item.id, "tipoPrecio", precios[0]?.tipo)
+  actualizarItem(item.id, "precio", precios[0]?.valor)
+  actualizarItem(item.id, "ivaPct", producto.iva ? 16 : 0)
+
+  setMostrarLista(false)       // cierra overlay
+  agregarItem()                // agrega nueva fila
+  setFocusPendiente({ row: fila + 1, col: "codigoBarras" })  // mueve foco
+}
+
+
   /* ===== RENDER ===== */
   return (
     <div className="space-y-5">
@@ -436,33 +486,46 @@ const paid = efectivoAplicado + tarjetaPagada;  // 263 + 77 = 340 (aplicado)
           mostrarDescuento={mostrarDescuento}
         />
 
-        <Pago
-          focusArea={focusArea}
-          formaPago={formaPago}
-          setFormaPago={setFormaPago}
-          efectivo={efectivo}
-          setEfectivo={setEfectivo}
-          tarjeta={tarjeta}
-          setTarjeta={setTarjeta}
-          cambio={cambio}
-          bancoTarjeta={bancoTarjeta}
-          setBancoTarjeta={setBancoTarjeta}
-          ultimos4Tarjeta={ultimos4Tarjeta}
-          setUltimos4Tarjeta={setUltimos4Tarjeta}
-          total={granTotal}
-          onProcesarVenta={handleProcesarVenta}
-        />
+      <PagoVenta
+        mode="contado"  // Ahora es "contado" en lugar de "apartado"
+        total={granTotal}
+        anticipoRequerido={0}  // En ventas de contado no es necesario el anticipo
+
+        focusArea={focusArea}
+        formaPago={formaPago}
+        setFormaPago={setFormaPago}
+        efectivo={efectivo}
+        setEfectivo={setEfectivo}
+        tarjeta={tarjeta}
+        setTarjeta={setTarjeta}
+        bancoTarjeta={bancoTarjeta}
+        setBancoTarjeta={setBancoTarjeta}
+        ultimos4Tarjeta={ultimos4Tarjeta}
+        setUltimos4Tarjeta={setUltimos4Tarjeta}
+        cambio={cambio}
+
+        onProcesar={handleProcesarVenta} // Función de procesamiento de ventas de contado
+      />
+
       </div>
 
       {/* OVERLAYS */}
       {mostrarLista && (
-        <ListaArticulosPorNombre
-          resultados={resultadosNombre}
-          selectedIndex={selectedIndexNombre}
-          setSelectedIndex={setSelectedIndexNombre}
-          onSelect={seleccionarProductoDesdeLista}
-          onClose={() => setMostrarLista(false)}
-        />
+         <OverlayProductos
+           resultados={resultadosNombre} // ✅ aquí van los resultados de búsqueda
+           selectedIndex={selectedIndexNombre}
+           setSelectedIndex={setSelectedIndexNombre}
+           onSelect={handleSeleccionProducto}
+           onClose={() => setMostrarOverlay(false)} // ✅ corregido
+           columns={[
+             { key: 'codigo_barras', label: 'Código' },
+             { key: 'articulo', label: 'Artículo' },
+             { key: 'presentacion', label: 'Presentación' },
+             { key: 'precio_menudeo', label: 'Precio' },    
+             { key: 'stock', label: 'Stock', align: 'right' },
+           ]}
+           selectedColor="emerald"
+         />
       )}
 
       {mostrarPrecios && (

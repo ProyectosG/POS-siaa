@@ -17,6 +17,7 @@ export default function PanelFormularios({
   setNuevaSubfamilia,
   uniqueFamilies,
   categories,
+  totalSubfamilias,
   handleAgregarFamilia,
   handleAgregarSubfamilia,
 }) {
@@ -134,30 +135,32 @@ export default function PanelFormularios({
 
 
     {/* Estadísticas */}
-      {/* Estadísticas */}
 <div className="grid grid-cols-2 gap-3 justify-center">
+  {/* Total Familias */}
   <Card className="h-20 bg-gradient-to-br from-emerald-600 to-emerald-700 border-0 text-white">
     <CardHeader className="py-1 px-3">
       <CardDescription className="text-emerald-100 text-[10px] text-center">
         Total Familias
       </CardDescription>
-      <CardTitle className="text-xl leading-tight text-center">
+      <CardTitle className="text-xl text-center">
         {uniqueFamilies.length}
       </CardTitle>
     </CardHeader>
   </Card>
 
+  {/* Total Subfamilias */}
   <Card className="h-20 bg-gradient-to-br from-violet-600 to-violet-700 border-0 text-white">
     <CardHeader className="py-1 px-3">
       <CardDescription className="text-violet-100 text-[10px] text-center">
         Total Subfamilias
       </CardDescription>
-      <CardTitle className="text-xl leading-tight text-center">
-        {categories.length}
+      <CardTitle className="text-xl text-center">
+        {totalSubfamilias}
       </CardTitle>
     </CardHeader>
   </Card>
 </div>
+
 
     </div>
   )

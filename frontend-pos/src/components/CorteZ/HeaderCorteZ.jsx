@@ -10,26 +10,18 @@ export default function HeaderCorteZ({ caja, first, last, hasTickets }) {
         Corte Z (Cierre Final)
       </h1>
 
-      <div className="flex flex-wrap justify-center items-center gap-x-3 text-sm text-slate-400">
+      {/* Combinamos toda la información en una sola línea */}
+      <div className="text-sm text-slate-400">
         <span>
-          Caja:{" "}
-          <b className="text-cyan-400">
-            {caja?.numero || "Sin caja"}
-          </b>
-        </span>
-        <span>|</span>
-        <span>
-          DESDE:{" "}
-          <b className="text-green-300">
-            {hasTickets ? first : "-"}
-          </b>
-        </span>
-        <span>|</span>
-        <span>
-          HASTA:{" "}
-          <b className="text-green-300">
-            {hasTickets ? last : "-"}
-          </b>
+          Caja: <b className="text-cyan-400">{caja?.numero || "Sin caja"}</b> |{" "}
+          {hasTickets ? (
+            <>
+              TICKETS: Desde: <b className="text-green-300">{first}</b> | Hasta:{" "}
+              <b className="text-green-300">{last}</b>
+            </>
+          ) : (
+            <span className="text-slate-500">Sin tickets nuevos en este período</span>
+          )}
         </span>
       </div>
     </div>

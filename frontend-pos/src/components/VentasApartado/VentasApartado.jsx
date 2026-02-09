@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect,useRef } from "react"
 import { useAuthStore } from "@/store/useAuthStore"
 import toast from "react-hot-toast"
 
@@ -11,10 +11,11 @@ import { useVentasApartado } from "./hooks/useVentasApartado"
 import { useGridNavigationApartado } from "./hooks/useGridNavigationApartado"
 
 import VentaApartadoGrid from "./VentaApartadoGrid"
-import ListaArticulosPorNombreApartado from "./ListaArticulosPorNombreApartado"
-import MenuPreciosApartado from "./MenuPreciosApartado"
+import OverlayProductos from "@/components/siaa-ui/OverlayProductos";
+import MenuPrecios from "../siaa-ui/MenuPrecios"
 import ResumenApartado from "./ResumenApartado"
-import PagoApartado from "./PagoApartado"
+import PagoVenta from "../siaa-ui/PagoVenta"
+// import PagoApartado from "./PagoApartado"
 
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
@@ -43,6 +44,13 @@ export default function VentasApartado() {
   const caja = useCajaStore((s) => s.caja)
   const user = useAuthStore((s) => s.user)
   const inicializadoRef = React.useRef(false)
+
+  /* Overlay */
+  const [mostrarOverlay, setMostrarOverlay] = useState(false)
+  const [productoTmp, setProductoTmp] = useState(null)
+  const [cantidad, setCantidad] = useState("")
+  const refNombre = useRef(null)
+  const refCodigo = useRef(null)
 
   const {
     items,
@@ -174,6 +182,18 @@ export default function VentasApartado() {
     if (!res.ok) return
 
     const data = await res.json()
+
+                  // normalizar para overlay
+
+      const normalizados = data.map(p => ({
+        ...p,
+        codigo_barras: p.codigo_barras || p.codigo || "-",
+        articulo: p.articulo || p.name || "-",
+        presentacion: p.presentacion || p.presentation || "-",
+        precio_menudeo: p.precio_menudeo ?? p.retail_price ?? 0,
+        stock: Number(p.stock ?? p.quantity ?? 0),
+      }))
+
     setResultadosNombre(data)
     setFilaBusqueda(fila)
     setSelectedIndexNombre(0)
@@ -391,6 +411,35 @@ const time = now.toLocaleTimeString('es-MX', {
     return () => clearTimeout(delay)
   }, [customerQuery])
 
+
+      /* ================= MANEJAR SELECCIÓN DEL OVERLAY ================= */
+const handleSeleccionProducto = (producto) => {
+  if (!producto) return
+  const fila = filaBusqueda ?? items.length - 1  // fila actual de la grilla
+  const item = items[fila]
+  if (!item) return
+
+  const precios = [
+    { tipo: "menudeo", label: "Menudeo", valor: producto.precio_menudeo },
+    { tipo: "mayoreo", label: "Mayoreo", valor: producto.precio_mayoreo },
+    { tipo: "especial", label: "Especial", valor: producto.precio_especial },
+    { tipo: "oferta", label: "Oferta", valor: producto.precio_oferta },
+  ].filter(p => p.valor > 0)
+
+  actualizarItem(item.id, "productId", producto.id)
+  actualizarItem(item.id, "codigoBarras", producto.codigo_barras || "")
+  actualizarItem(item.id, "articulo", producto.articulo || "")
+  actualizarItem(item.id, "presentacion", producto.presentacion || "")
+  actualizarItem(item.id, "precios", precios)
+  actualizarItem(item.id, "tipoPrecio", precios[0]?.tipo)
+  actualizarItem(item.id, "precio", precios[0]?.valor)
+  actualizarItem(item.id, "ivaPct", producto.iva ? 16 : 0)
+
+  setMostrarLista(false)       // cierra overlay
+  agregarItem()                // agrega nueva fila
+  setFocusPendiente({ row: fila + 1, col: "codigoBarras" })  // mueve foco
+}
+
   return (
     <div className="space-y-8 pb-12">
       {/* Header superior */}
@@ -535,6 +584,7 @@ const time = now.toLocaleTimeString('es-MX', {
             )}
           </CardContent>
         </Card>
+        
 
         {/* Card 2: Resumen + Anticipo */}
         <ResumenApartado
@@ -553,7 +603,11 @@ const time = now.toLocaleTimeString('es-MX', {
         />
 
         {/* Card 3: Pago */}
-        <PagoApartado
+        <PagoVenta
+          mode="apartado"
+          total={granTotal}
+          anticipoRequerido={pagoInicialRequerido}
+
           focusArea={focusArea}
           formaPago={formaPago}
           setFormaPago={setFormaPago}
@@ -561,30 +615,41 @@ const time = now.toLocaleTimeString('es-MX', {
           setEfectivo={setEfectivo}
           tarjeta={tarjeta}
           setTarjeta={setTarjeta}
-          cambio={cambio}
           bancoTarjeta={bancoTarjeta}
           setBancoTarjeta={setBancoTarjeta}
           ultimos4Tarjeta={ultimos4Tarjeta}
           setUltimos4Tarjeta={setUltimos4Tarjeta}
-          total={granTotal}
-          pagoInicialRequerido={pagoInicialRequerido}
-          onProcesarVenta={handleProcesarVenta}
+          cambio={cambio}
+
+          onProcesar={handleProcesarVenta} // Cambié el nombre del prop a `onProcesar` que es lo que espera el componente hijo
         />
+
+
+
+
       </div>
 
       {/* Overlays */}
       {mostrarLista && (
-        <ListaArticulosPorNombreApartado
-          resultados={resultadosNombre}
-          selectedIndex={selectedIndexNombre}
-          setSelectedIndex={setSelectedIndexNombre}
-          onSelect={seleccionarProductoDesdeLista}
-          onClose={() => setMostrarLista(false)}
-        />
+       <OverlayProductos
+             resultados={resultadosNombre} // ✅ aquí van los resultados de búsqueda
+             selectedIndex={selectedIndexNombre}
+             setSelectedIndex={setSelectedIndexNombre}
+             onSelect={handleSeleccionProducto}
+             onClose={() => setMostrarOverlay(false)} // ✅ corregido
+             columns={[
+               { key: 'codigo_barras', label: 'Código' },
+               { key: 'articulo', label: 'Artículo' },
+               { key: 'presentacion', label: 'Presentación' },
+               { key: 'precio_menudeo', label: 'Precio' },    
+               { key: 'stock', label: 'Stock', align: 'right' },
+             ]}
+             selectedColor="emerald"
+           />
       )}
 
       {mostrarPrecios && (
-        <MenuPreciosApartado
+        <MenuPrecios
           precios={preciosProducto}
           selectedIndex={precioIndex}
           setSelectedIndex={setPrecioIndex}

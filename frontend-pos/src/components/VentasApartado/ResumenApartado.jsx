@@ -50,7 +50,7 @@ export default function ResumenApartado({
 
           {mostrarDescuento && descuentoTotal > 0 && (
             <div className="flex justify-between text-blue-600">
-              <span>Descuento</span>
+              <span>Ahorro</span>
               <span>- ${fmt(descuentoTotal)}</span>
             </div>
           )}
