@@ -2,13 +2,16 @@ const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/userController');
 
-router.get('/', userController.getAll);
-router.get('/:id', userController.getById);
+// 🔥 ESPECÍFICAS PRIMERO
+router.post('/login', userController.login);
 router.get('/nickname/:nickname', userController.getByNickname);
+router.patch('/:id/photo', userController.updatePhoto);
+
+// 🔹 CRUD
+router.get('/', userController.getAll);
 router.post('/', userController.create);
+router.get('/:id', userController.getById);
 router.put('/:id', userController.update);
 router.delete('/:id', userController.delete);
-router.patch('/:id/photo', userController.updatePhoto);
-router.post('/login', userController.login);
 
 module.exports = router;

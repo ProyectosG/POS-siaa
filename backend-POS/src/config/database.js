@@ -332,6 +332,31 @@ db.serialize(() => {
     FOREIGN KEY (product_id) REFERENCES products(id)
   )`);
 
+    // =========================
+  // OUTS y OUT_DETAILS (SALIDAS)
+  // =========================
+  db.run(`CREATE TABLE IF NOT EXISTS outs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    out_type TEXT NOT NULL,
+    comments TEXT,
+    date TEXT NOT NULL,
+    time TEXT NOT NULL,
+    related_folio TEXT,
+    id_user INTEGER,
+    nickname_user TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  db.run(`CREATE TABLE IF NOT EXISTS out_details (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    out_id INTEGER NOT NULL,
+    product_id INTEGER NOT NULL,
+    quantity REAL NOT NULL,
+    FOREIGN KEY (out_id) REFERENCES outs(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES products(id)
+  )`);
+
+
   // =========================
   // CUSTOMER BALANCE HISTORY
   // =========================
@@ -360,5 +385,57 @@ process.on('SIGINT', () => {
     process.exit(0);
   });
 });
+// ==========================================
+// ESTRUCTURA LIMPIA DE SETTINGS (RECREACIÓN)
+// ==========================================
+db.serialize(() => {
+  db.run(`CREATE TABLE IF NOT EXISTS settings (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+
+    -- Ticket Header (4 líneas)
+    ticket_header_line1 TEXT DEFAULT '',
+    ticket_header_line2 TEXT DEFAULT '',
+    ticket_header_line3 TEXT DEFAULT '',
+    ticket_header_line4 TEXT DEFAULT '',
+
+    -- Ticket Subheader (4 líneas)
+    ticket_subheader_line1 TEXT DEFAULT '',
+    ticket_subheader_line2 TEXT DEFAULT '',
+    ticket_subheader_line3 TEXT DEFAULT '',
+    ticket_subheader_line4 TEXT DEFAULT '',
+
+    -- Ticket Footer (2 líneas)
+    ticket_footer_line1 TEXT DEFAULT '',
+    ticket_footer_line2 TEXT DEFAULT '',
+
+    -- Ticket Config
+    ticket_width INTEGER DEFAULT 58,
+    auto_print_ticket INTEGER DEFAULT 1,
+
+    -- Sales & Security Config
+    allow_discounts INTEGER DEFAULT 1,
+    max_discount_without_auth REAL DEFAULT 0,
+    allow_negative_balance INTEGER DEFAULT 0,
+    dynamic_price_auth_key TEXT DEFAULT '1234', -- Clave para liberar precios
+
+    -- Customer Config
+    customer_form_mode TEXT DEFAULT 'basic',
+
+    -- Card Config
+    card_payment_max_reprints INTEGER DEFAULT 1,
+
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  )`);
+
+  // Registro inicial obligatorio
+  db.get(`SELECT id FROM settings WHERE id = 1`, (err, row) => {
+    if (!row) {
+      db.run(`INSERT INTO settings (id) VALUES (1)`);
+      console.log('--- NÚCLEO DE CONFIGURACIÓN INICIALIZADO ---');
+    }
+  });
+});
+
 
 module.exports = db;

@@ -18,11 +18,9 @@ exports.resetTables = (req, res) => {
   }
 
   try {
-    // Ruta CORRECTA de tu pos.db (está en src/pos.db)
-    const dbPath = path.join(__dirname, '../pos.db'); // ← __dirname es src/controllers, sube un nivel a src
+    const dbPath = path.join(__dirname, '../pos.db');
     const backupPath = path.join(__dirname, '../../pos_backup_' + Date.now() + '.db');
 
-    // Verifica que el archivo exista antes de copiar
     if (!fs.existsSync(dbPath)) {
       console.error('[RESET] ERROR: pos.db NO encontrado en:', dbPath);
       return res.status(500).json({ error: 'Base de datos pos.db no encontrada' });
@@ -32,6 +30,12 @@ exports.resetTables = (req, res) => {
     console.log('[RESET] Backup creado en:', backupPath);
 
     db.serialize(() => {
+      // 1. DESACTIVAR LLAVES FORÁNEAS (Para evitar el error de restricción)
+      db.run('PRAGMA foreign_keys = OFF', (err) => {
+        if (err) console.error('[RESET] Error desactivando FK:', err.message);
+        else console.log('[RESET] Foreign Keys desactivadas temporalmente');
+      });
+
       db.run('BEGIN TRANSACTION');
 
       tables.forEach(table => {
@@ -52,8 +56,18 @@ exports.resetTables = (req, res) => {
         if (err) {
           console.error('[RESET] Error en COMMIT:', err);
           db.run('ROLLBACK');
+          
+          // Reactivamos FK incluso si falla el commit
+          db.run('PRAGMA foreign_keys = ON');
           return res.status(500).json({ error: 'Error al ejecutar el reset' });
         }
+
+        // 2. REACTIVAR LLAVES FORÁNEAS (Vital para la integridad futura)
+        db.run('PRAGMA foreign_keys = ON', (err) => {
+          if (err) console.error('[RESET] Error reactivando FK:', err.message);
+          else console.log('[RESET] Foreign Keys reactivadas correctamente');
+        });
+
         console.log('[RESET] ¡Zap completado!');
         res.json({ 
           message: '¡Boom! Datos zapeados con éxito. 💥',
@@ -64,6 +78,7 @@ exports.resetTables = (req, res) => {
   } catch (err) {
     console.error('[RESET] Error general:', err);
     db.run('ROLLBACK');
+    db.run('PRAGMA foreign_keys = ON'); // Asegurar reactivación en catch
     res.status(500).json({ error: '¡Ups! Error en el zap: ' + err.message });
   }
 };
@@ -78,10 +93,14 @@ exports.resetBalances = (req, res) => {
       db.run('BEGIN TRANSACTION');
       db.run(`UPDATE customers SET current_balance = 0`);
       db.run(`UPDATE products SET stock = 0`);
-      db.run('COMMIT');
+      db.run('COMMIT', (err) => {
+        if (err) {
+          db.run('ROLLBACK');
+          return res.status(500).json({ error: 'Error al confirmar reset de balances' });
+        }
+        res.json({ message: '¡Saldos y stocks a cero! 🧹 Listo para un nuevo comienzo.' });
+      });
     });
-
-    res.json({ message: '¡Saldos y stocks a cero! 🧹 Listo para un nuevo comienzo.' });
   } catch (err) {
     db.run('ROLLBACK');
     res.status(500).json({ error: 'Error al resetear balances: ' + err.message });

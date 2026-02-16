@@ -70,6 +70,12 @@ app.use('/api/entries', require('./src/routes/entries'));
 app.use('/api/kardex', require('./src/routes/kardexRoutes'));
 
 // =========================
+// 🔥 SALIDAS DE INVENTARIO (OUTS)
+ // =========================
+app.use('/api/outs', require('./src/routes/outRoutes'));
+
+
+// =========================
 // 🔥 CLIENTES
 // =========================
 app.use('/api/customers', require('./src/routes/customerRoutes'));
@@ -83,6 +89,12 @@ app.use('/api/cuts', require('./src/routes/cutRoutes'));
 // 🔥 RESET DE DATOS (protegido por superdev)
 // =========================
 app.use('/api/reset', require('./src/routes/resetRoutes'));
+
+// =========================
+// 🔥 CONFIGURACIÓN GENERAL
+// =========================
+app.use('/api/settings', require('./src/routes/settings.routes'));
+
 
 
 // =========================
