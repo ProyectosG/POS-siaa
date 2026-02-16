@@ -1,12 +1,9 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useMemo, useRef } from "react"
 import { cn } from "@/lib/utils"
+import { useSettingsStore } from "@/store/useSettingsStore"
 
-/**
- * Normaliza los datos de un producto para que siempre tenga los campos básicos
- * Puedes agregar más campos si lo necesitas
- */
 const normalizarProducto = (p) => ({
   ...p,
   codigo_barras: p.codigo_barras || p.codigo || "-",
@@ -15,18 +12,6 @@ const normalizarProducto = (p) => ({
   stock: Number(p.stock ?? p.quantity ?? 0),
 })
 
-/**
- * OverlayProductos
- *
- * Componente genérico para mostrar productos en un modal tipo overlay.
- * Recibe:
- * - resultados: array de objetos con datos de productos
- * - columns: array de columnas { key, label, align? }
- * - selectedIndex / setSelectedIndex: para navegación con teclado
- * - onSelect: función que recibe el producto seleccionado
- * - onClose: función para cerrar el overlay
- * - selectedColor: color para el fondo del producto seleccionado (tailwind color, ej. "emerald")
- */
 export default function OverlayProductos({
   resultados = [],
   columns = [],
@@ -34,79 +19,100 @@ export default function OverlayProductos({
   setSelectedIndex,
   onSelect,
   onClose,
-  selectedColor = "emerald",
+  selectedColor,
 }) {
+  const settings = useSettingsStore((s) => s.settings)
+  const containerRef = useRef(null)
 
-  /* ===== TECLADO GLOBAL (↑ ↓ Enter Esc) ===== */
+  const productosFiltrados = useMemo(() => {
+    const permiteNegativos = !!settings?.allow_negative_balance
+    if (permiteNegativos) return resultados
+    return resultados.filter((p) => Number(p.stock ?? p.quantity ?? 0) > 0)
+  }, [resultados, settings])
+
   useEffect(() => {
+    if (containerRef.current) containerRef.current.focus()
+
     const handler = (e) => {
-      if (e.key === "ArrowDown") {
-        e.preventDefault()
-        setSelectedIndex((i) =>
-          Math.min(i + 1, resultados.length - 1)
-        )
-      }
-
-      if (e.key === "ArrowUp") {
-        e.preventDefault()
-        setSelectedIndex((i) => Math.max(i - 0, 0))
-      }
-
-      if (e.key === "Enter") {
-        e.preventDefault()
-        const seleccionado = resultados[selectedIndex]
-        if (seleccionado) onSelect(normalizarProducto(seleccionado))
-      }
-
       if (e.key === "Escape") {
         e.preventDefault()
+        e.stopPropagation()
+        e.stopImmediatePropagation()
         onClose()
+        return
+      }
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault()
+        setSelectedIndex((i) => Math.min(i + 1, productosFiltrados.length - 1))
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault()
+        setSelectedIndex((i) => Math.max(i - 1, 0))
+      } else if (e.key === "Enter") {
+        e.preventDefault()
+        const seleccionado = productosFiltrados[selectedIndex]
+        if (seleccionado) onSelect(normalizarProducto(seleccionado))
       }
     }
 
-    // Bloquea el scroll del fondo mientras el overlay está abierto
+    document.addEventListener("keydown", handler, true)
     document.body.style.overflow = "hidden"
-    window.addEventListener("keydown", handler)
 
     return () => {
+      document.removeEventListener("keydown", handler, true)
       document.body.style.overflow = ""
-      window.removeEventListener("keydown", handler)
     }
-  }, [resultados, selectedIndex, setSelectedIndex, onSelect, onClose])
+  }, [productosFiltrados, selectedIndex, onClose, onSelect, setSelectedIndex])
 
   return (
     <>
-      {/* ===== BACKDROP ===== */}
-      <div
-        className="fixed inset-0 bg-black/30 z-40"
-        onClick={onClose}
+      {/* BACKDROP CON BLUR SUTIL */}
+      <div 
+        className="fixed inset-0 bg-black/40 z-[9998] backdrop-blur-[2px]" 
+        onClick={onClose} 
       />
 
-      {/* ===== MODAL ===== */}
-      <div
+      {/* MODAL REFINADO */}
+      <div 
+        ref={containerRef}
+        tabIndex={-1} 
         className={cn(
-          "fixed top-28 left-1/2 -translate-x-1/2",
-          "w-[820px] max-h-[420px]",
-          "bg-white rounded-xl border",
-          "shadow-2xl shadow-black/30",
-          "z-50 overflow-hidden"
+          "fixed top-24 left-1/2 -translate-x-1/2 outline-none",
+          "w-[850px] max-h-[500px] bg-white rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] z-[9999] overflow-hidden flex flex-col border border-slate-200"
         )}
       >
-        {/* HEADER */}
-        <div className="px-4 py-2 border-b bg-muted/40 font-semibold text-sm">
-          Buscar producto
+        {/* CABECERA MÁS LIMPIA */}
+        <div className="px-6 py-4 border-b bg-white flex justify-between items-center">
+          <div className="flex items-center gap-3">
+            <h2 className="font-extrabold text-slate-900 text-base tracking-tight">
+              PRODUCTOS ENCONTRADOS
+              <span className="ml-2 text-slate-400 font-medium">({productosFiltrados.length})</span>
+            </h2>
+            {!settings?.allow_negative_balance && (
+              <span className="text-[10px] bg-amber-500 text-white px-2 py-0.5 rounded shadow-sm font-bold animate-pulse">
+                SÓLO EXISTENCIAS
+              </span>
+            )}
+          </div>
+          <button 
+            onClick={onClose} 
+            className="group flex items-center gap-2 text-slate-400 hover:text-rose-500 transition-colors"
+          >
+            <span className="text-[10px] font-bold border border-slate-200 px-1.5 py-0.5 rounded group-hover:border-rose-200">ESC</span>
+            <span className="text-xs font-bold uppercase tracking-widest">Cerrar</span>
+          </button>
         </div>
 
-        {/* LISTA */}
-        <div className="max-h-[340px] overflow-y-auto">
-          <table className="w-full text-sm">
-            <thead className="sticky top-0 bg-muted/30">
+        {/* CUERPO DE TABLA CON MEJOR CONTRASTE */}
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
+          <table className="w-full text-sm border-collapse">
+            <thead className="sticky top-0 bg-slate-100 z-20 shadow-sm">
               <tr>
                 {columns.map((col) => (
-                  <th
-                    key={col.key}
+                  <th 
+                    key={col.key} 
                     className={cn(
-                      "text-left px-3 py-2",
+                      "px-6 py-3 text-left text-[11px] text-slate-900 font-black uppercase tracking-wider border-b border-slate-200", 
                       col.align === "right" && "text-right"
                     )}
                   >
@@ -115,31 +121,30 @@ export default function OverlayProductos({
                 ))}
               </tr>
             </thead>
-
-            <tbody>
-              {resultados.map((p, i) => {
+            <tbody className="divide-y divide-slate-100">
+              {productosFiltrados.map((p, i) => {
                 const seleccionado = i === selectedIndex
                 const prod = normalizarProducto(p)
-
                 return (
-                  <tr
-                    key={`${prod.id ?? prod.codigo_barras}-${i}`}
+                  <tr 
+                    key={i} 
                     onClick={() => onSelect(prod)}
                     className={cn(
-                      "cursor-pointer",
-                      seleccionado
-                        ? `bg-${selectedColor}-100 ring-1 ring-${selectedColor}-400`
-                        : "hover:bg-muted/40"
+                      "cursor-pointer transition-all duration-75", 
+                      seleccionado 
+                        ? "bg-emerald-50 ring-2 ring-inset ring-emerald-500/50 shadow-inner" 
+                        : "hover:bg-slate-50/80"
                     )}
                   >
                     {columns.map((col) => (
-                      <td
-                        key={col.key}
+                      <td 
+                        key={col.key} 
                         className={cn(
-                          "px-3 py-2",
-                          col.align === "right" && "text-right",
-                          col.key === "codigo_barras" && "font-mono",
-                          col.key === "stock" && "font-semibold"
+                          "px-6 py-4 text-slate-700 font-medium", 
+                          col.align === "right" && "text-right", 
+                          col.key === "stock" && "font-bold text-emerald-700",
+                          col.key === "codigo_barras" && "font-mono text-xs text-slate-500",
+                          seleccionado && "text-emerald-900"
                         )}
                       >
                         {prod[col.key] ?? "-"}
@@ -150,11 +155,27 @@ export default function OverlayProductos({
               })}
             </tbody>
           </table>
+          
+          {productosFiltrados.length === 0 && (
+            <div className="py-20 text-center">
+              <p className="text-slate-400 text-sm font-medium">No se encontraron productos disponibles.</p>
+            </div>
+          )}
         </div>
 
-        {/* FOOTER */}
-        <div className="px-4 py-2 border-t text-xs text-muted-foreground">
-          ↑ ↓ navegar · [Enter] seleccionar · [Esc] cerrar
+        {/* PIE DE PÁGINA (MARGEN INFERIOR Y ATAJOS) */}
+        <div className="px-6 py-3 border-t bg-slate-50 flex justify-between items-center">
+          <div className="flex gap-6 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+            <span className="flex items-center gap-1.5">
+              <span className="bg-white border border-slate-300 px-1 rounded text-slate-900">↑↓</span> Navegar
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="bg-white border border-slate-300 px-1 rounded text-slate-900">ENTER</span> Seleccionar
+            </span>
+          </div>
+          <div className="text-[10px] font-black text-slate-400 italic">
+            MODO: {settings?.allow_negative_balance ? "VENTA LIBRE" : "CONTROL DE STOCK"}
+          </div>
         </div>
       </div>
     </>

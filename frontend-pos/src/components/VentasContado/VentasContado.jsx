@@ -3,6 +3,7 @@
 import * as React from "react"
 import { useState, useRef } from "react"
 import { useAuthStore } from "@/store/useAuthStore"
+import { useSettingsStore } from "@/store/useSettingsStore"
 import toast from "react-hot-toast"
 
 import { Plus } from "lucide-react"
@@ -51,6 +52,9 @@ export default function VentasContado() {
   const [cantidad, setCantidad] = useState("")
   const refNombre = useRef(null)
   const refCodigo = useRef(null)
+
+    // 🟢 CONSUMIMOS SETTINGS GLOBALES
+  const settings = useSettingsStore((s) => s.settings)
 
   /* ===== HOOK PRINCIPAL ===== */
   const {
@@ -132,41 +136,64 @@ export default function VentasContado() {
   }, [items, focusPendiente, setActiveCell])
 
   /* ===== BUSCAR POR CÓDIGO ===== */
-  const buscarProductoPorCodigo = async (itemId, codigo) => {
-    if (!codigo) return
-    try {
-      const res = await fetch(`${API_URL}/products/barcode/${codigo}`)
-      if (!res.ok) {
-        beep(false)
-        return
-      }
+const buscarProductoPorCodigo = async (itemId, codigo) => {
+  if (!codigo) return
+  
+  // Obtenemos las configuraciones actuales del store
+  const settings = useSettingsStore.getState().settings;
 
-      const p = await res.json()
-      beep(true)
-
-      const precios = [
-        { tipo: "menudeo", label: "Menudeo", valor: p.precio_menudeo },
-        { tipo: "mayoreo", label: "Mayoreo", valor: p.precio_mayoreo },
-        { tipo: "especial", label: "Especial", valor: p.precio_especial },
-        { tipo: "oferta", label: "Oferta", valor: p.precio_oferta },
-      ].filter((p) => p.valor > 0)
-
-      actualizarItem(itemId, "productId", p.id)
-      actualizarItem(itemId, "codigoBarras", p.codigo_barras || "")
-      actualizarItem(itemId, "articulo", p.articulo || "")
-      actualizarItem(itemId, "presentacion", p.presentacion || "")
-      actualizarItem(itemId, "precios", precios)
-      actualizarItem(itemId, "tipoPrecio", precios[0]?.tipo || "menudeo")
-      actualizarItem(itemId, "precio", precios[0]?.valor || 0)
-      actualizarItem(itemId, "ivaPct", p.iva ? 16 : 0)
-
-      agregarItem()
-      setFocusPendiente({ row: items.length, col: "codigoBarras" })
-    } catch (err) {
-      console.error(err)
+  try {
+    const res = await fetch(`${API_URL}/products/barcode/${codigo}`)
+    if (!res.ok) {
+      beep(false)
+      // Opcional: toast.error("Producto no encontrado")
+      return
     }
-  }
 
+    const p = await res.json()
+
+    // 🚨 VALIDACIÓN DE STOCK SEGÚN SETTINGS
+    // Si el stock es 0 o menos Y la variable allow_negative_balance es false (o no existe)
+    const stockDisponible = Number(p.existencia) || 0;
+    
+    if (stockDisponible <= 0 && !settings?.allow_negative_balance) {
+      beep(false);
+      toast.error(`No hay existencia de: ${p.articulo}`, {
+        icon: '🚫',
+        style: { borderRadius: '10px', background: '#333', color: '#fff' }
+      });
+      return; // Bloqueamos la entrada del producto a la grilla
+    }
+
+    beep(true)
+
+    const precios = [
+      { tipo: "menudeo", label: "Menudeo", valor: p.precio_menudeo },
+      { tipo: "mayoreo", label: "Mayoreo", valor: p.precio_mayoreo },
+      { tipo: "especial", label: "Especial", valor: p.precio_especial },
+      { tipo: "oferta", label: "Oferta", valor: p.precio_oferta },
+    ].filter((pre) => pre.valor > 0)
+
+    // Actualizamos los datos del item actual
+    actualizarItem(itemId, "productId", p.id)
+    actualizarItem(itemId, "codigoBarras", p.codigo_barras || "")
+    actualizarItem(itemId, "articulo", p.articulo || "")
+    actualizarItem(itemId, "presentacion", p.presentacion || "")
+    actualizarItem(itemId, "stock", stockDisponible) // Guardamos el stock para validaciones posteriores
+    actualizarItem(itemId, "precios", precios)
+    actualizarItem(itemId, "tipoPrecio", precios[0]?.tipo || "menudeo")
+    actualizarItem(itemId, "precio", precios[0]?.valor || 0)
+    actualizarItem(itemId, "ivaPct", p.iva ? 16 : 0)
+
+    // Agregamos una fila nueva y saltamos a ella
+    agregarItem()
+    setFocusPendiente({ row: items.length, col: "codigoBarras" })
+
+  } catch (err) {
+    console.error("Error al buscar por código:", err)
+    toast.error("Error de conexión con el servidor");
+  }
+}
   /* ===== BUSCAR POR NOMBRE ===== */
   const buscarProductoPorNombre = async (texto, fila) => {
     if (!texto || texto.length < 2) {
@@ -441,15 +468,19 @@ const handleSeleccionProducto = (producto) => {
         </Button>
       </div>
 
-      {/* TOGGLE */}
-      <div className="flex items-center gap-3">
-        <Switch
-          checked={mostrarDescuento}
-          onCheckedChange={setMostrarDescuento}
-        />
-        <span className="text-sm">Mostrar descuentos</span>
-        <p className="text-sm text-muted-foreground">  [F11] cambia foco</p>
-      </div>
+ {/* TOGGLE CONDICIONADO */}
+{Number(settings?.allow_discounts) !== 0 && (
+  <div className="flex items-center gap-3 animate-in fade-in duration-300">
+    <Switch
+      checked={mostrarDescuento}
+      onCheckedChange={setMostrarDescuento}
+    />
+    <div className="flex flex-col">
+       <span className="text-sm font-medium text-slate-700">Mostrar descuentos</span>
+       <p className="text-[10px] text-muted-foreground">[F11] cambia foco</p>
+    </div>
+  </div>
+)}
 
       {/* GRILLA */}
       <VentaGrid
@@ -510,23 +541,24 @@ const handleSeleccionProducto = (producto) => {
       </div>
 
       {/* OVERLAYS */}
-      {mostrarLista && (
-         <OverlayProductos
-           resultados={resultadosNombre} // ✅ aquí van los resultados de búsqueda
-           selectedIndex={selectedIndexNombre}
-           setSelectedIndex={setSelectedIndexNombre}
-           onSelect={handleSeleccionProducto}
-           onClose={() => setMostrarOverlay(false)} // ✅ corregido
-           columns={[
-             { key: 'codigo_barras', label: 'Código' },
-             { key: 'articulo', label: 'Artículo' },
-             { key: 'presentacion', label: 'Presentación' },
-             { key: 'precio_menudeo', label: 'Precio' },    
-             { key: 'stock', label: 'Stock', align: 'right' },
-           ]}
-           selectedColor="emerald"
-         />
-      )}
+     {mostrarLista && (
+  <OverlayProductos
+    resultados={resultadosNombre}
+    selectedIndex={selectedIndexNombre}
+    setSelectedIndex={setSelectedIndexNombre}
+    onSelect={handleSeleccionProducto}
+    // 🔥 CAMBIO AQUÍ: Debe ser la misma variable que arriba
+    onClose={() => setMostrarLista(false)} 
+    columns={[
+      { key: 'codigo_barras', label: 'Código' },
+      { key: 'articulo', label: 'Artículo' },
+      { key: 'presentacion', label: 'Presentación' },
+      { key: 'precio_menudeo', label: 'Precio' },    
+      { key: 'stock', label: 'Stock', align: 'right' },
+    ]}
+    selectedColor="emerald"
+  />
+)}
 
       {mostrarPrecios && (
         <MenuPrecios

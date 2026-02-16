@@ -1,687 +1,127 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { 
-  User, Mail, Phone, MapPin, CreditCard, DollarSign, 
-  Edit2, Trash2, Plus, Search, X 
-} from "lucide-react"
+import { Plus, Search } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import toast from "react-hot-toast"
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
-const CUSTOMERS_URL = `${API_BASE}/customers`
+import CustomerForm from "./CustomerForm"
+import CustomerList from "./CustomerList"
+import CustomerDetail from "./CustomerDetail"
+import { useCustomers } from "@/components/hooks/useCustomer.jsx"
 
 export default function CatalogoClientes() {
-  const [clientes, setClientes] = useState([])
-  const [isFormOpen, setIsFormOpen] = useState(false)
-  const [editingCliente, setEditingCliente] = useState(null)
-  const [searchTerm, setSearchTerm] = useState("")
-  const [selectedCliente, setSelectedCliente] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const {
+    customers,
+    loading,
+    createCustomer,
+    updateCustomer,
+    deleteCustomer
+  } = useCustomers()
 
-  const [formData, setFormData] = useState({
-    first_name: "",
-    last_name_paternal: "",
-    last_name_maternal: "",
-    phone: "",
-    email: "",
-    address: "",
-    rfc: "",
-    postal_code: "",
-    city: "",
-    current_balance: 0,
-  })
+  const [isFormOpen, setIsFormOpen] = useState(false)
+  const [editingCustomer, setEditingCustomer] = useState(null)
+  const [selectedCustomer, setSelectedCustomer] = useState(null)
+  const [searchTerm, setSearchTerm] = useState("")
 
   useEffect(() => {
-    loadClientes()
-  }, [])
-
-  const loadClientes = async () => {
-    try {
-      setLoading(true)
-      const res = await fetch(CUSTOMERS_URL)
-      if (!res.ok) {
-        throw new Error(`Error al cargar clientes: ${res.status}`)
-      }
-      const data = await res.json()
-      setClientes(data || [])
-      
-      if (data?.length > 0 && !selectedCliente) {
-        setSelectedCliente(data[0])
-      }
-    } catch (err) {
-      toast.error(err)
-      toast.error("No se pudieron cargar los clientes")
-    } finally {
-      setLoading(false)
+    if (customers.length > 0 && !selectedCustomer) {
+      setSelectedCustomer(customers[0])
     }
-  }
+  }, [customers])
 
-  const handleInputChange = (e) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({
-      ...prev,
-      [name]: name === "current_balance" ? Number(value) || 0 : value,
-    }))
-  }
-
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-
-    if (!formData.first_name || !formData.last_name_paternal) {
-      toast("Nombre y apellido paterno son obligatorios")
-      return
-    }
-
-    try {
-      const method = editingCliente ? "PUT" : "POST"
-      const url = editingCliente 
-        ? `${CUSTOMERS_URL}/${editingCliente.id}`
-        : CUSTOMERS_URL
-
-      const res = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-      })
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}))
-        throw new Error(errorData.error || "Error al guardar el cliente")
-      }
-
-      toast.success(editingCliente ? "Cliente actualizado correctamente" : "Cliente creado correctamente")
-      
-      resetForm()
-      await loadClientes()
-    } catch (err) {
-      console.error(err)
-      toast.error(err.message || "No se pudo guardar el cliente")
-    }
-  }
-
-  const handleEdit = (cliente) => {
-    setEditingCliente(cliente)
-    setFormData({ ...cliente })
-    setIsFormOpen(true)
-  }
-
-  const handleDelete = async (id) => {
-    if (!confirm("¿Realmente deseas eliminar este cliente?")) return
-
-    try {
-      const res = await fetch(`${CUSTOMERS_URL}/${id}`, {
-        method: "DELETE",
-      })
-
-      if (!res.ok) {
-        throw new Error("No se pudo eliminar el cliente")
-      }
-
-      toast.success("Cliente eliminado correctamente")
-      await loadClientes()
-
-      if (selectedCliente?.id === id) {
-        const remaining = clientes.filter(c => c.id !== id)
-        setSelectedCliente(remaining.length > 0 ? remaining[0] : null)
-      }
-    } catch (err) {
-      console.error(err)
-      toast.error("Error al eliminar el cliente")
-    }
-  }
-
-  const filteredClientes = clientes.filter((cliente) => {
-    const fullName = `${cliente.first_name} ${cliente.last_name_paternal} ${cliente.last_name_maternal || ""}`.toLowerCase()
-    const email = (cliente.email || "").toLowerCase()
-    const phone = cliente.phone || ""
+  const filteredCustomers = customers.filter(c => {
+    const fullName =
+      `${c.first_name} ${c.last_name_paternal} ${c.last_name_maternal || ""}`.toLowerCase()
+    const email = (c.email || "").toLowerCase()
+    const phone = c.phone || ""
     const term = searchTerm.toLowerCase()
-    
-    return fullName.includes(term) || email.includes(term) || phone.includes(term)
+
+    return (
+      fullName.includes(term) ||
+      email.includes(term) ||
+      phone.includes(term)
+    )
   })
 
-  const totalSaldo = clientes.reduce((sum, c) => sum + (Number(c.current_balance) || 0), 0)
-  const clientesConSaldo = clientes.filter(c => Number(c.current_balance) > 0).length
-
-  const resetForm = () => {
-    setFormData({
-      first_name: "",
-      last_name_paternal: "",
-      last_name_maternal: "",
-      phone: "",
-      email: "",
-      address: "",
-      rfc: "",
-      postal_code: "",
-      city: "",
-      current_balance: 0,
-    })
-    setIsFormOpen(false)
-    setEditingCliente(null)
-  }
-
-  // ──────────────────────────────────────────────────────────────
-  // RENDERIZADO
-  // ──────────────────────────────────────────────────────────────
-
-  if (isFormOpen) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-3xl font-bold text-white">
-                {editingCliente ? "Editar Cliente" : "Nuevo Cliente"}
-              </h2>
-              <p className="text-slate-400 mt-1">
-                {editingCliente
-                  ? "Actualiza la información del cliente"
-                  : "Completa el formulario para registrar un cliente"}
-              </p>
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={resetForm}
-              className="text-slate-400 hover:text-white hover:bg-slate-700"
-            >
-              <X className="h-5 w-5" />
-            </Button>
-          </div>
-
-          <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
-            <CardContent className="p-6">
-              <form onSubmit={handleSubmit} className="space-y-6">
-                {editingCliente && (
-                  <div className="space-y-2">
-                    <Label htmlFor="cliente_id" className="text-slate-200">
-                      ID del Cliente
-                    </Label>
-                    <Input
-                      id="cliente_id"
-                      value={editingCliente.id}
-                      readOnly
-                      disabled
-                      className="bg-slate-900/50 border-slate-600 text-slate-400 cursor-not-allowed"
-                    />
-                  </div>
-                )}
-
-                <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                    <User className="h-5 w-5 text-blue-400" />
-                    Información Personal
-                  </h3>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="first_name" className="text-slate-200">
-                        Nombre <span className="text-red-400">*</span>
-                      </Label>
-                      <Input
-                        id="first_name"
-                        name="first_name"
-                        value={formData.first_name || ""}
-                        onChange={handleInputChange}
-                        maxLength={50}
-                        required
-                        placeholder="Juan"
-                        className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400 focus:border-blue-500 hover:border-blue-400 hover:shadow-[0_0_15px_rgba(59,130,246,0.2)] transition-all duration-500 ease-out"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="last_name_paternal" className="text-slate-200">
-                        Apellido Paterno <span className="text-red-400">*</span>
-                      </Label>
-                      <Input
-                        id="last_name_paternal"
-                        name="last_name_paternal"
-                        value={formData.last_name_paternal || ""}
-                        onChange={handleInputChange}
-                        maxLength={50}
-                        required
-                        placeholder="García"
-                        className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400 focus:border-blue-500 hover:border-blue-400 hover:shadow-[0_0_15px_rgba(59,130,246,0.2)] transition-all duration-500 ease-out"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="last_name_maternal" className="text-slate-200">
-                        Apellido Materno
-                      </Label>
-                      <Input
-                        id="last_name_maternal"
-                        name="last_name_maternal"
-                        value={formData.last_name_maternal || ""}
-                        onChange={handleInputChange}
-                        maxLength={50}
-                        placeholder="López"
-                        className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400 focus:border-blue-500 hover:border-blue-400 hover:shadow-[0_0_15px_rgba(59,130,246,0.2)] transition-all duration-500 ease-out"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Resto del formulario (contacto, dirección, fiscal) se mantiene igual */}
-                {/* Solo copio algunos ejemplos para no extender demasiado, pero está completo en tu original */}
-
-                <div className="space-y-4 pt-6 border-t border-slate-700">
-                  <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                    <Phone className="h-5 w-5 text-emerald-400" />
-                    Información de Contacto
-                  </h3>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="phone" className="text-slate-200">
-                        Teléfono <span className="text-red-400">*</span>
-                      </Label>
-                      <div className="relative">
-                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                        <Input
-                          id="phone"
-                          name="phone"
-                          type="tel"
-                          value={formData.phone || ""}
-                          onChange={handleInputChange}
-                          maxLength={15}
-                          required
-                          placeholder="5551234567"
-                          className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400 focus:border-emerald-500 pl-10 hover:border-emerald-400 hover:shadow-[0_0_15px_rgba(16,185,129,0.2)] transition-all duration-500 ease-out"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="email" className="text-slate-200">
-                        Email <span className="text-red-400">*</span>
-                      </Label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                        <Input
-                          id="email"
-                          name="email"
-                          type="email"
-                          value={formData.email || ""}
-                          onChange={handleInputChange}
-                          required
-                          placeholder="cliente@email.com"
-                          className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400 focus:border-emerald-500 pl-10 hover:border-emerald-400 hover:shadow-[0_0_15px_rgba(16,185,129,0.2)] transition-all duration-500 ease-out"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Dirección */}
-                <div className="space-y-4 pt-6 border-t border-slate-700">
-                  <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                    <MapPin className="h-5 w-5 text-purple-400" />
-                    Dirección
-                  </h3>
-
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="address" className="text-slate-200">
-                        Dirección Completa
-                      </Label>
-                      <Input
-                        id="address"
-                        name="address"
-                        value={formData.address || ""}
-                        onChange={handleInputChange}
-                        maxLength={200}
-                        placeholder="Calle, Número, Colonia"
-                        className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400 focus:border-purple-500 hover:border-purple-400 hover:shadow-[0_0_15px_rgba(168,85,247,0.2)] transition-all duration-500 ease-out"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="city" className="text-slate-200">
-                          Ciudad
-                        </Label>
-                        <Input
-                          id="city"
-                          name="city"
-                          value={formData.city || ""}
-                          onChange={handleInputChange}
-                          maxLength={100}
-                          placeholder="Ciudad de México"
-                          className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400 focus:border-purple-500 hover:border-purple-400 hover:shadow-[0_0_15px_rgba(168,85,247,0.2)] transition-all duration-500 ease-out"
-                        />
-                      </div>
-
-                      <div className="space-y-2">
-                        <Label htmlFor="postal_code" className="text-slate-200">
-                          Código Postal
-                        </Label>
-                        <Input
-                          id="postal_code"
-                          name="postal_code"
-                          value={formData.postal_code || ""}
-                          onChange={handleInputChange}
-                          maxLength={10}
-                          placeholder="06000"
-                          className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400 focus:border-purple-500 hover:border-purple-400 hover:shadow-[0_0_15px_rgba(168,85,247,0.2)] transition-all duration-500 ease-out"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Fiscal y Saldo */}
-                <div className="space-y-4 pt-6 border-t border-slate-700">
-                  <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                    <CreditCard className="h-5 w-5 text-amber-400" />
-                    Información Fiscal y Saldo
-                  </h3>
-
-                  <div className="grid grid-cols-1 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="rfc" className="text-slate-200">
-                        RFC
-                      </Label>
-                      <Input
-                        id="rfc"
-                        name="rfc"
-                        value={formData.rfc || ""}
-                        onChange={handleInputChange}
-                        maxLength={13}
-                        placeholder="GALJ850101ABC"
-                        className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400 focus:border-amber-500 hover:border-amber-400 hover:shadow-[0_0_15px_rgba(251,191,36,0.2)] transition-all duration-500 ease-out uppercase"
-                      />
-                    </div>
-
-                    <div className="flex justify-center">
-                      <div className="space-y-2 w-auto">
-                        <Label htmlFor="current_balance" className="text-slate-200 text-center block">
-                          Saldo Actual
-                        </Label>
-                        <div className="relative">
-                          <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                          <Input
-                            id="current_balance"
-                            name="current_balance"
-                            type="number"
-                            step="0.01"
-                            value={formData.current_balance || 0}
-                            disabled
-                            readOnly
-                            placeholder="0.00"
-                            className="bg-slate-900/50 border-slate-600 text-slate-400 placeholder:text-slate-500 pl-10 w-40 text-center cursor-not-allowed"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex gap-3 pt-6 border-t border-slate-700">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={resetForm}
-                    className="flex-1 border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white bg-transparent"
-                  >
-                    Cancelar
-                  </Button>
-                  <Button
-                    type="submit"
-                    className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
-                  >
-                    {editingCliente ? "Actualizar Cliente" : "Crear Cliente"}
-                  </Button>
-                </div>
-              </form>
-            </CardContent>
-          </Card>
+if (isFormOpen) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="w-full max-w-4xl flex flex-col overflow-hidden rounded-lg shadow-lg max-h-[95vh]">
+        <div className="flex-1 overflow-y-auto">
+          <CustomerForm
+            initialData={editingCustomer || {}}
+            isEditing={!!editingCustomer}
+            onSubmit={
+              editingCustomer
+                ? (data) => updateCustomer(editingCustomer.id, data)
+                : createCustomer
+            }
+            onCancel={() => {
+              setIsFormOpen(false)
+              setEditingCustomer(null)
+            }}
+          />
         </div>
       </div>
-    )
-  }
+    </div>
+  )
+}
+
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col lg:flex-row justify-center items-center gap-8 mb-8">
-          <div className="text-center">
-            <h1 className="text-3xl font-bold text-white">Catálogo de Clientes</h1>
-            <p className="text-slate-400 mt-1">Gestiona la información de tus clientes</p>
+    <div className="min-h-screen bg-slate-900 p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+
+        {/* Header */}
+        <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
+          <div className="text-center lg:text-left">
+            <h1 className="text-3xl font-bold text-white">
+              Catálogo de Clientes
+            </h1>
+            <p className="text-slate-400">
+              Gestión de clientes
+            </p>
           </div>
 
           <Button
             onClick={() => setIsFormOpen(true)}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white lg:ml-20 px-6"
+            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white"
           >
             <Plus className="h-4 w-4 mr-2" />
             Nuevo Cliente
           </Button>
 
-          <div className="w-80">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-              <Input
-                placeholder="Buscar cliente..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="bg-slate-800/50 border-slate-700 text-white placeholder:text-slate-400 pl-10 focus:border-blue-500"
-              />
-            </div>
+          <div className="w-80 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Input
+              placeholder="Buscar cliente..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 bg-slate-800 border-slate-700 text-white"
+            />
           </div>
         </div>
 
-        {loading ? (
-          <div className="text-center py-20 text-slate-400 text-xl">
-            Cargando clientes...
-          </div>
-        ) : (
-          <>
-            <div className="flex justify-center gap-4 mb-8">
-              <Card className="bg-gradient-to-br from-blue-600 to-blue-700 border-0 text-white w-32">
-                <CardHeader className="pb-2 pt-3 px-3 text-center">
-                  <CardDescription className="text-blue-100 text-[10px]">Total Clientes</CardDescription>
-                  <CardTitle className="text-2xl">{clientes.length}</CardTitle>
-                </CardHeader>
-              </Card>
+        {/* Layout principal */}
+        <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6">
+          {/* Panel izquierdo */}
+          <CustomerList
+            customers={filteredCustomers}
+            selectedCustomer={selectedCustomer}
+            onSelect={setSelectedCustomer}
+            loading={loading}
+          />
 
-              <Card className="bg-gradient-to-br from-emerald-600 to-emerald-700 border-0 text-white w-32">
-                <CardHeader className="pb-2 pt-3 px-3 text-center">
-                  <CardDescription className="text-emerald-100 text-[10px]">Con Saldo</CardDescription>
-                  <CardTitle className="text-2xl">{clientesConSaldo}</CardTitle>
-                </CardHeader>
-              </Card>
-
-              <Card className="bg-gradient-to-br from-amber-600 to-amber-700 border-0 text-white w-32">
-                <CardHeader className="pb-2 pt-3 px-3 text-center">
-                  <CardDescription className="text-amber-100 text-[10px]">Saldo Total</CardDescription>
-                  <CardTitle className="text-xl">${totalSaldo.toFixed(2)}</CardTitle>
-                </CardHeader>
-              </Card>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              <div className="lg:col-span-1">
-                <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
-                  <CardHeader>
-                    <CardTitle className="text-white">Lista de Clientes</CardTitle>
-                    <CardDescription className="text-slate-400">
-                      Selecciona un cliente para ver sus detalles
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    <div className="max-h-[600px] overflow-y-auto">
-                      {filteredClientes.map((cliente) => (
-                        <button
-                          key={cliente.id}
-                          onClick={() => setSelectedCliente(cliente)}
-                          className={`w-full text-left p-4 border-b border-slate-700 hover:bg-slate-700/50 transition-all ${
-                            selectedCliente?.id === cliente.id ? "bg-slate-700/70 border-l-4 border-l-blue-500" : ""
-                          }`}
-                        >
-                          <div className="space-y-1">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs text-slate-400">ID: {cliente.id}</span>
-                              {Number(cliente.current_balance) > 0 && (
-                                <span className="text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded">
-                                  ${Number(cliente.current_balance).toFixed(2)}
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-sm font-medium text-white">{cliente.first_name}</div>
-                            <div className="text-sm text-slate-300">
-                              {cliente.last_name_paternal} {cliente.last_name_maternal || ""}
-                            </div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div className="lg:col-span-2">
-                {selectedCliente ? (
-                  <Card className="bg-slate-700/60 border-slate-700 backdrop-blur-sm">
-                    <CardHeader>
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <CardTitle className="text-2xl text-white">
-                            {selectedCliente.first_name} {selectedCliente.last_name_paternal}{" "}
-                            {selectedCliente.last_name_maternal || ""}
-                          </CardTitle>
-                          <CardDescription className="text-slate-400 mt-1">
-                            ID del Cliente: {selectedCliente.id}
-                          </CardDescription>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            onClick={() => handleEdit(selectedCliente)}
-                            size="sm"
-                            className="bg-blue-600 hover:bg-blue-700 text-white"
-                          >
-                            <Edit2 className="h-4 w-4 mr-2" />
-                            Editar
-                          </Button>
-                          <Button
-                            onClick={() => handleDelete(selectedCliente.id)}
-                            size="sm"
-                            variant="destructive"
-                            className="bg-red-600 hover:bg-red-700"
-                          >
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Eliminar
-                          </Button>
-                        </div>
-                      </div>
-                    </CardHeader>
-
-                    <CardContent className="space-y-6">
-                      <div className="space-y-3">
-                        <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                          <Phone className="h-5 w-5 text-emerald-400" />
-                          Información de Contacto
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-7">
-                          <div>
-                            <Label className="text-slate-400 text-xs">Teléfono</Label>
-                            <p className="text-white flex items-center gap-2 mt-1">
-                              <Phone className="h-4 w-4 text-slate-400" />
-                              {selectedCliente.phone || "—"}
-                            </p>
-                          </div>
-                          <div>
-                            <Label className="text-slate-400 text-xs">Email</Label>
-                            <p className="text-white flex items-center gap-2 mt-1">
-                              <Mail className="h-4 w-4 text-slate-400" />
-                              {selectedCliente.email || "—"}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="space-y-3 pt-4 border-t border-slate-700">
-                        <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                          <MapPin className="h-5 w-5 text-purple-400" />
-                          Dirección
-                        </h3>
-                        <div className="space-y-2 pl-7">
-                          {selectedCliente.address && (
-                            <div>
-                              <Label className="text-slate-400 text-xs">Dirección Completa</Label>
-                              <p className="text-white mt-1">{selectedCliente.address}</p>
-                            </div>
-                          )}
-                          <div className="grid grid-cols-2 gap-4">
-                            {selectedCliente.city && (
-                              <div>
-                                <Label className="text-slate-400 text-xs">Ciudad</Label>
-                                <p className="text-white mt-1">{selectedCliente.city}</p>
-                              </div>
-                            )}
-                            {selectedCliente.postal_code && (
-                              <div>
-                                <Label className="text-slate-400 text-xs">Código Postal</Label>
-                                <p className="text-white mt-1">{selectedCliente.postal_code}</p>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="space-y-3 pt-4 border-t border-slate-700">
-                        <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                          <CreditCard className="h-5 w-5 text-amber-400" />
-                          Información Fiscal y Saldo
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pl-7">
-                          {selectedCliente.rfc && (
-                            <div>
-                              <Label className="text-slate-400 text-xs">RFC</Label>
-                              <p className="text-white mt-1">{selectedCliente.rfc}</p>
-                            </div>
-                          )}
-                          <div>
-                            <Label className="text-slate-400 text-xs">Saldo Actual</Label>
-                            <p
-                              className={`text-2xl font-bold mt-1 ${
-                                Number(selectedCliente.current_balance) > 0 ? "text-amber-400" : "text-emerald-400"
-                              }`}
-                            >
-                              ${Number(selectedCliente.current_balance).toFixed(2)}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ) : (
-                  <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm h-full flex items-center justify-center">
-                    <CardContent className="text-center p-12">
-                      <User className="h-16 w-16 text-slate-600 mx-auto mb-4" />
-                      <p className="text-slate-400">Selecciona un cliente de la lista para ver sus detalles</p>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            </div>
-
-            {filteredClientes.length === 0 && (
-              <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm mt-8">
-                <CardContent className="p-12 text-center">
-                  <User className="h-12 w-12 text-slate-600 mx-auto mb-4" />
-                  <p className="text-slate-400">No se encontraron clientes</p>
-                </CardContent>
-              </Card>
-            )}
-          </>
-        )}
+          {/* Panel derecho (más ancho) */}
+          <CustomerDetail
+            customer={selectedCustomer}
+            onEdit={(c) => {
+              setEditingCustomer(c)
+              setIsFormOpen(true)
+            }}
+            onDelete={deleteCustomer}
+          />
+        </div>
       </div>
     </div>
   )

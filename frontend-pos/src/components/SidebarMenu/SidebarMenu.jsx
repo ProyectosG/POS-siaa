@@ -100,6 +100,7 @@ const menuItems = [
       { label: "Tickets", href: "/dashboard/tools/tickets" },
       { label: "Seguridad", href: "/dashboard/tools/seguridad" },
       { label: "Resetear Datos", href: "/dashboard/tools/resetDatos" },
+      { label: "Configuración del Sistema", href: "/dashboard/tools/systemSettings" },
     ],
   },
 ]
@@ -162,15 +163,34 @@ export default function SidebarMenu() {
             : "-translate-x-full opacity-0"
         )}
       >
-        {/* HEADER */}
-        <div className="p-6 border-b border-sidebar-border">
-          <h2 className="text-xl font-semibold text-sidebar-foreground">
-            Sistema POS
-          </h2>
-          <p className="text-sm text-sidebar-foreground/60 mt-1">
-            Panel de Control
-          </p>
-        </div>
+{/* HEADER DEL SIDEBAR - VERSIÓN ULTRA ELEGANTE */}
+<div className="relative p-8 border-b border-sidebar-border/40 overflow-hidden group">
+  {/* Efecto de luz ambiental en el fondo */}
+  <div className="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition-colors duration-700" />
+  
+  <div className="relative z-10 flex flex-col gap-1">
+
+
+    {/* Título con contraste de pesos */}
+    <h2 className="mx-3 mt-7 text-2xl tracking-tighter text-sidebar-foreground leading-none flex flex-col">
+ 
+      <span className="font-black">
+        POS<span className="text-emerald-500 mx-0.5">.</span>SIAA
+      </span>
+    </h2>
+
+    {/* Indicador de estado dinámico */}
+    <div className="flex items-center gap-2 mt-4 px-3 py-1 rounded-full bg-sidebar-accent/30 border border-sidebar-border/50 w-fit backdrop-blur-sm">
+      <span className="relative flex h-1.5 w-1.5">
+        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+      </span>
+      <p className="text-[10px] uppercase tracking-[0.15em] font-semibold text-sidebar-foreground/50">
+        Panel de Control
+      </p>
+    </div>
+  </div>
+</div>
 
         {/* MENU */}
         <nav className="flex-1 overflow-y-auto py-4 px-3">

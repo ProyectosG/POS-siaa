@@ -26,27 +26,43 @@ export default function ResetDatos() {
     );
   }
 
-  const allTables = [
-    'categories',
-    'products',
-    'users',
-    'customers',
-    'sales',
+const allTables = [
+    // 1. Primero los detalles (Las ramas)
     'sale_details',
-    'payments',
-    'cuts',
-    'kardex',
-    'entries',
     'entry_details',
-    'customer_balance_history'
+    'kardex',
+    'customer_balance_history',
+
+    // 2. Luego las cabeceras (Los troncos)
+    'payments',
+    'sales',
+    'entries',
+    'cuts',
+
+    // 3. Después los productos (Dependen de categorías)
+    'products',
+
+    // 4. Al final las maestras base (La raíz)
+    'categories',
+    'customers',
+    'cash_registers',
+    'users'
   ];
 
-  const handleSelectTable = (table) => {
-    setSelectedTables(prev =>
-      prev.includes(table) ? prev.filter(t => t !== table) : [...prev, table]
-    );
-  };
+const handleSelectTable = (table) => {
+  setSelectedTables(prev => {
+    let newSelection = prev.includes(table) 
+      ? prev.filter(t => t !== table) 
+      : [...prev, table];
 
+    // Si seleccionas CATEGORIES, selecciona PRODUCTS automáticamente para evitar el error de FK
+    if (table === 'categories' && newSelection.includes('categories')) {
+      if (!newSelection.includes('products')) newSelection.push('products');
+    }
+    
+    return newSelection;
+  });
+};
   const handleReset = async () => {
     if (confirmText.toUpperCase() !== 'ZAPEAR') {
       toast.error('¡Escribe "ZAPEAR" exactamente para confirmar el caos! ⚠️');
@@ -61,6 +77,7 @@ export default function ResetDatos() {
     try {
       console.log('[FRONTEND] Iniciando reset con:', { selectedTables, resetIds, resetBalances });
 
+      console.log(selectedTables)
       // Resetear tablas seleccionadas
       if (selectedTables.length > 0) {
         const res = await fetch(`${API_URL}/reset/tables`, {
@@ -114,8 +131,10 @@ export default function ResetDatos() {
       <h1 className="text-4xl font-extrabold text-white mb-6 text-center flex items-center justify-center gap-4">
         <Zap className="text-yellow-400 animate-pulse" size={40} /> ¡Zapeador de Datos! ⚡💥
       </h1>
-      <p className="text-slate-300 mb-10 text-center text-lg">
+      <p className="text-slate-300 mb-3 text-center text-lg">
         Selecciona qué zapear. <strong>¡Cuidado! Esto es irreversible</strong> ❌  
+      </p>
+        <p className="text-slate-300 mb-3 text-center text-lg">
         Pero haremos backup automático antes del boom.
       </p>
 
@@ -128,7 +147,7 @@ export default function ResetDatos() {
               key={table}
               onClick={() => handleSelectTable(table)}
               className={cn(
-                "p-5 rounded-xl border-2 transition-all duration-200 text-center font-medium",
+                "p-2 rounded-xl border-2 transition-all duration-200 text-center font-medium text-sm",
                 selectedTables.includes(table)
                   ? "bg-red-700/70 border-red-500 text-white shadow-lg scale-105"
                   : "bg-slate-800 border-slate-600 text-slate-300 hover:bg-slate-700 hover:border-cyan-500"

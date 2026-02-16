@@ -3,6 +3,7 @@
 import * as React from "react"
 import { useState, useEffect,useRef } from "react"
 import { useAuthStore } from "@/store/useAuthStore"
+import { useSettingsStore } from "@/store/useSettingsStore"
 import toast from "react-hot-toast"
 
 import { Plus, User, DollarSign, CreditCard } from "lucide-react"
@@ -12,6 +13,7 @@ import { useGridNavigationApartado } from "./hooks/useGridNavigationApartado"
 
 import VentaApartadoGrid from "./VentaApartadoGrid"
 import OverlayProductos from "@/components/siaa-ui/OverlayProductos";
+import CustomerForm from "@/components/CatalogoClientes/CustomerForm.jsx"
 import MenuPrecios from "../siaa-ui/MenuPrecios"
 import ResumenApartado from "./ResumenApartado"
 import PagoVenta from "../siaa-ui/PagoVenta"
@@ -24,18 +26,19 @@ import { useCajaStore } from "@/store/useCajaStore"
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL
 
+
 const beep = (ok = true) => {
   const ctx = new (window.AudioContext || window.webkitAudioContext)()
   const osc = ctx.createOscillator()
   const gain = ctx.createGain()
-
+  
   osc.type = "square"
   osc.frequency.value = ok ? 900 : 220
   gain.gain.value = 0.05
-
+  
   osc.connect(gain)
   gain.connect(ctx.destination)
-
+  
   osc.start()
   osc.stop(ctx.currentTime + 0.08)
 }
@@ -44,6 +47,11 @@ export default function VentasApartado() {
   const caja = useCajaStore((s) => s.caja)
   const user = useAuthStore((s) => s.user)
   const inicializadoRef = React.useRef(false)
+  const [mostrarNuevoCliente, setMostrarNuevoCliente] = useState(false)
+  
+  // 🟢 CONSUMIMOS SETTINGS GLOBALES
+  const settings = useSettingsStore((s) => s.settings)
+  const FORM_MODE = settings.customer_form_mode || "complete" // 🟢 ahora también desde settings globales
 
   /* Overlay */
   const [mostrarOverlay, setMostrarOverlay] = useState(false)
@@ -51,7 +59,7 @@ export default function VentasApartado() {
   const [cantidad, setCantidad] = useState("")
   const refNombre = useRef(null)
   const refCodigo = useRef(null)
-
+  
   const {
     items,
     setItems,
@@ -440,6 +448,17 @@ const handleSeleccionProducto = (producto) => {
   setFocusPendiente({ row: fila + 1, col: "codigoBarras" })  // mueve foco
 }
 
+const handleAgregarNuevoCliente = () => {
+  setMostrarNuevoCliente(true)
+}
+
+const handleClienteCreado = (clienteNuevo) => {
+  setSelectedCustomer(clienteNuevo)
+  setCustomerQuery(`${clienteNuevo.first_name} ${clienteNuevo.last_name_paternal}`)
+  setMostrarNuevoCliente(false)
+  toast.success("Cliente creado ✅")
+}
+
   return (
     <div className="space-y-8 pb-12">
       {/* Header superior */}
@@ -511,6 +530,15 @@ const handleSeleccionProducto = (producto) => {
               <User className="w-5 h-5 text-emerald-600" />
               ¿Quién compra?
             </CardTitle>
+            <Button
+              size="sm"
+              variant="outline"
+              className="mt-2 w-full"
+              onClick={handleAgregarNuevoCliente}
+            >
+              <User className="w-4 h-4 mr-1" /> Nuevo cliente
+            </Button>
+
           </CardHeader>
           <CardContent className="space-y-4">
             {/* Búsqueda de cliente */}
@@ -662,6 +690,26 @@ const handleSeleccionProducto = (producto) => {
           onClose={() => setMostrarPrecios(false)}
         />
       )}
+{mostrarNuevoCliente && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4 py-6">
+    <div
+      className={`bg-gray-100 rounded-lg shadow-lg w-full max-w-4xl flex flex-col overflow-hidden ${
+        FORM_MODE === "basic" ? "max-h-[85vh]" : "max-h-[95vh]"
+      }`}
+    >
+      <div className="p-6 flex-1 overflow-y-auto">
+        <CustomerForm
+          onSubmit={handleClienteCreado}
+          onCancel={() => setMostrarNuevoCliente(false)}
+        />
+      </div>
+    </div>
+  </div>
+)}
+
+
+
+
     </div>
   )
 }
