@@ -43,6 +43,7 @@ Punto de venta independiente. Backend en `backend-POS/` (Express 5 + sqlite3, si
 
 - **Liberar precios en la venta**: no existe todavía el flujo en el frontend; la ruta `validar-clave-precio` ya está lista para conectarlo. Conviene limitarle intentos (hoy un usuario con sesión podría probar claves).
 - **Menú por rol**: el servidor ya niega con 403, pero el menú lateral sigue mostrando todas las opciones a todos.
+- **Venta de contado por código de barras**: `VentasContado.jsx` revisa `p.existencia`, pero el API devuelve `stock`; con "stock negativo" desactivado, todo producto escaneado sale como "No hay existencia" (ya pasaba en `main`). La búsqueda por nombre sí funciona. Arreglo de una línea, pendiente de autorizar.
 - `GET /api/cuts/print/current` lo llama el frontend (CorteDeCaja, AccionesCorteZ) pero **no existe** en el backend (ya fallaba antes).
 - Los intentos del SuperDeveloper se guardan en memoria: se reinician si se reinicia el servidor.
 - El `pos_backup_*.db` sigue en la historia de git (repo público). Si hiciera falta borrarlo de la historia, sería una reescritura que el dueño tendría que autorizar.
