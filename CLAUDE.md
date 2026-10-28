@@ -22,6 +22,7 @@ Punto de venta independiente. Backend en `backend-POS/` (Express 5 + sqlite3, si
 - **SuperDeveloper**: `POST /api/superdev/entrar` con `SUPERDEV_USER` / `SUPERDEV_PASSWORD` de `.env` (comparación en tiempo constante, 5 intentos por IP y bloqueo de 15 min, en memoria). Token con `superdev: true` de 45 min. Sin esas variables queda apagado. `/api/reset/*` exige ese token y solo acepta las tablas de `TABLAS_PERMITIDAS` (`resetController.js`).
 - **Clave para liberar precios**: no sale en `GET /api/settings`; se valida con `POST /api/settings/validar-clave-precio` `{ clave } → { valida }`; solo el Administrador la cambia (vacía = no cambia).
 - **Frontend**: todas las llamadas al API pasan por `apiFetch` (`frontend-pos/src/lib/apiFetch.js`): toma `NEXT_PUBLIC_API_URL`, agrega `Authorization: Bearer <token>` y cierra la sesión si recibe 401. **No usar `fetch` directo contra el API.** El token vive en `useAuthStore`; la cookie `auth-token` solo la usa `src/middleware.js` para redirigir (lee el JWT sin verificar la firma, solo para decidir a dónde mandar; nunca da permisos).
+- **Menú y pantallas por rol**: la tabla está en `frontend-pos/src/lib/permisos.js` (`puedeVer(user, ruta)`); la usan el menú lateral y `app/dashboard/layout.js`. Solo decide qué se muestra; debe coincidir con los `requireLevel` del servidor. Una pantalla nueva de `/dashboard` que no esté en la tabla queda solo para el Administrador: hay que agregarla.
 - **Configuración**: `server.js` exporta la app y solo escucha si se corre directo. `DB_PATH`, `CORS_ORIGIN`, `JWT_SECRET`, `SUPERDEV_*`, `BACKUP_DIR` en `backend-POS/.env` (ver `.env.example`).
 - **Pruebas**: `backend-POS/test/*.test.js` con `node --test`; `test/helpers.js` arranca la app sobre una base SQLite temporal sembrada con contraseñas en texto plano.
 
@@ -43,10 +44,11 @@ Arreglos encontrados al revisar en el navegador:
 - Catálogo de usuarios: un 403 ya no cierra la sesión (muestra "No tienes permiso").
 - Venta de contado por código de barras: leía `p.existencia` pero el API devuelve `stock`, así que con "stock negativo" desactivado todo producto escaneado salía sin existencia (ya pasaba en `main`).
 
+Menú por rol: cada usuario ve en el menú lateral solo lo que el servidor le permite (Cajero y Supervisor: ventas, abonos, estados de cuenta y corte X; Gerente: además catálogo sin usuarios, entradas, salidas, kardex, reportes y corte Z; Administrador: además usuarios y configuración; SuperDeveloper: todo, y es el único con Resetear Datos). Si alguien escribe a mano la dirección de una pantalla que no le toca, el layout de `/dashboard` muestra "No tienes permiso" sin cargarla. Se quitaron del menú los enlaces sin pantalla (Proveedores, Tickets, Seguridad, grupo Compras).
+
 ## Pendientes detectados en la Fase 0 (sin hacer)
 
 - **Liberar precios en la venta**: no existe todavía el flujo en el frontend; la ruta `validar-clave-precio` ya está lista para conectarlo. Conviene limitarle intentos (hoy un usuario con sesión podría probar claves).
-- **Menú por rol**: el servidor ya niega con 403, pero el menú lateral sigue mostrando todas las opciones a todos.
 - `GET /api/cuts/print/current` lo llama el frontend (CorteDeCaja, AccionesCorteZ) pero **no existe** en el backend (ya fallaba antes).
 - Los intentos del SuperDeveloper se guardan en memoria: se reinician si se reinicia el servidor.
 - El `pos_backup_*.db` sigue en la historia de git (repo público). Si hiciera falta borrarlo de la historia, sería una reescritura que el dueño tendría que autorizar.
