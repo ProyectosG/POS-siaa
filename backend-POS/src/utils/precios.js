@@ -2,6 +2,7 @@
 // El servidor calcula precios y totales con el catálogo. Del navegador solo se
 // toman producto, cantidad, cuál de los 4 precios, % de descuento y, si aplica,
 // la autorización de precio libre. Todo en CENTAVOS.
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { ErrorNegocio } = require('../config/transaccion');
 const { aCentavos } = require('./dinero');
@@ -12,20 +13,21 @@ const MAX_RENGLONES = 200;
 const VIGENCIA_AUTORIZACION = '5m';
 
 // Autorización de precio libre: la entrega validar-clave-precio y solo sirve
-// para ese producto, ese precio y ese usuario, durante 5 minutos.
+// para ese producto, ese precio y ese usuario, durante 5 minutos y UNA vez
+// (su jti queda en autorizaciones_usadas al venderse).
 function firmarAutorizacionPrecio({ product_id, precio, id_user }) {
   return jwt.sign(
     { tipo: 'precio_libre', product_id: Number(product_id), precio, id_user },
     process.env.JWT_SECRET,
-    { expiresIn: VIGENCIA_AUTORIZACION }
+    { expiresIn: VIGENCIA_AUTORIZACION, jwtid: crypto.randomUUID() }
   );
 }
 
 function verificarAutorizacionPrecio(autorizacion, product_id, id_user) {
   try {
     const p = jwt.verify(autorizacion, process.env.JWT_SECRET);
-    if (p.tipo !== 'precio_libre' || p.product_id !== Number(product_id) || p.id_user !== id_user) return null;
-    return p.precio;
+    if (p.tipo !== 'precio_libre' || p.product_id !== Number(product_id) || p.id_user !== id_user || !p.jti) return null;
+    return { precio: p.precio, jti: p.jti };
   } catch {
     return null;
   }
@@ -68,11 +70,17 @@ async function calcularVenta(tx, details, id_user) {
     // Precio unitario: el del catálogo, o el libre si viene autorizado
     let precio;
     let precioLibre = false;
+    let jti = null;
     if (d.autorizacion_precio) {
-      precio = verificarAutorizacionPrecio(d.autorizacion_precio, producto.id, id_user);
-      if (precio == null) {
+      const autorizacion = verificarAutorizacionPrecio(d.autorizacion_precio, producto.id, id_user);
+      if (!autorizacion) {
         throw new ErrorNegocio(400, `La autorización de precio de ${producto.articulo} no es válida o ya venció`);
       }
+      const usada = await tx.get('SELECT 1 FROM autorizaciones_usadas WHERE jti = ?', [autorizacion.jti]);
+      if (usada || lineas.some((l) => l.jti === autorizacion.jti)) {
+        throw new ErrorNegocio(400, `La autorización de precio de ${producto.articulo} ya se usó; pide una nueva`);
+      }
+      ({ precio, jti } = autorizacion);
       precioLibre = true;
     } else {
       const tipo = d.tipo_precio || 'menudeo';
@@ -116,6 +124,7 @@ async function calcularVenta(tx, details, id_user) {
       tax_amount: iva,
       tax_type: ivaPct > 0 ? 'IVA' : 'EXENTO',
       precio_libre: precioLibre,
+      jti,
       importe,
     });
   }

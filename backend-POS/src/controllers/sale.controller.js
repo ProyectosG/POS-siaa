@@ -171,6 +171,12 @@ exports.create = async (req, res) => {
       for (const l of venta.lineas) {
         await SaleDetail.crear(tx, { ...l, sale_id: saleId });
 
+        // La autorización de precio libre queda gastada con esta venta
+        if (l.jti) {
+          await tx.run('INSERT INTO autorizaciones_usadas (jti, sale_id, usado) VALUES (?, ?, ?)',
+            [l.jti, saleId, `${date} ${time}`]);
+        }
+
         // Stock leído DENTRO de la transacción: dos ventas no venden la misma última pieza
         const { stock } = await tx.get('SELECT stock FROM products WHERE id = ?', [l.product_id]);
         if (stock < l.quantity && !venta.config.permiteStockNegativo) {
