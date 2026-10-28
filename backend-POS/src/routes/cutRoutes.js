@@ -1,5 +1,6 @@
 const express = require('express');
 const cutController = require('../controllers/cutController');
+const ticketController = require('../controllers/ticket.controller');
 const { requireLevel, tieneNivel, NIVELES } = require('../middleware/auth');
 
 const router = express.Router();
@@ -19,6 +20,11 @@ router.get('/current', cutController.getCurrentCorte);
 
 // Obtener corte Z actual
 router.get('/current-z', soloGerente, cutController.getCurrentCorteZ);
+
+// Imprimir el corte en curso: ?tipo=X (cualquiera) o ?tipo=Z (Gerente o superior)
+const permisoImpresion = (req, res, next) =>
+  req.query.tipo === 'Z' ? soloGerente(req, res, next) : next();
+router.get('/print/current', permisoImpresion, ticketController.printCorteCurrent);
 
 // Crear nuevo corte (X o Z)
 router.post('/', permisoPorTipoCorte, cutController.createCorte);

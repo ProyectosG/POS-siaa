@@ -33,7 +33,7 @@ export default function CorteDeCaja() {
 
   const handlePrint = async () => {
     try {
-      const res = await apiFetch(`/cuts/print/current`);
+      const res = await apiFetch(`/cuts/print/current?tipo=X&caja=${encodeURIComponent(caja?.numero || "")}`);
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.error || `Error ${res.status} al imprimir corte`);
