@@ -30,6 +30,11 @@ const getBackupDir = () =>
     ? path.resolve(process.env.BACKUP_DIR)
     : path.join(__dirname, '../../backups');
 
+// Al borrar operaciones también se vacían sus claves de idempotencia y las
+// autorizaciones de precio usadas (se refieren a registros que ya no existen)
+const TABLAS_DE_OPERACIONES = ['sales', 'payments', 'entries', 'outs'];
+const TABLAS_AUXILIARES = ['idempotencia', 'autorizaciones_usadas'];
+
 exports.TABLAS_PERMITIDAS = TABLAS_PERMITIDAS;
 
 exports.resetTables = (req, res) => {
@@ -64,8 +69,11 @@ exports.resetTables = (req, res) => {
 
       db.run('BEGIN TRANSACTION');
 
-      tables.forEach((table) => {
-        // table viene de la lista fija TABLAS_PERMITIDAS
+      const borraOperaciones = tables.some((t) => TABLAS_DE_OPERACIONES.includes(t));
+      const aVaciar = borraOperaciones ? [...tables, ...TABLAS_AUXILIARES] : tables;
+
+      aVaciar.forEach((table) => {
+        // table viene de las listas fijas de arriba
         db.run(`DELETE FROM ${table}`, (err) => {
           if (err) console.error(`[RESET] Error borrando ${table}:`, err.message);
         });
