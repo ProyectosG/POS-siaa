@@ -36,6 +36,7 @@ Punto de venta independiente. Backend en `backend-POS/` (Express 5 + sqlite3, si
 - **Saldo de clientes**: `current_balance` es lo que el cliente debe. Sube con lo pendiente de un apartado o crédito y baja con cada abono; siempre con `Customer.moverSaldo`, que deja historial.
 - **Precio libre**: en el menú de precios (tecla P) está "Precio libre (con clave)". `POST /api/settings/validar-clave-precio { clave, product_id, precio }` devuelve una autorización de 5 minutos para ese producto, precio y usuario (5 claves equivocadas → 15 min de bloqueo). La venta solo acepta el precio libre con esa autorización y marca el renglón (`sale_details.precio_libre`).
 - **Migraciones**: `src/config/migraciones.js`, versionadas con `PRAGMA user_version`, cada una en una transacción y con respaldo previo (`VACUUM INTO` en `BACKUP_DIR`) si la base tiene datos. Un cambio de datos nuevo es una migración nueva, nunca un cambio a una que ya corrió.
+- **Probar módulos sueltos**: cargar cualquier archivo del backend abre la base con el `.env` real y crea `src/pos.db` vacía si no existe. Siempre con `DB_PATH` apuntando a un archivo temporal.
 - **Git y la base local**: el `pos_backup_*.db` sigue versionado en commits viejos de `main`. Cambiar a uno de esos commits y regresar BORRA la copia local (git la trata como archivo ignorado). Respaldarla antes de cualquier checkout a historia vieja.
 
 ## Fase 0 — Seguridad (hecha, rama `fase0-seguridad`)
@@ -58,13 +59,6 @@ Arreglos encontrados al revisar en el navegador:
 
 Menú por rol: cada usuario ve en el menú lateral solo lo que el servidor le permite (Cajero y Supervisor: ventas, abonos, estados de cuenta y corte X; Gerente: además catálogo sin usuarios, entradas, salidas, kardex, reportes y corte Z; Administrador: además usuarios y configuración; SuperDeveloper: todo, y es el único con Resetear Datos). Si alguien escribe a mano la dirección de una pantalla que no le toca, el layout de `/dashboard` muestra "No tienes permiso" sin cargarla. Se quitaron del menú los enlaces sin pantalla (Proveedores, Tickets, Seguridad, grupo Compras).
 
-## Pendientes detectados en la Fase 0 (sin hacer)
-
-- `GET /api/cuts/print/current` lo llama el frontend (CorteDeCaja, AccionesCorteZ) pero **no existe** en el backend (ya fallaba antes).
-- Los intentos del SuperDeveloper se guardan en memoria: se reinician si se reinicia el servidor.
-- El `pos_backup_*.db` sigue en la historia de git (repo público). Si hiciera falta borrarlo de la historia, sería una reescritura que el dueño tendría que autorizar.
-- Quedan `console.log` de depuración en otros archivos (kardex, Entry, Out, ResetDatos del frontend).
-
 ## Fase 1 — Integridad de ventas y dinero (hecha, rama `fase1-integridad`)
 
 1. Dinero en centavos enteros, con migración versionada que respalda la base antes.
@@ -77,15 +71,25 @@ Menú por rol: cada usuario ve en el menú lateral solo lo que el servidor le pe
 
 Arreglos encontrados en el camino: el ticket imprimía como anticipo el 30 % del total en vez de lo pagado; una entrada o salida con un producto inexistente dejaba la petición colgada; el corte X se guardaba sin `desde`/`hasta` y el Z con solo 3 de sus montos; la pantalla de abonos mostraba la hora en UTC.
 
-## Pendientes detectados en la Fase 1 (sin hacer)
+## Fase 2 — Mantenimiento (hecha, rama `fase2-mantenimiento`)
 
-- **Cortes y abonos**: el corte toma los pagos por el número de ticket de la venta, no por cuándo se cobraron. Un abono de hoy a un apartado de antes del último corte no entra en el corte de hoy (ni en ninguno). Hay que contar pagos por su propio rango (por ejemplo, guardar en el corte el último `payments.id`).
-- **Stock editable a mano**: `PUT /api/products/:id` acepta `stock` sin kardex ni transacción. Debería cambiarse solo con entradas, salidas o un ajuste de inventario.
-- La autorización de precio libre se puede usar varias veces durante sus 5 minutos (mismo producto, precio y usuario); no es de un solo uso.
-- "Resetear Datos" no vacía la tabla `idempotencia` (inofensivo, pero crece).
+1. **Cortes**: los cobros se cuentan por pago, no por el ticket de la venta. Cada corte guarda `last_payment_id` y el siguiente cuenta desde ahí; un abono a un apartado viejo entra en el corte de su día. Un corte con solo abonos se puede confirmar (`first_ticket` queda vacío y `last_ticket` conserva hasta dónde se cubrió). Migración 2.
+2. **Stock solo por kardex**: `PUT /api/products/:id` ya no acepta `stock` (el formulario mandaba el stock que tenía al abrirse y borraba las ventas de en medio). El alta anota su stock inicial en el kardex, en una transacción. Ajustes: Entradas y Salidas con "Ajuste positivo/negativo".
+3. **Imprimir corte**: `GET /api/cuts/print/current?tipo=X|Z&caja=` (Z solo Gerente o superior). Sin impresora responde 200 en "modo prueba" con el texto del ticket.
+4. **Precio libre**: la autorización se usa una sola vez (tabla `autorizaciones_usadas`).
+5. **Reset**: al borrar ventas, pagos, entradas o salidas también vacía `idempotencia` y `autorizaciones_usadas`.
+6. Fuera los logs de depuración; quedan solo avisos de arranque, migraciones, respaldos y errores.
+7. Fuera 38 dependencias del frontend que no se importaban (entre ellas los duplicados `sonner`, `react-modal` y `react-day-picker`; se usan `react-hot-toast`, Radix Dialog y `react-datepicker`). `react-dom` se queda porque Next lo necesita. Fuera `porsiacaso.initDatabase.js`, `scripts/sanitize_sales.js`, `1CustomerStatement` y `2CustomerStatement` (ese borrado quedó dentro del commit de cortes).
 
-## Fase 2 — Mantenimiento
+## Pendientes (sin hacer)
 
-- Migrar a Prisma.
-- Quitar dependencias duplicadas (por ejemplo `sonner` y `react-hot-toast`, `react-modal` y Radix Dialog, `react-datepicker` y `react-day-picker`; revisar el resto).
-- Limpiar `src/config/porsiacaso.initDatabase.js`, `src/scripts/sanitize_sales.js` y los `CustomerStatement` duplicados (`1CustomerStatement`, `2CustomerStatement`).
+- **Reimprimir un corte viejo**: en Reporte de Cortes el botón de imprimir solo muestra un aviso; no hay ruta (`printCorteById` se quitó porque no tenía ruta y fallaba). Si se necesita, crear `GET /api/cuts/:id/print`.
+- "Saldos y stocks a cero" del reset pone el stock en 0 sin kardex (es una herramienta del SuperDeveloper).
+- Los intentos del SuperDeveloper y de la clave de precios se guardan en memoria: se reinician si se reinicia el servidor.
+- El `pos_backup_*.db` sigue en la historia de git (repo público). Si hiciera falta borrarlo de la historia, sería una reescritura que el dueño tendría que autorizar.
+- Las columnas de dinero siguen declaradas `REAL` aunque guardan centavos enteros.
+
+## Fase 3 — Prisma (por decidir)
+
+- Empezar con una prueba de concepto en un solo modelo antes de decidir. Prisma 7 genera el cliente como TypeScript/ESM y se conecta a SQLite con un adaptador; el backend es CommonJS sin TypeScript, así que es un cambio de arquitectura: 164 consultas en 28 archivos, la cola de transacciones y las migraciones.
+- Si se descarta Prisma: pasar las columnas de dinero de `REAL` a `INTEGER` con una migración propia.
