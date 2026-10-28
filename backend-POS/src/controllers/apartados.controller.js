@@ -12,8 +12,9 @@ exports.getApartadosByCustomer = (req, res) => {
     SELECT id, date, total, paid, pending_balance, status
     FROM sales
     WHERE customer_id = ?
-      AND type = 'APARTADO'
+      AND LOWER(type) = 'apartado'
       AND status != 'paid'
+      AND pending_balance > 0
     ORDER BY id DESC
     `,
     [customerId],
@@ -42,6 +43,11 @@ exports.registrarAbono = async (req, res) => {
     const sale = await Sale.findById(sale_id);
     if (!sale) return res.status(404).json({ error: 'Venta no encontrada' });
 
+    // El abono solo aplica a un apartado de ese mismo cliente
+    if (String(sale.type).toLowerCase() !== 'apartado' || String(sale.customer_id) !== String(customer_id)) {
+      return res.status(400).json({ error: 'La venta no es un apartado de este cliente' });
+    }
+
     // 2. Calcular el monto total de los pagos enviados
     const calculatedTotal = pagos.reduce((sum, p) => sum + Number(p.amount || 0), 0);
 
@@ -66,17 +72,6 @@ exports.registrarAbono = async (req, res) => {
       if (!method || !amount || amount <= 0) {
         throw new Error('Cada pago debe tener method y amount positivo');
       }
-
-      // Log para verificar qué llega
-      console.log('[DEBUG] Registrando abono:', {
-        sale_id,
-        method,
-        amount: Number(amount),
-        payment_type,
-        bank,
-        last4,
-        date
-      });
 
       await Payment.create({
         sale_id,
