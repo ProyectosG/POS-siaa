@@ -1,5 +1,11 @@
 const db = require('../config/database');
 
+// Campos que se pueden modificar con update()
+const CAMPOS_EDITABLES = [
+  'first_name', 'last_name_paternal', 'last_name_maternal',
+  'phone', 'email', 'address', 'rfc', 'postal_code', 'city',
+];
+
 class Customer {
   static create(data) {
     return new Promise((resolve, reject) => {
@@ -45,10 +51,15 @@ class Customer {
     });
   }
 
+  // Solo campos de la lista fija; lo demás (incluido current_balance) se ignora.
+  // El saldo solo cambia con updateBalance, que deja historial.
   static update(id, data) {
     return new Promise((resolve, reject) => {
-      const fields = Object.keys(data).map(key => `${key} = ?`).join(', ');
-      const values = Object.values(data);
+      const campos = CAMPOS_EDITABLES.filter(key => data[key] !== undefined);
+      if (campos.length === 0) return resolve();
+
+      const fields = campos.map(key => `${key} = ?`).join(', ');
+      const values = campos.map(key => data[key]);
       values.push(id);
 
       db.run(`UPDATE customers SET ${fields} WHERE id = ?`, values, err => {
