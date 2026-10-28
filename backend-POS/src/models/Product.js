@@ -4,17 +4,19 @@ const { aCentavos, filaAPesos, filasAPesos } = require('../utils/dinero');
 // Precios: llegan y salen en pesos; en la base van en centavos
 const PRECIOS = ['precio_menudeo', 'precio_mayoreo', 'precio_especial', 'precio_oferta'];
 
-// Campos que se pueden modificar con update()
+// Campos que se pueden modificar con update(). El stock NO: solo cambia con
+// ventas, entradas y salidas, que dejan kardex (el formulario de productos
+// mandaba el stock que tenía al abrirse y borraba las ventas de en medio).
 const CAMPOS_EDITABLES = [
   'codigo_barras', 'codigo_interno', 'articulo', 'presentacion', 'unidad_medida',
   'precio_menudeo', 'precio_mayoreo', 'precio_especial', 'precio_oferta',
-  'iva', 'ieps', 'stock', 'category_id', 'photo_url', 'activo',
+  'iva', 'ieps', 'category_id', 'photo_url', 'activo',
 ];
 
 class Product {
-  static create(data) {
-    return new Promise((resolve, reject) => {
-      db.run(
+  // Va DENTRO de una transacción, junto con el kardex del alta
+  static async crear(tx, data) {
+    const { lastID } = await tx.run(
         `INSERT INTO products 
         (codigo_barras, codigo_interno,articulo, presentacion, unidad_medida, precio_menudeo, precio_mayoreo, precio_especial, precio_oferta, 
           iva, ieps, stock, category_id, photo_url, activo)
@@ -35,14 +37,9 @@ class Product {
           data.category_id || null,            // category_id
           data.photo_url || null,              // photo_url
           data.activo ? 1 : 0                  // activo
-        ],
-        function (err) {
-          if (err) reject(err);
-          resolve(this.lastID);
-        }
-      );
-
-    });
+        ]
+    );
+    return lastID;
   }
 
   static findAll() {
