@@ -66,19 +66,18 @@ test('la lista de apartados encuentra las ventas guardadas con type "apartado"',
     body: {
       type: 'apartado',
       customer_id: customerId,
-      subtotal: 100, tax_total: 0, discount_total: 0, total: 100,
-      paid: 30, pending_balance: 70,
-      details: [{ product_id: prod.id, quantity: 1, price: 100, subtotal: 100 }],
+      total_esperado: 100,
+      details: [{ product_id: prod.id, quantity: 1, tipo_precio: 'menudeo' }],
       payments: [{ method: 'efectivo', amount: 30, payment_type: 'anticipo' }],
     },
   });
   assert.equal(venta.status, 201, JSON.stringify(venta.data));
 
-  // Una venta vieja guardada en mayúsculas también aparece
+  // Una venta vieja guardada en mayúsculas también aparece (montos en centavos)
   await new Promise((resolve, reject) =>
     db.run(
       `INSERT INTO sales (date, type, customer_id, subtotal, total, paid, pending_balance, status)
-       VALUES ('2026-01-01', 'APARTADO', ?, 50, 50, 10, 40, 'pending')`,
+       VALUES ('2026-01-01', 'APARTADO', ?, 5000, 5000, 1000, 4000, 'pending')`,
       [customerId],
       (err) => (err ? reject(err) : resolve())
     )

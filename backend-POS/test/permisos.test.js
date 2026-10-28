@@ -114,7 +114,7 @@ test('campos no permitidos se ignoran (usuarios, clientes, productos, configurac
   });
   assert.equal(pe.status, 200);
   const prod = await dbGet(db, 'SELECT precio_menudeo, stock, articulo FROM products WHERE id = ?', [prodId]);
-  assert.equal(prod.precio_menudeo, 12);
+  assert.equal(prod.precio_menudeo, 1200); // en la base va en centavos
   assert.equal(prod.stock, 5);
   assert.equal(prod.articulo, 'Arroz');
 });
@@ -169,8 +169,8 @@ test('el usuario de la venta sale del token, no del cuerpo', async () => {
       type: 'contado',
       id_user: 4,
       nickname_user: 'admin',
-      subtotal: 20, tax_total: 0, discount_total: 0, total: 20, paid: 20,
-      details: [{ product_id: prodId, quantity: 1, price: 20, subtotal: 20 }],
+      total_esperado: 20,
+      details: [{ product_id: prodId, quantity: 1, tipo_precio: 'menudeo' }],
       payments: [{ method: 'efectivo', amount: 20 }],
     },
   });
