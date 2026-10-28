@@ -154,7 +154,7 @@ const buscarProductoPorCodigo = async (itemId, codigo) => {
 
     // 🚨 VALIDACIÓN DE STOCK SEGÚN SETTINGS
     // Si el stock es 0 o menos Y la variable allow_negative_balance es false (o no existe)
-    const stockDisponible = Number(p.existencia) || 0;
+    const stockDisponible = Number(p.stock) || 0; // el API devuelve "stock"
     
     if (stockDisponible <= 0 && !settings?.allow_negative_balance) {
       beep(false);
