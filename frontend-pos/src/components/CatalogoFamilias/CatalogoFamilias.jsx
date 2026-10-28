@@ -4,8 +4,8 @@ import { useState, useEffect } from "react";
 import Header from "./Header";
 import PanelFormularios from "./PanelFormularios";
 import ArbolFamilias from "./ArbolFamilias";
+import { apiFetch } from "@/lib/apiFetch"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 export default function CatalogoFamilias() {
   const [categories, setCategories] = useState([]);
@@ -19,7 +19,7 @@ export default function CatalogoFamilias() {
   const fetchCategories = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_URL}/categories`);
+      const res = await apiFetch(`/categories`);
       const data = await res.json();
       setCategories(data);
     } catch {
@@ -45,7 +45,7 @@ export default function CatalogoFamilias() {
 
   const handleAgregarFamilia = async () => {
     if (!nuevaFamilia.trim()) return;
-    await fetch(`${API_URL}/categories`, {
+    await apiFetch(`/categories`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ family: nuevaFamilia.trim() }),
@@ -56,7 +56,7 @@ export default function CatalogoFamilias() {
 
   const handleAgregarSubfamilia = async () => {
     if (!familiaSeleccionada || !nuevaSubfamilia.trim()) return;
-    await fetch(`${API_URL}/categories`, {
+    await apiFetch(`/categories`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -70,7 +70,7 @@ export default function CatalogoFamilias() {
 
   const handleEliminar = async (id) => {
     if (!confirm("¿Estás seguro de eliminar esta categoría?")) return;
-    await fetch(`${API_URL}/categories/${id}`, { method: "DELETE" });
+    await apiFetch(`/categories/${id}`, { method: "DELETE" });
     fetchCategories();
   };
 

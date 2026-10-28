@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { apiFetch } from "@/lib/apiFetch"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
 
 export default function CatalogoCajas() {
   const [cajas, setCajas] = useState([])
@@ -29,7 +29,7 @@ export default function CatalogoCajas() {
 
   const fetchCajas = async () => {
     try {
-      const res = await fetch(`${API_URL}/cash-registers`)
+      const res = await apiFetch(`/cash-registers`)
       const data = await res.json()
       setCajas(data)
     } catch (err) {
@@ -49,8 +49,8 @@ export default function CatalogoCajas() {
     try {
       setLoading(true)
       const url = editingCaja
-        ? `${API_URL}/cash-registers/${editingCaja.id}`
-        : `${API_URL}/cash-registers`
+        ? `/cash-registers/${editingCaja.id}`
+        : `/cash-registers`
 
       const method = editingCaja ? "PUT" : "POST"
 
@@ -60,7 +60,7 @@ export default function CatalogoCajas() {
         tipo_caja: formData.tipo_caja || "Normal",
       }
 
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -100,7 +100,7 @@ export default function CatalogoCajas() {
     if (!confirm("¿Eliminar esta caja?")) return
 
     try {
-      await fetch(`${API_URL}/cash-registers/${id}`, { method: "DELETE" })
+      await apiFetch(`/cash-registers/${id}`, { method: "DELETE" })
       await fetchCajas()
     } catch (err) {
       setError("Error al eliminar")

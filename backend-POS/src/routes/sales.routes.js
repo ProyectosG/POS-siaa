@@ -1,8 +1,10 @@
 const express = require('express');
 const router = express.Router();
 const saleController = require('../controllers/sale.controller');
+const { requireLevel, NIVELES } = require('../middleware/auth');
 
-router.get('/', saleController.getAll);
+// Lista completa de ventas (reporte): Gerente o superior
+router.get('/', requireLevel(NIVELES.GERENTE), saleController.getAll);
 
 // ✅ PRIMERO LAS RUTAS ESPECÍFICAS
 router.get('/range', saleController.getTicketRange);
@@ -11,7 +13,5 @@ router.get('/range', saleController.getTicketRange);
 router.get('/:id', saleController.getById);
 
 router.post('/', saleController.create);
-
-
 
 module.exports = router;

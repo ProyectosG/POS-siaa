@@ -5,8 +5,8 @@ import { AlertTriangle, Zap, Check } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
 import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
+import { apiFetch } from "@/lib/apiFetch"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 export default function ResetDatos() {
   const { user } = useAuthStore();
@@ -80,13 +80,12 @@ const handleSelectTable = (table) => {
       console.log(selectedTables)
       // Resetear tablas seleccionadas
       if (selectedTables.length > 0) {
-        const res = await fetch(`${API_URL}/reset/tables`, {
+        const res = await apiFetch(`/reset/tables`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ tables: selectedTables, resetIds }),
-          credentials: 'include'  // ← ENVÍA LAS COOKIES (is-superdev=true)
         });
 
         const data = await res.json();
@@ -100,9 +99,8 @@ const handleSelectTable = (table) => {
 
       // Resetear saldos y stocks
       if (resetBalances) {
-        const res = await fetch(`${API_URL}/reset/balances`, {
+        const res = await apiFetch(`/reset/balances`, {
           method: 'POST',
-          credentials: 'include'  // ← CRÍTICO
         });
 
         const data = await res.json();

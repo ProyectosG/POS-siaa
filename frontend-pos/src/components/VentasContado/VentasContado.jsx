@@ -21,8 +21,8 @@ import PagoVenta from "../siaa-ui/PagoVenta"
 import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { useCajaStore } from "@/store/useCajaStore"
+import { apiFetch } from "@/lib/apiFetch"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 /* ===== BEEP ===== */
 const beep = (ok = true) => {
@@ -143,7 +143,7 @@ const buscarProductoPorCodigo = async (itemId, codigo) => {
   const settings = useSettingsStore.getState().settings;
 
   try {
-    const res = await fetch(`${API_URL}/products/barcode/${codigo}`)
+    const res = await apiFetch(`/products/barcode/${codigo}`)
     if (!res.ok) {
       beep(false)
       // Opcional: toast.error("Producto no encontrado")
@@ -154,7 +154,7 @@ const buscarProductoPorCodigo = async (itemId, codigo) => {
 
     // 🚨 VALIDACIÓN DE STOCK SEGÚN SETTINGS
     // Si el stock es 0 o menos Y la variable allow_negative_balance es false (o no existe)
-    const stockDisponible = Number(p.existencia) || 0;
+    const stockDisponible = Number(p.stock) || 0; // el API devuelve "stock"
     
     if (stockDisponible <= 0 && !settings?.allow_negative_balance) {
       beep(false);
@@ -201,8 +201,8 @@ const buscarProductoPorCodigo = async (itemId, codigo) => {
       return
     }
 
-    const res = await fetch(
-      `${API_URL}/products/search?query=${encodeURIComponent(texto)}`
+    const res = await apiFetch(
+      `/products/search?query=${encodeURIComponent(texto)}`
     )
     if (!res.ok) return
 
@@ -380,7 +380,7 @@ const paid = efectivoAplicado + tarjetaPagada;  // 263 + 77 = 340 (aplicado)
     console.log('Valores ENVIADOS al backend (revisa si hay "/"):', saleData);
 
     try {
-      const res = await fetch(`${API_URL}/sales`, {
+      const res = await apiFetch(`/sales`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(saleData),

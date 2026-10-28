@@ -17,8 +17,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { apiFetch } from "@/lib/apiFetch"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
 
 export default function CustomerStatement() {
   const [customers, setCustomers] = useState([])
@@ -47,7 +47,7 @@ export default function CustomerStatement() {
     const fetchCustomers = async () => {
       try {
         setLoadingCustomers(true)
-        const res = await fetch(`${API_URL}/customers`)
+        const res = await apiFetch(`/customers`)
         if (!res.ok) throw new Error("Error al cargar clientes")
         const data = await res.json()
         setCustomers(data)
@@ -73,7 +73,7 @@ export default function CustomerStatement() {
     const fetchStatement = async () => {
       setLoading(true)
       try {
-        const res = await fetch(`${API_URL}/customers/${selectedCustomerId}/statement`)
+        const res = await apiFetch(`/customers/${selectedCustomerId}/statement`)
         if (!res.ok) throw new Error("Error al cargar estado de cuenta")
         const data = await res.json()
         setVentas(data)

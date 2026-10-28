@@ -25,6 +25,7 @@ import {
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { apiFetch } from "@/lib/apiFetch"
 
 // Función segura para formatear fecha YYYY-MM-DD sin desfase UTC
 const formatDate = (dateStr) => {
@@ -45,15 +46,14 @@ export default function KardexViewer() {
   const [resultados, setResultados] = useState([])
   const [selectedIndex, setSelectedIndex] = useState(0)
 
-  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api"
 
   const searchProductByName = async (name) => {
     if (!name) return
     setLoading(true)
 
     try {
-      const res = await fetch(
-        `${API_URL}/products/search?term=${encodeURIComponent(name)}`
+      const res = await apiFetch(
+        `/products/search?term=${encodeURIComponent(name)}`
       )
 
       if (!res.ok) throw new Error("Error buscando producto")
@@ -75,8 +75,8 @@ export default function KardexViewer() {
     setLoading(true)
 
     try {
-      const res = await fetch(
-        `${API_URL}/products/barcode/${encodeURIComponent(barcode)}`
+      const res = await apiFetch(
+        `/products/barcode/${encodeURIComponent(barcode)}`
       )
 
       if (!res.ok) throw new Error("Producto no encontrado")
@@ -103,7 +103,7 @@ export default function KardexViewer() {
 
   const loadKardex = async (productId) => {
     try {
-      const res = await fetch(`${API_URL}/kardex/product/${productId}`)
+      const res = await apiFetch(`/kardex/product/${productId}`)
 
       if (!res.ok) throw new Error("Error cargando kardex")
 

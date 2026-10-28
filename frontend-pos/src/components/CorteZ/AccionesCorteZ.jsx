@@ -2,9 +2,8 @@
 
 import { Printer, CheckCircle } from "lucide-react";
 import toast from "react-hot-toast";
+import { apiFetch } from "@/lib/apiFetch"
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 export default function AccionesCorteZ({
   hasTickets,
@@ -35,7 +34,7 @@ export default function AccionesCorteZ({
         last_ticket: last,
       };
 
-      const res = await fetch(`${API_URL}/cuts`, {
+      const res = await apiFetch(`/cuts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -60,7 +59,7 @@ export default function AccionesCorteZ({
     }
 
     try {
-      await fetch(`${API_URL}/cuts/print/current`);
+      await apiFetch(`/cuts/print/current`);
       toast.success("¡Corte Z impreso correctamente! 🖨️");
     } catch (err) {
       toast.error("Error al imprimir");

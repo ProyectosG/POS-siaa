@@ -1,0 +1,7 @@
+# Bases de datos SQLite y respaldos (nunca se versionan)
+*.db
+*.db-journal
+backend-POS/backups/
+
+# Variables de entorno
+.env

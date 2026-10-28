@@ -17,8 +17,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { apiFetch } from "@/lib/apiFetch"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
 
 export default function CustomerStatement() {
   const [customers, setCustomers] = useState([])
@@ -47,7 +47,7 @@ export default function CustomerStatement() {
     const fetchCustomers = async () => {
       try {
         setLoadingCustomers(true)
-        const res = await fetch(`${API_URL}/customers`)
+        const res = await apiFetch(`/customers`)
         if (!res.ok) throw new Error("Error al cargar clientes")
         const data = await res.json()
         setCustomers(data)
@@ -75,13 +75,13 @@ export default function CustomerStatement() {
       setLoading(true)
       try {
         // 1. Ventas / estado de cuenta
-        const salesRes = await fetch(`${API_URL}/customers/${selectedCustomerId}/statement`)
+        const salesRes = await apiFetch(`/customers/${selectedCustomerId}/statement`)
         if (!salesRes.ok) throw new Error("Error al cargar ventas")
         const salesData = await salesRes.json()
         setVentas(salesData)
 
         // 2. Historial de balance
-        const historyRes = await fetch(`${API_URL}/customers/${selectedCustomerId}/balance-history`)
+        const historyRes = await apiFetch(`/customers/${selectedCustomerId}/balance-history`)
         if (!historyRes.ok) throw new Error("Error al cargar historial de balance")
         const historyData = await historyRes.json()
         setBalanceHistory(historyData)

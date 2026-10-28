@@ -18,8 +18,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { apiFetch } from "@/lib/apiFetch"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
 
 export default function ListaVentas() {
   const [ventas, setVentas] = useState([])
@@ -42,7 +42,7 @@ const [selectedSaleId, setSelectedSaleId] = useState(null);
 // Handler actualizado: abre modal con previsualización
 const handleReimprimirTicket = async (venta) => {
   try {
-    const res = await fetch(`${API_URL}/tickets/${venta.id}/text`);
+    const res = await apiFetch(`/tickets/${venta.id}/text`);
     if (!res.ok) {
       const err = await res.json();
       throw new Error(err.error || 'Error al obtener ticket');
@@ -65,7 +65,7 @@ const handleReimprimirTicket = async (venta) => {
 // Imprimir desde el modal
 const handleConfirmPrint = async () => {
   try {
-    const res = await fetch(`${API_URL}/tickets/${selectedSaleId}/print`);
+    const res = await apiFetch(`/tickets/${selectedSaleId}/print`);
     if (!res.ok) throw new Error('Error al imprimir');
 
     toast.success(`Ticket #${selectedSaleId} impreso exitosamente 🖨️`);
@@ -88,7 +88,7 @@ const handleConfirmPrint = async () => {
 
   const fetchVentas = async () => {
     try {
-      const res = await fetch(`${API_URL}/sales`)
+      const res = await apiFetch(`/sales`)
       if (!res.ok) throw new Error("Error al cargar ventas")
       const data = await res.json()
       setVentas(data)
@@ -101,7 +101,7 @@ const handleConfirmPrint = async () => {
 
   const handleVerPagos = async (venta) => {
     try {
-      const res = await fetch(`${API_URL}/sales/${venta.id}`)
+      const res = await apiFetch(`/sales/${venta.id}`)
       if (!res.ok) throw new Error("Error al cargar pagos")
       const data = await res.json()
       setVentaPagos(venta)
@@ -113,7 +113,7 @@ const handleConfirmPrint = async () => {
 
   const handleVerDetalle = async (venta) => {
     try {
-      const res = await fetch(`${API_URL}/sales/${venta.id}`)
+      const res = await apiFetch(`/sales/${venta.id}`)
       if (!res.ok) throw new Error("Error al cargar detalles")
       const data = await res.json()
       setVentaDetalle(venta)

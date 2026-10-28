@@ -37,7 +37,6 @@ export const useSettingsStore = create(
         allow_discounts: 1,
         max_discount_without_auth: 0,
         allow_negative_balance: 0,
-        dynamic_price_auth_key: "1234",
 
         // Customer Config
         customer_form_mode: "basic",
@@ -79,7 +78,6 @@ export const useSettingsStore = create(
           allow_discounts: 1,
           max_discount_without_auth: 0,
           allow_negative_balance: 0,
-          dynamic_price_auth_key: "1234",
           customer_form_mode: "basic",
           card_payment_max_reprints: 1
         } 

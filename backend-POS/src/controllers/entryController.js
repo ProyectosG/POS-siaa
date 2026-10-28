@@ -31,10 +31,11 @@ exports.create = async (req, res) => {
     // Hora local HH:mm:ss
     const time = now.toTimeString().split(' ')[0];
 
-    console.log('[DEBUG] Guardando entrada con:', { date, time }); // ← Para verificar
-
     const id = await Entry.create({
       ...req.body,
+      // El usuario sale del token, nunca del cuerpo de la petición
+      id_user: req.user.id,
+      nickname_user: req.user.nickname,
       date,
       time
     });

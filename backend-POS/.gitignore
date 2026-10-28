@@ -1,5 +1,7 @@
 node_modules/
 .env
-pos.db
+*.db
+*.db-journal
+backups/
 *.log
 .DS_Store

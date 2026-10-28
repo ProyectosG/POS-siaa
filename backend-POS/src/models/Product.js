@@ -1,5 +1,12 @@
 const db = require('../config/database');
 
+// Campos que se pueden modificar con update()
+const CAMPOS_EDITABLES = [
+  'codigo_barras', 'codigo_interno', 'articulo', 'presentacion', 'unidad_medida',
+  'precio_menudeo', 'precio_mayoreo', 'precio_especial', 'precio_oferta',
+  'iva', 'ieps', 'stock', 'category_id', 'photo_url', 'activo',
+];
+
 class Product {
   static create(data) {
     return new Promise((resolve, reject) => {
@@ -117,10 +124,14 @@ class Product {
     });
   }
 
+  // Solo campos de la lista fija; lo demás se ignora
   static update(id, data) {
     return new Promise((resolve, reject) => {
-      const fields = Object.keys(data).map(key => `${key} = ?`).join(', ');
-      const values = Object.values(data);
+      const campos = CAMPOS_EDITABLES.filter(key => data[key] !== undefined);
+      if (campos.length === 0) return resolve();
+
+      const fields = campos.map(key => `${key} = ?`).join(', ');
+      const values = campos.map(key => data[key]);
       values.push(id);
 
       db.run(`UPDATE products SET ${fields} WHERE id = ?`, values, err => {

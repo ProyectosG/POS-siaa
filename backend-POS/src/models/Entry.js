@@ -19,7 +19,7 @@ static create(data) {
     } = data;
 
 
-    if (!id_user || !nickname_user) {
+    if (id_user === undefined || id_user === null || !nickname_user) {
       return reject(new Error('Usuario no válido'));
     }
 

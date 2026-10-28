@@ -7,13 +7,10 @@ import { Input } from "@/components/ui/input"
 import UserForm from "./UserForm"
 import UserCard from "./UserCard"
 import UserStats from "./UserStats.jsx"
-import { useAuthStore } from "@/store/useAuthStore"
+import { apiFetch } from "@/lib/apiFetch"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
 
 export default function CatalogoUsuarios() {
-  const logout = useAuthStore((s) => s.logout)
-
   const [users, setUsers] = useState([])
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingUser, setEditingUser] = useState(null)
@@ -30,13 +27,16 @@ export default function CatalogoUsuarios() {
     setLoading(true)
 
     try {
-      const res = await fetch(`${API_URL}/users`, {
-        credentials: "include",
+      const res = await apiFetch(`/users`, {
       })
 
-      // 🔒 Sesión inválida
-      if (res.status === 401 || res.status === 403) {
-        logout()
+      // 🔒 Sesión inválida: apiFetch ya cerró la sesión
+      if (res.status === 401) return
+
+      // 🔒 Sesión válida pero sin permiso (solo el Administrador ve usuarios): no se cierra la sesión
+      if (res.status === 403) {
+        setUsers([])
+        setError("No tienes permiso para ver los usuarios")
         return
       }
 

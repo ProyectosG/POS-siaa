@@ -14,8 +14,8 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
+import { apiFetch } from "@/lib/apiFetch"
 
-const API = process.env.NEXT_PUBLIC_API_URL // ← Asegúrate de tenerlo definido en .env
 
 /* =====================================================
    BANCOS DISPONIBLES (MX)
@@ -123,7 +123,7 @@ export default function PagoMixto({
     }
 
     try {
-      const res = await fetch(`${API}/apartados/abono`, {
+      const res = await apiFetch(`/apartados/abono`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

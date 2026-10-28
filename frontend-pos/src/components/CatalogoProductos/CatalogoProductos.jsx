@@ -17,8 +17,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import CatalogoProductosForm from "@/components/CatalogoProductos/CatalogoProductosForm"
+import { apiFetch } from "@/lib/apiFetch"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
 
 export default function CatalogoProductos() {
   const [products, setProducts] = useState([])
@@ -37,7 +37,7 @@ export default function CatalogoProductos() {
   const fetchProducts = async () => {
     try {
       setLoading(true)
-      const res = await fetch(`${API_URL}/products`)
+      const res = await apiFetch(`/products`)
       if (!res.ok) throw new Error("Error al cargar productos")
       const data = await res.json()
       setProducts(data)
@@ -65,7 +65,7 @@ export default function CatalogoProductos() {
 
   const handleDeleteConfirm = async () => {
     try {
-      await fetch(`${API_URL}/products/${productToDelete.id}`, { method: "DELETE" })
+      await apiFetch(`/products/${productToDelete.id}`, { method: "DELETE" })
       fetchProducts()
     } catch {
       setError("Error al eliminar")

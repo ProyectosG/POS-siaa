@@ -18,9 +18,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { apiFetch } from "@/lib/apiFetch"
 
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
 
 export default function CustomerStatement() {
   const [customers, setCustomers] = useState([])
@@ -49,7 +49,7 @@ export default function CustomerStatement() {
     const fetchCustomers = async () => {
       try {
         setLoadingCustomers(true)
-        const res = await fetch(`${API_URL}/customers`)
+        const res = await apiFetch(`/customers`)
         if (!res.ok) throw new Error("Error al cargar clientes")
         const data = await res.json()
         setCustomers(data)
@@ -77,13 +77,13 @@ export default function CustomerStatement() {
       setLoading(true)
       try {
         // 1. Datos del cliente
-        const customerRes = await fetch(`${API_URL}/customers/${selectedCustomerId}`)
+        const customerRes = await apiFetch(`/customers/${selectedCustomerId}`)
         if (!customerRes.ok) throw new Error("Error al cargar datos del cliente")
         const customerData = await customerRes.json()
         setSelectedCustomer(customerData)
 
         // 2. Estado de cuenta (ventas)
-        const statementRes = await fetch(`${API_URL}/customers/${selectedCustomerId}/statement`)
+        const statementRes = await apiFetch(`/customers/${selectedCustomerId}/statement`)
         if (!statementRes.ok) throw new Error("Error al cargar estado de cuenta")
         const statementData = await statementRes.json()
         setVentas(statementData)

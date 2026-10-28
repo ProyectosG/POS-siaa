@@ -186,8 +186,6 @@ exports.getById = async (req, res) => {
 };
 
 exports.create = async (req, res) => {
-  console.log('[DEBUG] Body recibido en /sales:', JSON.stringify(req.body, null, 2));
-
   const {
     date,
     time,
@@ -203,21 +201,12 @@ exports.create = async (req, res) => {
     status,
     details = [],
     payments = [],
-    id_user,
-    nickname_user,
     efectivo_recibido,
     cambio
   } = req.body;
 
-  // === CONSOLES PARA DEBUG ===
-  console.log('[DEBUG] Tipo de venta recibida:', type);
-  console.log('[DEBUG] Pagos recibidos desde frontend:', JSON.stringify(payments, null, 2));
-  console.log('[DEBUG] paid:', paid);
-  console.log('[DEBUG] pending_balance:', pending_balance);
-
-  if (!id_user || !nickname_user) {
-    return res.status(400).json({ error: 'Usuario no válido' });
-  }
+  // El usuario de la venta sale del token, nunca del cuerpo de la petición
+  const { id: id_user, nickname: nickname_user } = req.user;
 
   if (!details.length) {
     return res.status(400).json({ error: 'Venta sin productos' });
@@ -271,17 +260,6 @@ exports.create = async (req, res) => {
     saleTime = now.toTimeString().split(' ')[0];
   }
 
-  console.log('[DEBUG] Valores finales antes de insertar:', {
-    saleDate,
-    saleTime,
-    type,
-    movement_reason,
-    nickname_user,
-    final_paid,
-    final_efectivo_recibido,
-    final_cambio
-  });
-
   try {
     await new Promise((resolve, reject) =>
       db.run('BEGIN TRANSACTION', (err) =>
@@ -313,8 +291,6 @@ exports.create = async (req, res) => {
       console.error('[CRITICAL] Error específico en INSERT de sales:', insertErr);
       throw insertErr;
     }
-
-    console.log('[DEBUG] Venta creada con ID:', saleId);
 
     await SaleDetail.createMany(
       details.map((d) => ({
@@ -376,10 +352,7 @@ exports.create = async (req, res) => {
       throw new Error('Los pagos no coinciden con el total pagado');
     }
 
-    // === CONSOLE CLAVE: Qué payment_type se está guardando realmente ===
-    console.log('[DEBUG] Pagos que se van a guardar en BD:');
     for (const p of payments) {
-      console.log(`   - Método: ${p.method}, Monto: ${p.amount}, payment_type: ${p.payment_type || 'normal (por default)'}`);
       await Payment.create({
         sale_id: saleId,
         method: p.method,

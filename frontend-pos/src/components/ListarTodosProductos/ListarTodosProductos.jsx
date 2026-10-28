@@ -20,8 +20,8 @@ import {
 } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Package, Search, Filter } from "lucide-react"
+import { apiFetch } from "@/lib/apiFetch"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 export default function ListarTodosProductos() {
   const [productos, setProductos] = useState([])
@@ -38,7 +38,7 @@ export default function ListarTodosProductos() {
   useEffect(() => {
     const cargarDatos = async () => {
       try {
-        const res = await fetch(`${API_URL}/products`)
+        const res = await apiFetch(`/products`)
         const data = await res.json()
 
         setProductos(data)
