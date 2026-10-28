@@ -9,8 +9,8 @@ import { Eye, EyeOff, CreditCard, Key } from "lucide-react"
 import { cn } from "@/lib/utils"
 import toast from "react-hot-toast"
 import Cookies from 'js-cookie';  
+import { apiFetch } from "@/lib/apiFetch"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 export function SeleccionCaja() {
   const router = useRouter()
@@ -48,7 +48,7 @@ const handleCajaSubmit = async (e) => {
   try {
     setLoading(true);
 
-    const res = await fetch(`${API_URL}/cash-registers/abrir`, {
+    const res = await apiFetch(`/cash-registers/abrir`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

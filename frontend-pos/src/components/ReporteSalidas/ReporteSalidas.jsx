@@ -34,8 +34,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { apiFetch } from "@/lib/apiFetch"
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 const ReporteSalidas = () => {
   const [salidas, setSalidas] = useState([]);
@@ -61,10 +61,9 @@ const ReporteSalidas = () => {
       setCargando(true);
       setError(null);
 
-      const response = await fetch(`${API_BASE}/outs`, {
+      const response = await apiFetch(`/outs`, {
         method: "GET",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
       });
 
       if (!response.ok) {
@@ -153,8 +152,7 @@ const ReporteSalidas = () => {
 
   const manejarVistaPrevia = async (salida) => {
     try {
-      const response = await fetch(`${API_BASE}/outs/${salida.id}`, {
-        credentials: "include",
+      const response = await apiFetch(`/outs/${salida.id}`, {
       });
 
       if (!response.ok) throw new Error("Error al cargar detalle");

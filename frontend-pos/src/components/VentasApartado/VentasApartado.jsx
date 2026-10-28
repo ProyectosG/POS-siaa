@@ -23,8 +23,8 @@ import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useCajaStore } from "@/store/useCajaStore"
+import { apiFetch } from "@/lib/apiFetch"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 
 const beep = (ok = true) => {
@@ -146,7 +146,7 @@ export default function VentasApartado() {
   const buscarProductoPorCodigo = async (itemId, codigo) => {
     if (!codigo) return
     try {
-      const res = await fetch(`${API_URL}/products/barcode/${codigo}`)
+      const res = await apiFetch(`/products/barcode/${codigo}`)
       if (!res.ok) {
         beep(false)
         return
@@ -184,8 +184,8 @@ export default function VentasApartado() {
       return
     }
 
-    const res = await fetch(
-      `${API_URL}/products/search?query=${encodeURIComponent(texto)}`
+    const res = await apiFetch(
+      `/products/search?query=${encodeURIComponent(texto)}`
     )
     if (!res.ok) return
 
@@ -342,7 +342,7 @@ const time = now.toLocaleTimeString('es-MX', {
     }
 
     try {
-      const res = await fetch(`${API_URL}/sales`, {
+      const res = await apiFetch(`/sales`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(saleData),
@@ -409,7 +409,7 @@ const time = now.toLocaleTimeString('es-MX', {
     }
 
     const fetchCustomers = async () => {
-      const res = await fetch(`${API_URL}/customers/search/${customerQuery}`)
+      const res = await apiFetch(`/customers/search/${customerQuery}`)
       const data = await res.json()
       setCustomers(data)
       setShowOverlay(true)

@@ -9,8 +9,8 @@ import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 
 import PagoMixto from "@/components/PagoMixto/PagoMixto"
+import { apiFetch } from "@/lib/apiFetch"
 
-const API = process.env.NEXT_PUBLIC_API_URL
 
 export default function AbonosApartados() {
   const [ticketId, setTicketId] = useState("")
@@ -30,7 +30,7 @@ export default function AbonosApartados() {
     setLiquidar(false)
 
     try {
-      const res = await fetch(`${API}/sales/${ticketId}`)
+      const res = await apiFetch(`/sales/${ticketId}`)
       if (!res.ok) throw new Error("Ticket no encontrado")
 
       const data = await res.json()

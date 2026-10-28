@@ -10,9 +10,8 @@ import ResumenIVA from "./ResumenIVA";
 import ResumenTotales from "./ResumenTotales";
 import TablaPagos from "./TablaPagos";
 import AccionesCorteZ from "./AccionesCorteZ";
+import { apiFetch } from "@/lib/apiFetch"
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 export default function CorteZ() {
   const { caja } = useCajaStore();
@@ -24,7 +23,7 @@ export default function CorteZ() {
   const fetchCorte = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_URL}/cuts/current-z`);
+      const res = await apiFetch(`/cuts/current-z`);
       if (!res.ok) throw new Error("Error al obtener datos del corte Z");
       setData(await res.json());
     } catch (err) {

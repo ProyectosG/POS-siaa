@@ -4,8 +4,8 @@ import React, { useEffect, useState } from "react";
 import { Printer, DollarSign, CheckCircle } from "lucide-react";
 import { useCajaStore } from "@/store/useCajaStore";
 import toast from "react-hot-toast";
+import { apiFetch } from "@/lib/apiFetch"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 export default function CorteDeCaja() {
   const { caja } = useCajaStore();
@@ -16,7 +16,7 @@ export default function CorteDeCaja() {
   const fetchCorte = async () => {
     try {
       setLoading(true);
-      const corteRes = await fetch(`${API_URL}/cuts/current`);
+      const corteRes = await apiFetch(`/cuts/current`);
       if (!corteRes.ok) throw new Error("Error al obtener datos del corte");
       const corteData = await corteRes.json();
       setData(corteData);
@@ -33,7 +33,7 @@ export default function CorteDeCaja() {
 
   const handlePrint = async () => {
     try {
-      const res = await fetch(`${API_URL}/cuts/print/current`);
+      const res = await apiFetch(`/cuts/print/current`);
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.error || `Error ${res.status} al imprimir corte`);
@@ -74,7 +74,7 @@ export default function CorteDeCaja() {
         last_ticket: data.ticketRange?.last_ticket ?? null,
       };
 
-      const res = await fetch(`${API_URL}/cuts`, {
+      const res = await apiFetch(`/cuts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

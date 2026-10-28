@@ -1,9 +1,9 @@
 // hooks/useCustomers.js
 import { useState, useEffect, useCallback } from 'react'
 import toast from 'react-hot-toast'
+import { apiFetch } from "@/lib/apiFetch"
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'
-const CUSTOMERS_URL = `${API_BASE}/customers`
+const CUSTOMERS_URL = '/customers'
 
 export function useCustomers() {
   const [customers, setCustomers] = useState([])
@@ -13,7 +13,7 @@ export function useCustomers() {
   const loadCustomers = useCallback(async () => {
     try {
       setLoading(true)
-      const res = await fetch(CUSTOMERS_URL)
+      const res = await apiFetch(CUSTOMERS_URL)
       if (!res.ok) {
         throw new Error(`Error HTTP ${res.status}`)
       }
@@ -29,7 +29,7 @@ export function useCustomers() {
   }, [])
 
   const createCustomer = async (data) => {
-    const res = await fetch(CUSTOMERS_URL, {
+    const res = await apiFetch(CUSTOMERS_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -46,7 +46,7 @@ export function useCustomers() {
   }
 
   const updateCustomer = async (id, data) => {
-    const res = await fetch(`${CUSTOMERS_URL}/${id}`, {
+    const res = await apiFetch(`/customers/${id}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -64,7 +64,7 @@ export function useCustomers() {
   }
 
   const deleteCustomer = async (id) => {
-    const res = await fetch(`${CUSTOMERS_URL}/${id}`, {
+    const res = await apiFetch(`/customers/${id}`, {
       method: 'DELETE',
     })
 

@@ -3,11 +3,11 @@
 import { useState } from "react"
 import { User, Mail, Phone, Lock, Shield, Upload, X, Eye, EyeOff } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { apiFetch } from "@/lib/apiFetch"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
 const MAX_IMAGE_SIZE = 700 * 1024 // 700 KB
 
 export default function UserForm({ editingUser, onClose, onSuccess, setError }) {
@@ -66,7 +66,7 @@ const handleImageSelect = (e) => {
 
     try {
       setLoading(true)
-      const url = editingUser ? `${API_URL}/users/${editingUser.id}` : `${API_URL}/users`
+      const url = editingUser ? `/users/${editingUser.id}` : `/users`
       const method = editingUser ? "PUT" : "POST"
 
       const body = {
@@ -79,7 +79,7 @@ const handleImageSelect = (e) => {
       }
       if (formData.password) body.password = formData.password
 
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),

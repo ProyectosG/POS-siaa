@@ -17,8 +17,8 @@ import {
   Barcode,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { apiFetch } from "@/lib/apiFetch"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 /* ======================================================
    REGISTRO ENTRADAS
@@ -85,8 +85,8 @@ export default function RegistroEntradas() {
     }
 
     try {
-      const res = await fetch(
-        `${API_URL}/products/search?query=${encodeURIComponent(texto)}`
+      const res = await apiFetch(
+        `/products/search?query=${encodeURIComponent(texto)}`
       )
       if (!res.ok) return
 
@@ -115,8 +115,8 @@ export default function RegistroEntradas() {
     if (!buscarCodigo.trim()) return
 
     try {
-      const res = await fetch(
-        `${API_URL}/products/barcode/${buscarCodigo}`
+      const res = await apiFetch(
+        `/products/barcode/${buscarCodigo}`
       )
       if (!res.ok) return toast("Producto no encontrado")
 
@@ -197,7 +197,7 @@ export default function RegistroEntradas() {
     }
 
     try {
-      const res = await fetch(`${API_URL}/entries`, {
+      const res = await apiFetch(`/entries`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

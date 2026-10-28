@@ -11,9 +11,9 @@ import TabGeneral from "./tabs/TabGeneral";
 import TabPrecios from "./tabs/TabPrecios";
 import TabInventario from "./tabs/TabInventario";
 import TabImagen from "./tabs/TabImagen";
+import { apiFetch } from "@/lib/apiFetch"
 
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
 
 export default function CatalogoProductosForm({ product, onSave, onCancel }) {
   const [formData, setFormData] = useState({
@@ -45,7 +45,7 @@ export default function CatalogoProductosForm({ product, onSave, onCancel }) {
 
 
   useEffect(() => {
-    fetch(`${API_URL}/categories`)
+    apiFetch(`/categories`)
       .then(res => res.json())
       .then(setCategories)
       .catch(console.error)
@@ -160,8 +160,8 @@ export default function CatalogoProductosForm({ product, onSave, onCancel }) {
 
     const method = product ? "PUT" : "POST"
     const url = product
-      ? `${API_URL}/products/${product.id}`
-      : `${API_URL}/products`
+      ? `/products/${product.id}`
+      : `/products`
 
     const body = {
       ...formData,
@@ -181,7 +181,7 @@ export default function CatalogoProductosForm({ product, onSave, onCancel }) {
     }
 
     try {
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),

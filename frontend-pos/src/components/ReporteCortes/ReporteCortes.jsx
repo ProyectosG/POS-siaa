@@ -31,8 +31,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { apiFetch } from "@/lib/apiFetch"
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 const ReporteCortes = () => {
   const [cortes, setCortes] = useState([]);
@@ -63,10 +63,9 @@ const ReporteCortes = () => {
       setCargando(true);
       setError(null);
 
-      const response = await fetch(`${API_BASE}/cuts`, {
+      const response = await apiFetch(`/cuts`, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -174,8 +173,7 @@ const ReporteCortes = () => {
 
   const manejarVistaPrevia = async (corte) => {
     try {
-      const response = await fetch(`${API_BASE}/cuts/${corte.id}`, {
-        credentials: 'include',
+      const response = await apiFetch(`/cuts/${corte.id}`, {
       });
 
       if (!response.ok) throw new Error('Error al cargar detalle');
@@ -190,8 +188,7 @@ const ReporteCortes = () => {
 
   const handleReimprimirCorte = async (corte) => {
     try {
-      const response = await fetch(`${API_BASE}/cuts/${corte.id}`, {
-        credentials: 'include',
+      const response = await apiFetch(`/cuts/${corte.id}`, {
       });
 
       if (!response.ok) throw new Error('Error al cargar datos del corte');
@@ -247,7 +244,7 @@ Efectivo en Caja: $${Number(detalle.cash_in_box || 0).toFixed(2)}
   const handleConfirmPrintCorte = async () => {
     try {
       // Ruta real cuando la tengas
-      // await fetch(`${API_BASE}/cuts/${selectedCorteId}/print`, { method: 'POST' });
+      // await apiFetch(`/cuts/${selectedCorteId}/print`, { method: 'POST' });
       console.log(`Imprimiendo corte #${selectedCorteId}`);
       alert(`Corte #${selectedCorteId} enviado a impresión! 🖨️`);
       setShowPrintModal(false);

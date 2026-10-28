@@ -8,8 +8,8 @@ import UserForm from "./UserForm"
 import UserCard from "./UserCard"
 import UserStats from "./UserStats.jsx"
 import { useAuthStore } from "@/store/useAuthStore"
+import { apiFetch } from "@/lib/apiFetch"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api"
 
 export default function CatalogoUsuarios() {
   const logout = useAuthStore((s) => s.logout)
@@ -30,8 +30,7 @@ export default function CatalogoUsuarios() {
     setLoading(true)
 
     try {
-      const res = await fetch(`${API_URL}/users`, {
-        credentials: "include",
+      const res = await apiFetch(`/users`, {
       })
 
       // 🔒 Sesión inválida

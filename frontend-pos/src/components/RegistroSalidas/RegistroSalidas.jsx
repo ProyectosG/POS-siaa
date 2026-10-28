@@ -10,8 +10,8 @@ import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 import ConfirmDialog from "@/components/ui/ConfirmDialog"
 import { Search, Plus, Trash2, PackageMinus, Barcode } from "lucide-react"
+import { apiFetch } from "@/lib/apiFetch"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 export default function RegistroSalidas() {
   const [confirmOpen, setConfirmOpen] = useState(false)
@@ -71,7 +71,7 @@ export default function RegistroSalidas() {
       return
     }
     try {
-      const res = await fetch(`${API_URL}/products/search?query=${encodeURIComponent(texto)}`)
+      const res = await apiFetch(`/products/search?query=${encodeURIComponent(texto)}`)
       if (!res.ok) return
       const data = await res.json()
       // normalizar para overlay
@@ -96,7 +96,7 @@ export default function RegistroSalidas() {
   const buscarPorCodigo = async () => {
     if (!buscarCodigo.trim()) return
     try {
-      const res = await fetch(`${API_URL}/products/barcode/${buscarCodigo}`)
+      const res = await apiFetch(`/products/barcode/${buscarCodigo}`)
       if (!res.ok) return toast.error("Producto no encontrado")
       const data = await res.json()
       setProductoTmp({
@@ -166,7 +166,7 @@ export default function RegistroSalidas() {
       items: productos.map(p => ({ product_id: p.id, quantity: p.cantidad_salida })),
     }
     try {
-      const res = await fetch(`${API_URL}/outs`, {
+      const res = await apiFetch(`/outs`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
