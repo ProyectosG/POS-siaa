@@ -1,10 +1,17 @@
 const CashRegister = require('../models/CashRegister');
-const bcrypt = require('bcrypt'); // si usas hash
+const { hashear, comparar } = require('../utils/seguridad');
+
+// Nunca se devuelve la clave de la caja
+const sinPassword = (register) => {
+  if (!register) return register;
+  const { password, ...safe } = register;
+  return safe;
+};
 
 exports.getAll = async (req, res) => {
   try {
     const registers = await CashRegister.findAll();
-    res.json(registers);
+    res.json(registers.map(sinPassword));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -16,7 +23,7 @@ exports.getById = async (req, res) => {
     if (!register) {
       return res.status(404).json({ error: 'Caja no encontrada' });
     }
-    res.json(register);
+    res.json(sinPassword(register));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -44,14 +51,12 @@ exports.abrirCaja = async (req, res) => {
       });
     }
 
-// 🔐 VALIDACIÓN SIMPLE
-if (password !== register.password) {
-  return res.status(401).json({
-    error: 'Clave de caja incorrecta',
-  });
-}
-
-
+    // 3️⃣ Validar clave contra el hash
+    if (!(await comparar(password, register.password))) {
+      return res.status(401).json({
+        error: 'Clave de caja incorrecta',
+      });
+    }
 
     // 4️⃣ (Opcional) Marcar caja como abierta en BD
     // await CashRegister.marcarAbierta(register.id);
@@ -86,7 +91,7 @@ exports.getByNumeroCaja = async (req, res) => {
       return res.status(404).json({ error: 'Caja no encontrada' });
     }
 
-    res.json(register);
+    res.json(sinPassword(register));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -105,7 +110,7 @@ exports.create = async (req, res) => {
     const id = await CashRegister.create({
       numero_caja,
       tipo_caja,
-      password,
+      password: await hashear(password),
     });
 
     res.status(201).json({
@@ -121,7 +126,13 @@ exports.create = async (req, res) => {
 
 exports.update = async (req, res) => {
   try {
-    await CashRegister.update(req.params.id, req.body);
+    const { numero_caja, tipo_caja, password } = req.body;
+    await CashRegister.update(req.params.id, {
+      numero_caja,
+      tipo_caja,
+      // Clave vacía = no se cambia
+      password: password ? await hashear(password) : undefined,
+    });
     res.json({ message: 'Caja actualizada' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -136,4 +147,3 @@ exports.delete = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
-

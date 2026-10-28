@@ -3,7 +3,10 @@ const sqlite3 = require('sqlite3').verbose();
 require('dotenv').config();
 const path = require('path');
 
-const dbPath = path.join(__dirname, '../pos.db');
+// Ruta de la base: DB_PATH en .env (por omisión, src/pos.db como hasta ahora)
+const dbPath = process.env.DB_PATH
+  ? path.resolve(process.env.DB_PATH)
+  : path.join(__dirname, '../pos.db');
 
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
@@ -21,6 +24,13 @@ const db = new sqlite3.Database(dbPath, (err) => {
       }
     });
   }
+});
+
+// Promesa que se cumple cuando terminan de crearse las tablas
+let resolveReady, rejectReady;
+const ready = new Promise((resolve, reject) => {
+  resolveReady = resolve;
+  rejectReady = reject;
 });
 
 // Inicialización de tablas y migraciones (todo dentro de serialize)
@@ -429,13 +439,14 @@ db.serialize(() => {
   )`);
 
   // Registro inicial obligatorio
-  db.get(`SELECT id FROM settings WHERE id = 1`, (err, row) => {
-    if (!row) {
-      db.run(`INSERT INTO settings (id) VALUES (1)`);
-      console.log('--- NÚCLEO DE CONFIGURACIÓN INICIALIZADO ---');
-    }
-  });
+  db.run(`INSERT OR IGNORE INTO settings (id) VALUES (1)`);
+
+  // Último paso de la cola serializada: avisa que las tablas ya existen
+  db.get('SELECT 1', (err) => (err ? rejectReady(err) : resolveReady()));
 });
 
+
+db.dbPath = dbPath;
+db.ready = ready;
 
 module.exports = db;

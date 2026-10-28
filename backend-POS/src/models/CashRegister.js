@@ -49,11 +49,19 @@ class CashRegister {
 
 
 
-  static update(id, { numero_caja, tipo_caja }) {
+  // password llega ya con hash; si no viene, la clave no cambia
+  static update(id, { numero_caja, tipo_caja, password }) {
+    const sql = password
+      ? `UPDATE cash_registers SET numero_caja = ?, tipo_caja = ?, password = ? WHERE id = ?`
+      : `UPDATE cash_registers SET numero_caja = ?, tipo_caja = ? WHERE id = ?`;
+    const params = password
+      ? [numero_caja, tipo_caja, password, id]
+      : [numero_caja, tipo_caja, id];
+
     return new Promise((resolve, reject) => {
       db.run(
-        `UPDATE cash_registers SET numero_caja = ?, tipo_caja = ? WHERE id = ?`,
-        [numero_caja, tipo_caja, id],
+        sql,
+        params,
         err => {
           if (err) reject(err);
           resolve();
