@@ -1,5 +1,6 @@
 const Customer = require('../models/Customer');
-const db = require('../config/database'); // 
+const db = require('../config/database');
+const { filaAPesos, filasAPesos } = require('../utils/dinero');
 
 exports.getAll = async (req, res) => {
   try {
@@ -128,10 +129,10 @@ exports.getStatement = async (req, res) => {
         });
 
         return {
-          ...sale,
-          details,
-          payments,
-          balance_history: balanceHistory
+          ...filaAPesos(sale, 'sales'),
+          details: filasAPesos(details, 'sale_details'),
+          payments: filasAPesos(payments, 'payments'),
+          balance_history: filasAPesos(balanceHistory, 'customer_balance_history')
         };
       })
     );
@@ -174,7 +175,7 @@ exports.getBalanceHistory = (req, res) => {
         console.error('Error al obtener historial de balance:', err);
         return res.status(500).json({ error: err.message });
       }
-      res.json(rows);
+      res.json(filasAPesos(rows, 'customer_balance_history'));
     }
   );
 };

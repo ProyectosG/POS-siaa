@@ -1,5 +1,6 @@
 const db = require('../config/database');
 const Sale = require('../models/Sale');
+const { filasAPesos } = require('./dinero');
 
 module.exports = async function buildTicketData(saleId) {
   const sale = await Sale.findById(saleId);
@@ -40,10 +41,11 @@ module.exports = async function buildTicketData(saleId) {
     });
   }
 
+  // Sale.findById ya viene en pesos; renglones y pagos se convierten aquí
   return {
     sale,
-    details,
-    payments,
+    details: filasAPesos(details, 'sale_details'),
+    payments: filasAPesos(payments, 'payments'),
     customer,
   };
 };
