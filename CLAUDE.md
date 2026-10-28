@@ -23,8 +23,20 @@ Punto de venta independiente. Backend en `backend-POS/` (Express 5 + sqlite3, si
 - **Clave para liberar precios**: no sale en `GET /api/settings`; se valida con `POST /api/settings/validar-clave-precio` `{ clave } → { valida }`; solo el Administrador la cambia (vacía = no cambia).
 - **Frontend**: todas las llamadas al API pasan por `apiFetch` (`frontend-pos/src/lib/apiFetch.js`): toma `NEXT_PUBLIC_API_URL`, agrega `Authorization: Bearer <token>` y cierra la sesión si recibe 401. **No usar `fetch` directo contra el API.** El token vive en `useAuthStore`; la cookie `auth-token` solo la usa `src/middleware.js` para redirigir (lee el JWT sin verificar la firma, solo para decidir a dónde mandar; nunca da permisos).
 - **Menú y pantallas por rol**: la tabla está en `frontend-pos/src/lib/permisos.js` (`puedeVer(user, ruta)`); la usan el menú lateral y `app/dashboard/layout.js`. Solo decide qué se muestra; debe coincidir con los `requireLevel` del servidor. Una pantalla nueva de `/dashboard` que no esté en la tabla queda solo para el Administrador: hay que agregarla.
-- **Configuración**: `server.js` exporta la app y solo escucha si se corre directo. `DB_PATH`, `CORS_ORIGIN`, `JWT_SECRET`, `SUPERDEV_*`, `BACKUP_DIR` en `backend-POS/.env` (ver `.env.example`).
+- **Configuración**: `server.js` exporta la app y solo escucha si se corre directo. `DB_PATH`, `CORS_ORIGIN`, `JWT_SECRET`, `SUPERDEV_*`, `BACKUP_DIR`, `TZ_NEGOCIO` en `backend-POS/.env` (ver `.env.example`).
 - **Pruebas**: `backend-POS/test/*.test.js` con `node --test`; `test/helpers.js` arranca la app sobre una base SQLite temporal sembrada con contraseñas en texto plano.
+
+## Dinero e integridad: cómo funciona hoy (después de la Fase 1)
+
+- **Centavos**: el dinero se guarda en la base en centavos enteros. El API sigue hablando en pesos: se convierte al entrar (`aCentavos`) y al salir (`filaAPesos`, `filasAPesos`, `camposAPesos`) con `backend-POS/src/utils/dinero.js`. Toda cuenta de dinero se hace en centavos. **Una columna de dinero nueva va en `CAMPOS_DINERO`** y se convierte al leer y escribir. Las columnas siguen declaradas `REAL` (cambiar el tipo exige reconstruir tablas; queda para Prisma), pero guardan enteros.
+- **El servidor calcula el dinero**: la venta recibe producto, cantidad, `tipo_precio` (menudeo/mayoreo/especial/oferta), `discount_pct`, pagos y `total_esperado`; precios, descuentos (con `allow_discounts` y `max_discount_without_auth`), IVA incluido (16 % si el producto tiene `iva`), total, cambio y saldo salen de `utils/precios.js`. Si `total_esperado` no coincide: **409** sin registrar nada. Los cortes también calculan sus montos en el servidor. Nunca aceptar montos del navegador.
+- **Transacciones**: todo lo que mueve dinero o inventario (ventas, abonos, entradas, salidas, cortes, saldo de clientes) va dentro de `enTransaccion` (`src/config/transaccion.js`): una conexión SQLite propia y una cola, una transacción a la vez. Los modelos que escriben reciben `tx` (`Sale.crear`, `SaleDetail.crear`, `Payment.crear`, `Customer.moverSaldo`, `Entry.crear`, `Out.crear`, `Cut.crear`, `Kardex.logMovement(datos, tx)`). El stock se lee y descuenta dentro de la transacción. Los errores esperados se lanzan como `ErrorNegocio(status, mensaje)`.
+- **Idempotencia**: `POST /sales`, `/apartados/abono`, `/entries` y `/outs` exigen el encabezado `Idempotency-Key` (`utils/idempotencia.js`, tabla `idempotencia`). La misma clave del mismo usuario devuelve la primera respuesta (`repetida: true`) sin registrar otra vez. En el frontend: `enviarOperacion(ruta, body, claveRef)` de `src/lib/apiFetch.js`, con un `useRef` por pantalla.
+- **Fechas**: el servidor pone fecha y hora de cada movimiento con `ahoraNegocio()` (`utils/fechas.js`), en `TZ_NEGOCIO` (por omisión `America/Mexico_City`). No usar `new Date()`, `toISOString()` ni fechas del navegador. `created_at` (de SQLite) está en UTC: para mostrar, usar `date` y `time`.
+- **Saldo de clientes**: `current_balance` es lo que el cliente debe. Sube con lo pendiente de un apartado o crédito y baja con cada abono; siempre con `Customer.moverSaldo`, que deja historial.
+- **Precio libre**: en el menú de precios (tecla P) está "Precio libre (con clave)". `POST /api/settings/validar-clave-precio { clave, product_id, precio }` devuelve una autorización de 5 minutos para ese producto, precio y usuario (5 claves equivocadas → 15 min de bloqueo). La venta solo acepta el precio libre con esa autorización y marca el renglón (`sale_details.precio_libre`).
+- **Migraciones**: `src/config/migraciones.js`, versionadas con `PRAGMA user_version`, cada una en una transacción y con respaldo previo (`VACUUM INTO` en `BACKUP_DIR`) si la base tiene datos. Un cambio de datos nuevo es una migración nueva, nunca un cambio a una que ya corrió.
+- **Git y la base local**: el `pos_backup_*.db` sigue versionado en commits viejos de `main`. Cambiar a uno de esos commits y regresar BORRA la copia local (git la trata como archivo ignorado). Respaldarla antes de cualquier checkout a historia vieja.
 
 ## Fase 0 — Seguridad (hecha, rama `fase0-seguridad`)
 
@@ -48,19 +60,29 @@ Menú por rol: cada usuario ve en el menú lateral solo lo que el servidor le pe
 
 ## Pendientes detectados en la Fase 0 (sin hacer)
 
-- **Liberar precios en la venta**: no existe todavía el flujo en el frontend; la ruta `validar-clave-precio` ya está lista para conectarlo. Conviene limitarle intentos (hoy un usuario con sesión podría probar claves).
 - `GET /api/cuts/print/current` lo llama el frontend (CorteDeCaja, AccionesCorteZ) pero **no existe** en el backend (ya fallaba antes).
 - Los intentos del SuperDeveloper se guardan en memoria: se reinician si se reinicia el servidor.
 - El `pos_backup_*.db` sigue en la historia de git (repo público). Si hiciera falta borrarlo de la historia, sería una reescritura que el dueño tendría que autorizar.
 - Quedan `console.log` de depuración en otros archivos (kardex, Entry, Out, ResetDatos del frontend).
 
-## Fase 1 — Integridad de ventas y dinero (siguiente)
+## Fase 1 — Integridad de ventas y dinero (hecha, rama `fase1-integridad`)
 
-- El servidor calcula precios y totales con el catálogo (no confiar en precios, subtotales ni impuestos que manda el frontend).
-- Transacciones reales e idempotencia en ventas, abonos, entradas y salidas (hoy `sqlite3` comparte una conexión y las operaciones `await` intermedias pueden mezclarse; abonos, entradas y salidas no usan transacción).
-- Dinero en centavos enteros.
-- Fechas en una sola zona horaria (hoy se mezclan `toISOString()` en UTC y hora local).
-- Conectar el flujo de "liberar precio" a `validar-clave-precio`.
+1. Dinero en centavos enteros, con migración versionada que respalda la base antes.
+2. Cola de transacciones en una conexión propia: ventas, abonos, entradas, salidas y cortes son todo o nada; dos ventas no venden la misma última pieza.
+3. El servidor calcula precios, descuentos, IVA, totales, cambio, saldos y cortes; 409 si el total que vio el cajero no coincide.
+4. Idempotencia con `Idempotency-Key` en ventas, abonos, entradas y salidas (un doble clic registra una sola vez).
+5. Una sola zona horaria (`TZ_NEGOCIO`, `America/Mexico_City`); el servidor pone las fechas.
+6. Precio libre con la clave de precios (autorización de 5 min, límite de intentos).
+7. Saldo de clientes = lo pendiente; la migración recalculó los saldos existentes y dejó el ajuste en el historial.
+
+Arreglos encontrados en el camino: el ticket imprimía como anticipo el 30 % del total en vez de lo pagado; una entrada o salida con un producto inexistente dejaba la petición colgada; el corte X se guardaba sin `desde`/`hasta` y el Z con solo 3 de sus montos; la pantalla de abonos mostraba la hora en UTC.
+
+## Pendientes detectados en la Fase 1 (sin hacer)
+
+- **Cortes y abonos**: el corte toma los pagos por el número de ticket de la venta, no por cuándo se cobraron. Un abono de hoy a un apartado de antes del último corte no entra en el corte de hoy (ni en ninguno). Hay que contar pagos por su propio rango (por ejemplo, guardar en el corte el último `payments.id`).
+- **Stock editable a mano**: `PUT /api/products/:id` acepta `stock` sin kardex ni transacción. Debería cambiarse solo con entradas, salidas o un ajuste de inventario.
+- La autorización de precio libre se puede usar varias veces durante sus 5 minutos (mismo producto, precio y usuario); no es de un solo uso.
+- "Resetear Datos" no vacía la tabla `idempotencia` (inofensivo, pero crece).
 
 ## Fase 2 — Mantenimiento
 
