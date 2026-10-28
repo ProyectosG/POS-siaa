@@ -1,4 +1,5 @@
 const Kardex = require('../models/Kardex');
+const { ahoraNegocio } = require('../utils/fechas');
 
 exports.createMovement = async (req, res) => {
   try {
@@ -73,33 +74,9 @@ exports.createMovement = async (req, res) => {
     }
 
     /* =========================
-       FECHA / HORA - Usamos las que llegan del frontend (ya correctas)
+       FECHA / HORA - las pone el servidor, en la zona del negocio
     ========================= */
-    const now = new Date();
-
-    // Priorizamos lo enviado desde frontend
-    let finalDate = date;
-    if (!finalDate || !finalDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
-      finalDate = now.toLocaleDateString('es-MX', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-      }).split('/').reverse().join('-');
-      console.log('[Kardex] Fecha fallback (no llegó válida):', finalDate);
-    }
-
-    let finalTime = time;
-    if (!finalTime || !finalTime.match(/^\d{2}:\d{2}:\d{2}$/)) {
-      finalTime = now.toLocaleTimeString('es-MX', {
-        hour12: false,
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      });
-      console.log('[Kardex] Hora fallback (no llegó válida):', finalTime);
-    }
-
-    console.log('[Kardex] Fecha y hora FINALES para guardar:', { finalDate, finalTime });
+    const { date: finalDate, time: finalTime } = ahoraNegocio();
 
     const kardexId = await Kardex.logMovement({
       product_id,

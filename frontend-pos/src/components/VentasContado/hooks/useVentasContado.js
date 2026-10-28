@@ -25,7 +25,8 @@ export function useVentasContado() {
     const ivaPct = Number(item.ivaPct || 0)
 
     // 1️⃣ Descuento por línea (sobre precio final)
-    const descuentoMonto = cantidad * precio * (descuentoPct / 100)
+    // En centavos, redondeado igual que el servidor (si no, el total no coincide)
+    const descuentoMonto = Math.round(cantidad * precio * descuentoPct) / 100
 
     // 2️⃣ Precio unitario final con descuento
     const precioConDesc =
@@ -34,7 +35,7 @@ export function useVentasContado() {
         : 0
 
     // 3️⃣ Total línea (YA con IVA)
-    const importe = cantidad * precioConDesc
+    const importe = Math.round((cantidad * precio - descuentoMonto) * 100) / 100
 
     // 4️⃣ Desglose base / IVA desde precio final
     let importeBase = importe
@@ -42,7 +43,7 @@ export function useVentasContado() {
 
     if (ivaPct > 0) {
       const divisor = 1 + ivaPct / 100
-      importeBase = importe / divisor
+      importeBase = Math.round((importe / divisor) * 100) / 100
       ivaMonto = importe - importeBase
     }
 

@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Card } from "@/components/ui/card"
 import ConfirmDialog from "@/components/ui/ConfirmDialog"
 import { Search, Plus, Trash2, PackageMinus, Barcode } from "lucide-react"
-import { apiFetch } from "@/lib/apiFetch"
+import { apiFetch, enviarOperacion } from "@/lib/apiFetch"
 
 
 export default function RegistroSalidas() {
@@ -39,6 +39,7 @@ export default function RegistroSalidas() {
 
   const refNombre = useRef(null)
   const refCodigo = useRef(null)
+  const claveSalidaRef = useRef(null) // Idempotency-Key de la salida en curso
 
   /* ================= FECHA / HORA ================= */
   useEffect(() => {
@@ -166,15 +167,8 @@ export default function RegistroSalidas() {
       items: productos.map(p => ({ product_id: p.id, quantity: p.cantidad_salida })),
     }
     try {
-      const res = await apiFetch(`/outs`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      })
-      if (!res.ok) {
-        const err = await res.json()
-        throw new Error(err.error || "Error al guardar")
-      }
+      const { ok, data } = await enviarOperacion(`/outs`, payload, claveSalidaRef)
+      if (!ok) throw new Error(data.error || data.message || "Error al guardar")
       toast.success("Salida registrada correctamente ✅")
       cancelarSalida()
     } catch (err) {

@@ -13,9 +13,14 @@ class Kardex {
     date,
     time,
     related_folio
-  }) {
+  }, tx) {
+    // Con tx (config/transaccion.js) el movimiento queda dentro de esa transacción
+    const conexion = tx
+      ? { run: (sql, params, cb) => tx.run(sql, params).then((r) => cb.call(r, null), (e) => cb(e)) }
+      : db;
+
     return new Promise((resolve, reject) => {
-      db.run(
+      conexion.run(
         `INSERT INTO kardex
          (
           product_id,
@@ -46,7 +51,7 @@ class Kardex {
         ],
         function (err) {
           if (err) reject(err)
-          resolve(this.lastID)
+          else resolve(this.lastID)
         }
       )
     })

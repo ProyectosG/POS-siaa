@@ -153,8 +153,8 @@ export default function AbonosApartados() {
                     🧾 Ticket Apartado #{venta.id}
                   </h3>
                   <p className="text-sm text-muted-foreground">
-                    {new Date(venta.created_at).toLocaleDateString("es-MX")} •{" "}
-                    {new Date(venta.created_at).toLocaleTimeString("es-MX")}
+                    {/* Fecha y hora del negocio que puso el servidor (created_at está en UTC) */}
+                    {venta.date?.split("-").reverse().join("/")} • {venta.time}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Cajero: {venta.user?.name || "admin"}

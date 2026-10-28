@@ -1,61 +1,31 @@
 const db = require('../config/database');
+const { filaAPesos, filasAPesos } = require('../utils/dinero');
 
 class Cut {
-  static create(data) {
-    const {
-      type,
-      date,
-      desde,
-      hasta,
-      cash_register,
-      user_nickname,
-      total_sales,
-      ventas_contado,
-      ventas_credito,
-      ventas_apartado,
-      total_iva_gravado,
-      total_recibido,
-      total_anticipos,
-      total_abonos,
-      pago_efectivo,
-      pago_tarjeta,
-      pago_transferencia,
-      pago_otros,
-      cash_in_box,
-      first_ticket,
-      last_ticket
-    } = data;
-
-    return new Promise((resolve, reject) => {
-      db.run(
-        `
-        INSERT INTO cuts (
-          type, date, desde, hasta, cash_register, user_nickname,
-          total_sales, ventas_contado, ventas_credito, ventas_apartado, total_iva_gravado,
-          total_recibido, total_anticipos, total_abonos,
-          pago_efectivo, pago_tarjeta, pago_transferencia, pago_otros,
-          cash_in_box, first_ticket, last_ticket
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `,
-        [
-          type, date, desde, hasta, cash_register, user_nickname,
-          total_sales, ventas_contado, ventas_credito, ventas_apartado, total_iva_gravado,
-          total_recibido, total_anticipos, total_abonos,
-          pago_efectivo, pago_tarjeta, pago_transferencia, pago_otros,
-          cash_in_box, first_ticket, last_ticket
-        ],
-        function (err) {
-          if (err) {
-            console.error('❌ Error al insertar corte:', err.message);
-            return reject(err);
-          }
-          console.log(`✅ Corte creado con ID: ${this.lastID}`);
-          resolve(this.lastID);
-        }
-      );
-    });
+  // Va DENTRO de una transacción; los montos ya vienen en centavos (los calcula el servidor)
+  static async crear(tx, data) {
+    const { lastID } = await tx.run(
+      `
+      INSERT INTO cuts (
+        type, date, desde, hasta, cash_register, user_nickname,
+        total_sales, ventas_contado, ventas_credito, ventas_apartado, total_iva_gravado,
+        total_recibido, total_anticipos, total_abonos,
+        pago_efectivo, pago_tarjeta, pago_transferencia, pago_otros,
+        cash_in_box, first_ticket, last_ticket
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `,
+      [
+        data.type, data.date, data.desde, data.hasta, data.cash_register, data.user_nickname,
+        data.total_sales, data.ventas_contado, data.ventas_credito, data.ventas_apartado, data.total_iva_gravado,
+        data.total_recibido, data.total_anticipos, data.total_abonos,
+        data.pago_efectivo, data.pago_tarjeta, data.pago_transferencia, data.pago_otros,
+        data.cash_in_box, data.first_ticket, data.last_ticket,
+      ]
+    );
+    return lastID;
   }
 
+  // En pesos, para responder al API
   static findLast() {
     return new Promise((resolve, reject) => {
       db.get(
@@ -66,7 +36,7 @@ class Cut {
             console.error('❌ Error al obtener último corte:', err.message);
             return reject(err);
           }
-          resolve(row);
+          resolve(filaAPesos(row, 'cuts'));
         }
       );
     });
@@ -97,20 +67,13 @@ class Cut {
 
     query += ' ORDER BY date DESC, id DESC';
 
-    // Logs útiles para depurar
-    console.log('[Cut.findAll] Consulta SQL:', query);
-    console.log('[Cut.findAll] Parámetros:', params);
-
     return new Promise((resolve, reject) => {
       db.all(query, params, (err, rows) => {
         if (err) {
           console.error('❌ Error en Cut.findAll:', err.message);
-          console.error('Query ejecutada:', query);
-          console.error('Params:', params);
           return reject(err);
         }
-        console.log(`[Cut.findAll] Encontrados ${rows.length} cortes`);
-        resolve(rows);
+        resolve(filasAPesos(rows, 'cuts'));
       });
     });
   }
@@ -123,10 +86,7 @@ class Cut {
           console.error('❌ Error en Cut.findById:', err.message);
           return reject(err);
         }
-        if (!row) {
-          console.log(`[Cut.findById] No se encontró corte con ID: ${id}`);
-        }
-        resolve(row);
+        resolve(filaAPesos(row, 'cuts'));
       });
     });
   }

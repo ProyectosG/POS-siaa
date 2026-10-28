@@ -1,4 +1,5 @@
 const db = require('../config/database');
+const { aPesos, filasAPesos } = require('../utils/dinero');
 
 exports.getEstadoCuenta = (req, res) => {
   const { id } = req.params;
@@ -26,10 +27,11 @@ exports.getEstadoCuenta = (req, res) => {
         [id],
         (err2, customer) => {
           if (err2) return res.status(500).json({ error: err2.message });
+          if (!customer) return res.status(404).json({ error: 'Cliente no encontrado' });
 
           res.json({
-            current_balance: customer.current_balance,
-            movements: rows
+            current_balance: aPesos(customer.current_balance),
+            movements: filasAPesos(rows, 'customer_balance_history')
           });
         }
       );

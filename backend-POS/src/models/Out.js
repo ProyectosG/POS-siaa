@@ -1,107 +1,66 @@
 const db = require('../config/database');
-const Product = require('./Product');
+const { ErrorNegocio } = require('../config/transaccion');
 const Kardex = require('./Kardex');
 
 class Out {
-  static create(data) {
-    return new Promise((resolve, reject) => {
-      const {
-        out_type,
-        comments,
-        movement_reason,
+  // Va DENTRO de una transacción (config/transaccion.js): si un producto no
+  // alcanza, no queda nada registrado.
+  static async crear(tx, data) {
+    const { out_type, comments, movement_reason, date, time, related_folio, items, id_user, nickname_user } = data;
+
+    if (id_user === undefined || id_user === null || !nickname_user) {
+      throw new ErrorNegocio(400, 'Usuario no válido');
+    }
+    if (!Array.isArray(items) || items.length === 0) {
+      throw new ErrorNegocio(400, 'No se enviaron productos');
+    }
+
+    const { lastID: out_id } = await tx.run(
+      `INSERT INTO outs (out_type, comments, date, time, related_folio, id_user, nickname_user)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      [out_type, comments || null, date, time, related_folio || null, id_user, nickname_user]
+    );
+
+    for (const { product_id, quantity } of items) {
+      const cantidad = Number(quantity);
+      if (!Number.isInteger(cantidad) || cantidad <= 0) {
+        throw new ErrorNegocio(400, 'Cada producto debe llevar una cantidad entera mayor a cero');
+      }
+
+      // Stock leído DENTRO de la transacción
+      const product = await tx.get('SELECT id, articulo, stock FROM products WHERE id = ?', [product_id]);
+      if (!product) throw new ErrorNegocio(400, `Producto no encontrado: ${product_id}`);
+
+      const previous_stock = product.stock;
+      if (previous_stock < cantidad) {
+        throw new ErrorNegocio(409, `Stock insuficiente para ${product.articulo}. Disponible: ${previous_stock}`);
+      }
+      const new_stock = previous_stock - cantidad;
+
+      await tx.run('UPDATE products SET stock = ? WHERE id = ?', [new_stock, product_id]);
+      await tx.run(
+        `INSERT INTO out_details (out_id, product_id, quantity) VALUES (?, ?, ?)`,
+        [out_id, product_id, cantidad]
+      );
+
+      await Kardex.logMovement({
+        product_id,
+        id_user,
+        nickname_user,
+        movement_type: 'SALIDA',
+        movement_reason: movement_reason || out_type,
+        previous_stock,
+        moved_quantity: cantidad,
+        new_stock,
         date,
         time,
-        related_folio,
-        items,
-        id_user,
-        nickname_user
-      } = data;
+        related_folio: related_folio || out_id
+      }, tx);
+    }
 
-      if (id_user === undefined || id_user === null || !nickname_user) {
-        return reject(new Error('Usuario no válido'));
-      }
-
-      if (!items || !Array.isArray(items) || items.length === 0) {
-        return reject(new Error('No out items provided'));
-      }
-
-      db.serialize(async () => {
-        try {
-          db.run(
-            `INSERT INTO outs (
-              out_type,
-              comments,
-              date,
-              time,
-              related_folio,
-              id_user,
-              nickname_user
-            ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-            [
-              out_type,
-              comments || null,
-              date,
-              time,
-              related_folio || null,
-              id_user,
-              nickname_user
-            ],
-            async function (err) {
-              if (err) return reject(err);
-
-              const out_id = this.lastID;
-
-              for (const item of items) {
-                const { product_id, quantity } = item;
-
-                const product = await Product.findById(product_id);
-                if (!product) {
-                  throw new Error(`Producto no encontrado: ${product_id}`);
-                }
-
-                const previous_stock = product.stock;
-                const qty = Number(quantity);
-
-                if (previous_stock < qty) {
-                  throw new Error(
-                    `Stock insuficiente para ${product.articulo}. Disponible: ${previous_stock}`
-                  );
-                }
-
-                const new_stock = previous_stock - qty;
-
-                await Product.update(product_id, { stock: new_stock });
-
-                db.run(
-                  `INSERT INTO out_details (out_id, product_id, quantity)
-                   VALUES (?, ?, ?)`,
-                  [out_id, product_id, qty]
-                );
-
-                await Kardex.logMovement({
-                  product_id,
-                  id_user,
-                  nickname_user,
-                  movement_type: 'SALIDA',
-                  movement_reason: movement_reason || out_type,
-                  previous_stock,
-                  moved_quantity: qty,
-                  new_stock,
-                  date,
-                  time,
-                  related_folio: related_folio || out_id
-                });
-              }
-
-              resolve(out_id);
-            }
-          );
-        } catch (err) {
-          reject(err);
-        }
-      });
-    });
+    return out_id;
   }
+
 
   static findAll() {
     return new Promise((resolve, reject) => {

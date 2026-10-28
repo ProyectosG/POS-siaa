@@ -65,10 +65,12 @@ module.exports = function buildTicketText({
   t += printRightAligned('Total:', sale.total || 0);
   t += '\n';
 
-  // ANTICIPO (ahora usa la misma alineación)
+  // ANTICIPO: lo que realmente se pagó como anticipo (antes se imprimía el 30% del total)
   if (sale.type === 'apartado') {
-    const anticipo = (Number(sale.total || 0) * 0.3).toFixed(2);
-    t += printRightAligned('ANTICIPO (30%):', anticipo);
+    const anticipo = payments
+      .filter((p) => p.payment_type === 'anticipo')
+      .reduce((suma, p) => suma + Number(p.amount || 0), 0);
+    t += printRightAligned('ANTICIPO:', anticipo);
     t += '\n';
   }
 

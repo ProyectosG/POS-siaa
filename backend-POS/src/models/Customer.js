@@ -1,4 +1,6 @@
 const db = require('../config/database');
+const { filaAPesos, filasAPesos } = require('../utils/dinero');
+const { ahoraNegocio } = require('../utils/fechas');
 
 // Campos que se pueden modificar con update()
 const CAMPOS_EDITABLES = [
@@ -7,12 +9,13 @@ const CAMPOS_EDITABLES = [
 ];
 
 class Customer {
+  // Un cliente nuevo empieza sin saldo: el saldo solo cambia con moverSaldo
   static create(data) {
     return new Promise((resolve, reject) => {
       db.run(
-        `INSERT INTO customers 
+        `INSERT INTO customers
          (first_name, last_name_paternal, last_name_maternal, phone, email, address, rfc, postal_code, city, current_balance)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
         [
           data.first_name || null,
           data.last_name_paternal || null,
@@ -23,11 +26,10 @@ class Customer {
           data.rfc || null,
           data.postal_code || null,
           data.city || null,
-          data.current_balance || 0
         ],
         function (err) {
           if (err) reject(err);
-          resolve(this.lastID);
+          else resolve(this.lastID);
         }
       );
     });
@@ -37,7 +39,7 @@ class Customer {
     return new Promise((resolve, reject) => {
       db.all(`SELECT * FROM customers`, [], (err, rows) => {
         if (err) reject(err);
-        resolve(rows);
+        else resolve(filasAPesos(rows, 'customers'));
       });
     });
   }
@@ -46,13 +48,13 @@ class Customer {
     return new Promise((resolve, reject) => {
       db.get(`SELECT * FROM customers WHERE id = ?`, [id], (err, row) => {
         if (err) reject(err);
-        resolve(row);
+        else resolve(filaAPesos(row, 'customers'));
       });
     });
   }
 
   // Solo campos de la lista fija; lo demás (incluido current_balance) se ignora.
-  // El saldo solo cambia con updateBalance, que deja historial.
+  // El saldo solo cambia con moverSaldo, que deja historial.
   static update(id, data) {
     return new Promise((resolve, reject) => {
       const campos = CAMPOS_EDITABLES.filter(key => data[key] !== undefined);
@@ -64,48 +66,37 @@ class Customer {
 
       db.run(`UPDATE customers SET ${fields} WHERE id = ?`, values, err => {
         if (err) reject(err);
-        resolve();
+        else resolve();
       });
     });
   }
 
-  // Método para actualizar saldo + registrar historia
-  static updateBalance(id, amount, saleId, description) {
-    return new Promise((resolve, reject) => {
-      db.get(`SELECT current_balance FROM customers WHERE id = ?`, [id], (err, row) => {
-        if (err) return reject(err);
-        if (!row) return reject(new Error('Cliente no encontrado'));
+  // Mueve el saldo (lo que el cliente debe) y deja historial. Va DENTRO de una
+  // transacción (tx de config/transaccion.js). centavos > 0 aumenta la deuda,
+  // < 0 la reduce. Devuelve el saldo nuevo en centavos.
+  static async moverSaldo(tx, id, centavos, saleId, description) {
+    const row = await tx.get(`SELECT current_balance FROM customers WHERE id = ?`, [id]);
+    if (!row) throw new Error('Cliente no encontrado');
 
-        const previousBalance = row.current_balance;
-        const newBalance = previousBalance + amount;  // amount positivo para incremento
+    const previousBalance = Math.round(row.current_balance || 0);
+    const newBalance = previousBalance + centavos;
+    const { date, time } = ahoraNegocio();
 
-        db.run(`UPDATE customers SET current_balance = ? WHERE id = ?`, [newBalance, id], err => {
-          if (err) return reject(err);
-
-          const now = new Date();
-          const date = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
-          const time = now.toLocaleTimeString('es-MX', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-          db.run(
-            `INSERT INTO customer_balance_history 
-             (customer_id, date, time, sale_id, previous_balance, amount, new_balance, description) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            [id, date, time, saleId, previousBalance, amount, newBalance, description],
-            err => {
-              if (err) return reject(err);
-              resolve(newBalance);
-            }
-          );
-        });
-      });
-    });
+    await tx.run(`UPDATE customers SET current_balance = ? WHERE id = ?`, [newBalance, id]);
+    await tx.run(
+      `INSERT INTO customer_balance_history
+       (customer_id, date, time, sale_id, previous_balance, amount, new_balance, description)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, date, time, saleId, previousBalance, centavos, newBalance, description]
+    );
+    return newBalance;
   }
 
   static delete(id) {
     return new Promise((resolve, reject) => {
       db.run(`DELETE FROM customers WHERE id = ?`, [id], err => {
         if (err) reject(err);
-        resolve();
+        else resolve();
       });
     });
   }
@@ -133,7 +124,7 @@ class Customer {
         [like, like, like, like],
         (err, rows) => {
           if (err) reject(err);
-          else resolve(rows);
+          else resolve(filasAPesos(rows, 'customers'));
         }
       );
     });

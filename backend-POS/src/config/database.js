@@ -15,6 +15,10 @@ const db = new sqlite3.Database(dbPath, (err) => {
   } else {
     console.log('✅ Conectado correctamente a SQLite →', dbPath);
 
+    // Si la cola de transacciones (config/transaccion.js) está escribiendo,
+    // esta conexión espera hasta 5 s en vez de fallar con SQLITE_BUSY
+    db.configure('busyTimeout', 5000);
+
     // Habilitar foreign keys
     db.run('PRAGMA foreign_keys = ON;', (err) => {
       if (err) {

@@ -6,6 +6,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const sqlite3 = require('sqlite3');
+const crypto = require('crypto');
 
 let tmpDir;
 
@@ -57,9 +58,16 @@ let server;
 let baseUrl;
 let app;
 
-async function iniciar() {
+// antesDeMigrar(db): opcional; corre con las tablas ya creadas pero ANTES de las
+// migraciones, para sembrar datos como los dejaba una versión vieja (pesos).
+async function iniciar({ antesDeMigrar } = {}) {
   configurarEntorno();
   await sembrarBaseVieja();
+  if (antesDeMigrar) {
+    const db = require('../src/config/database');
+    await db.ready;
+    await antesDeMigrar(db);
+  }
   app = require('../server');
   await app.ready;
   await new Promise((resolve) => {
@@ -71,15 +79,19 @@ async function iniciar() {
 
 async function detener() {
   if (server) await new Promise((resolve) => server.close(resolve));
+  await require('../src/config/transaccion').cerrarTransacciones();
   const db = require('../src/config/database');
   await new Promise((resolve) => db.close(() => resolve()));
   fs.rmSync(tmpDir, { recursive: true, force: true });
 }
 
-// Petición al API; token opcional
-async function api(metodo, ruta, { token, body } = {}) {
+// Petición al API; token opcional. Los POST llevan un Idempotency-Key nuevo,
+// salvo que la prueba pase uno (clave) para repetir la misma operación, o
+// clave: null para mandarlo sin él.
+async function api(metodo, ruta, { token, body, clave } = {}) {
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers.Authorization = `Bearer ${token}`;
+  if (metodo === 'POST' && clave !== null) headers['Idempotency-Key'] = clave || crypto.randomUUID();
   const res = await fetch(`${baseUrl}${ruta}`, {
     method: metodo,
     headers,

@@ -1,6 +1,7 @@
 const db = require('../config/database');
 const Product = require('../models/Product');
 const Kardex = require('../models/Kardex');
+const { ahoraNegocio } = require('../utils/fechas');
 
 exports.getAll = async (req, res) => {
   try {
@@ -54,19 +55,8 @@ exports.create = async (req, res) => {
     // 1️⃣ Crear producto
     const productId = await Product.create(cleanData);
 
-    // 2️⃣ Registrar Kardex (ALTA DE PRODUCTO) con fecha y hora LOCALES
-    const now = new Date();
-
-    const date = now.getFullYear() + '-' +
-      String(now.getMonth() + 1).padStart(2, '0') + '-' +
-      String(now.getDate()).padStart(2, '0');
-
-    const time = now.toLocaleTimeString('es-MX', {
-      hour12: false,
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    });
+    // 2️⃣ Registrar Kardex (ALTA DE PRODUCTO) con fecha y hora del negocio
+    const { date, time } = ahoraNegocio();
 
     await Kardex.logMovement({
       product_id: productId,
@@ -116,18 +106,8 @@ exports.update = async (req, res) => {
     if (data.codigo_interno !== undefined) cleanData.codigo_interno = data.codigo_interno || null;
     if (data.activo !== undefined) cleanData.activo = data.activo ? 1 : 0;
 
-    // Fecha y hora actuales (para kardex si decides registrar cambio)
-    const now = new Date();
-    const date = now.getFullYear() + '-' +
-      String(now.getMonth() + 1).padStart(2, '0') + '-' +
-      String(now.getDate()).padStart(2, '0');
-
-    const time = now.toLocaleTimeString('es-MX', {
-      hour12: false,
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    });
+    // Fecha y hora del negocio (para kardex si decides registrar cambio)
+    const { date, time } = ahoraNegocio();
 
     // 1️⃣ Actualizar producto
     await Product.update(req.params.id, cleanData);

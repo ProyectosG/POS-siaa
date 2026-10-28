@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button"
 import { Switch } from "@/components/ui/switch"
 import { useCajaStore } from "@/store/useCajaStore"
 import { apiFetch } from "@/lib/apiFetch"
+import { armarRenglones, enviarVenta, aCentavosPesos } from "@/lib/ventas"
 
 
 /* ===== BEEP ===== */
@@ -45,6 +46,7 @@ export default function VentasContado() {
   const caja = useCajaStore((s) => s.caja)
   const user = useAuthStore((s) => s.user)
   const inicializadoRef = React.useRef(false)
+  const claveVentaRef = React.useRef(null) // Idempotency-Key de la venta en curso
 
   /* Overlay */
   const [mostrarOverlay, setMostrarOverlay] = useState(false)
@@ -280,116 +282,47 @@ const buscarProductoPorCodigo = async (itemId, codigo) => {
 
 
   /* ===== PROCESAR VENTA ===== */
+  // Precios, IVA, total y cambio los calcula el servidor; aquí solo se manda
+  // qué se vende, cómo se paga y el total que vio el cajero (total_esperado).
   const handleProcesarVenta = async ({ formaPago, efectivo, tarjeta }) => {
-    const now = new Date()
-    const date =
-      now.getFullYear() + "-" +
-      String(now.getMonth() + 1).padStart(2, "0") + "-" +
-      String(now.getDate()).padStart(2, "0")
+    const efectivoRecibido = Number(efectivo || 0)
+    const tarjetaPagada = Number(tarjeta || 0)
 
-    const time = now.toLocaleTimeString('es-MX', {
-      hour12: false,
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit'
-    })
-
-  const efectivoRecibido = Number(efectivo || 0);
-const tarjetaPagada = Number(tarjeta || 0);
-
-// Calculamos cambio (ya lo tienes en UI)
-const cambio = Math.max(efectivoRecibido - (granTotal - tarjetaPagada), 0);
-
-// Efectivo que se aplica a la venta
-const efectivoAplicado = efectivoRecibido - cambio;
-
-// Total entregado por el cliente (esto será el nuevo `paid`)
-const paid = efectivoAplicado + tarjetaPagada;  // 263 + 77 = 340 (aplicado)
-// O si quieres que paid sea lo entregado real: paid = efectivoRecibido + tarjetaPagada;
-
+    // Efectivo que se aplica a la venta (lo demás es cambio)
+    const cambio = Math.max(efectivoRecibido - (granTotal - tarjetaPagada), 0)
+    const efectivoAplicado = aCentavosPesos(efectivoRecibido - cambio)
 
     const payments = []
 
     if (efectivoAplicado > 0) {
-      payments.push({
-        method: "efectivo",
-        amount: efectivoAplicado,
-        date,
-      })
+      payments.push({ method: "efectivo", amount: efectivoAplicado })
     }
 
     if (tarjetaPagada > 0) {
       payments.push({
         method: "tarjeta",
-        amount: tarjetaPagada,
+        amount: aCentavosPesos(tarjetaPagada),
         bank: bancoTarjeta || null,
         last4: ultimos4Tarjeta || null,
-        reference: null,
-        date,
       })
     }
 
-    const details = items
-      .filter(i => i.productId)
-      .map(i => ({
-        product_id: i.productId,
-        quantity: i.cantidad,
-        base_price: i.precio,
-        price: i.precioConDesc || i.precio,
-        subtotal: i.importeBase,
-        discount_pct: i.descuentoPct || 0,
-        discount_amount: i.descuentoMonto || 0,
-        tax_rate: i.ivaPct || 0,
-        tax_amount: i.ivaMonto || 0,
-        tax_type: i.ivaPct > 0 ? "IVA" : "EXENTO",
-      }))
-
-    if (!user?.id || !user?.nickname) {
+    if (!user?.id && !user?.isSuperDev) {
       toast.error("Sesión no válida")
       return
     }
 
     const saleData = {
-      date,
-      time,   // ← ahora enviamos time también
       type: "contado",
-      movement_reason: "VENTA_CONTADO",
-      customer_id: null,
-      subtotal,
-      tax_total: ivaTotal,
-      discount_total: descuentoTotal,
-      total: granTotal,
-      paid,
+      total_esperado: aCentavosPesos(granTotal),
       efectivo_recibido: efectivoRecibido,
-      cambio,
-      pending_balance: Math.max(granTotal - paid, 0),
-      status: paid >= granTotal ? "completed" : "pending",
-      id_user: user.id,
-      nickname_user: user.nickname,
-      details,
+      details: armarRenglones(items),
       payments,
     }
 
-    // Limpieza forzada de todos los strings (por seguridad)
-    Object.keys(saleData).forEach(key => {
-      if (typeof saleData[key] === 'string') {
-        saleData[key] = saleData[key].replace(/\//g, '-').trim();
-      }
-    });
-
-    console.log('Valores ENVIADOS al backend (revisa si hay "/"):', saleData);
-
     try {
-      const res = await apiFetch(`/sales`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(saleData),
-      })
-
-      if (!res.ok) {
-        const err = await res.json()
-        throw new Error(err.error || "Error al guardar venta")
-      }
+      const r = await enviarVenta(saleData, claveVentaRef)
+      if (!r.ok) throw new Error(r.mensaje)
 
       inicializadoRef.current = false
       setItems([])
@@ -399,7 +332,7 @@ const paid = efectivoAplicado + tarjetaPagada;  // 263 + 77 = 340 (aplicado)
       setUltimos4Tarjeta("")
       setFocusArea("grilla")
 
-      toast.success("Venta guardada ✅")
+      toast.success(r.data.repetida ? "Esta venta ya estaba registrada ✅" : "Venta guardada ✅")
     } catch (err) {
       console.error(err)
       toast.error(err.message)
@@ -565,10 +498,13 @@ const handleSeleccionProducto = (producto) => {
           precios={preciosProducto}
           selectedIndex={precioIndex}
           setSelectedIndex={setPrecioIndex}
+          productId={items[filaPrecio]?.productId}
           onSelect={(p) => {
             const item = items[filaPrecio]
             actualizarItem(item.id, "tipoPrecio", p.tipo)
             actualizarItem(item.id, "precio", p.valor)
+            // Precio libre: la autorización del servidor viaja con el renglón
+            actualizarItem(item.id, "autorizacionPrecio", p.autorizacion || null)
             setMostrarPrecios(false)
           }}
           onClose={() => setMostrarPrecios(false)}

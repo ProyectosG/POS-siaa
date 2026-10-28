@@ -6,6 +6,8 @@ require('dotenv').config();
 const db = require('./src/config/database'); // Conexión y tablas centralizadas
 const { requireAuth } = require('./src/middleware/auth');
 const { convertirSecretosPlanos } = require('./src/utils/seguridad');
+const { migrar } = require('./src/config/migraciones');
+const { zonaNegocio } = require('./src/utils/fechas');
 
 const app = express();
 
@@ -21,7 +23,7 @@ const CORS_ORIGINS = (process.env.CORS_ORIGIN || 'http://localhost:3000')
 app.use(cors({
   origin: CORS_ORIGINS,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key']
 }));
 
 // Body parser con límite alto para imágenes base64
@@ -108,8 +110,12 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Se cumple cuando las tablas existen y las contraseñas viejas ya tienen hash
-app.ready = db.ready.then(() => convertirSecretosPlanos(db));
+// Se cumple cuando las tablas existen, las migraciones corrieron y las
+// contraseñas viejas ya tienen hash
+app.ready = db.ready
+  .then(() => zonaNegocio())
+  .then(() => migrar())
+  .then(() => convertirSecretosPlanos(db));
 
 module.exports = app;
 

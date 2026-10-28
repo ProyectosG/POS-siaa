@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import toast from "react-hot-toast"
 
 import { Input } from "@/components/ui/input"
@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
-import { apiFetch } from "@/lib/apiFetch"
+import { enviarOperacion } from "@/lib/apiFetch"
 
 
 /* =====================================================
@@ -43,6 +43,7 @@ export default function PagoMixto({
   onAbonoRegistrado,       // ← Callback del padre para toast y recargar
 }) {
   const [efectivo, setEfectivo] = useState("")
+  const claveAbonoRef = useRef(null) // Idempotency-Key del abono en curso
   const [tarjeta, setTarjeta] = useState("")
   const [banco, setBanco] = useState("")
   const [last4, setLast4] = useState("")
@@ -123,18 +124,8 @@ export default function PagoMixto({
     }
 
     try {
-      const res = await apiFetch(`/apartados/abono`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      })
-
-      if (!res.ok) {
-        const errData = await res.json()
-        throw new Error(errData.error || "Error al registrar abono")
-      }
-
-      const data = await res.json()
+      const { ok, data } = await enviarOperacion(`/apartados/abono`, payload, claveAbonoRef)
+      if (!ok) throw new Error(data.error || "Error al registrar abono")
 
       toast.success("Abono registrado correctamente")
       onAbonoRegistrado?.()
