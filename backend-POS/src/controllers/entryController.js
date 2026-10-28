@@ -1,4 +1,6 @@
 const Entry = require('../models/Entry');
+const { ahoraNegocio } = require('../utils/fechas');
+const { operacionIdempotente, responderError } = require('../utils/idempotencia');
 
 exports.getAll = async (req, res) => {
   try {
@@ -19,30 +21,27 @@ exports.getById = async (req, res) => {
   }
 };
 
+// POST /api/entries — en una transacción y con Idempotency-Key obligatorio
 exports.create = async (req, res) => {
   try {
-    const now = new Date();
+    const { status, body } = await operacionIdempotente(req, 'POST /entries', async (tx) => {
+      // Fecha y hora del servidor, en la zona del negocio
+      const { date, time } = ahoraNegocio();
 
-    // Fecha local REAL en formato YYYY-MM-DD (sin desfase UTC)
-    const date = now.getFullYear() + '-' +
-      String(now.getMonth() + 1).padStart(2, '0') + '-' +
-      String(now.getDate()).padStart(2, '0');
+      const id = await Entry.crear(tx, {
+        ...req.body,
+        // El usuario sale del token, nunca del cuerpo de la petición
+        id_user: req.user.id,
+        nickname_user: req.user.nickname,
+        date,
+        time
+      });
 
-    // Hora local HH:mm:ss
-    const time = now.toTimeString().split(' ')[0];
-
-    const id = await Entry.create({
-      ...req.body,
-      // El usuario sale del token, nunca del cuerpo de la petición
-      id_user: req.user.id,
-      nickname_user: req.user.nickname,
-      date,
-      time
+      return { status: 201, body: { id } };
     });
 
-    res.status(201).json({ id });
+    res.status(status).json(body);
   } catch (err) {
-    console.error('Error al crear entrada:', err);
-    res.status(500).json({ error: err.message });
+    responderError(res, err, 'Error al crear entrada');
   }
 };
