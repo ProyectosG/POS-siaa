@@ -18,20 +18,33 @@ const CAMPOS_VENTAS = ['total_ventas_monto', 'ventas_contado', 'ventas_credito',
 /**
  * Calcula un corte en CENTAVOS. El X va desde el último corte (X o Z); el Z desde
  * el último Z. c es la conexión principal o una transacción (mismas funciones).
+ *
+ * Ventas y cobros llevan cada uno su rango:
+ * - Ventas: los tickets después del último que cubrió el corte anterior.
+ * - Cobros: los pagos después del último que cubrió el corte anterior, sin importar
+ *   de qué venta son. Así un abono de hoy a un apartado viejo entra en el corte de hoy.
  */
 async function calcularCorte(c, tipo) {
   const ultimo = tipo === 'Z'
     ? await c.get(`SELECT * FROM cuts WHERE type='Z' ORDER BY id DESC LIMIT 1`)
     : await c.get(`SELECT * FROM cuts ORDER BY id DESC LIMIT 1`);
 
-  const desde = ultimo?.last_ticket != null
-    ? ultimo.last_ticket + 1
-    : (await c.get(`SELECT MIN(id) AS id FROM sales`)).id;
-  const hasta = (await c.get(`SELECT MAX(id) AS id FROM sales`)).id;
+  const ultimoTicket = ultimo?.last_ticket ?? 0;
+  const ultimoPago = ultimo?.last_payment_id ?? 0;
+  const maxTicket = (await c.get(`SELECT MAX(id) AS id FROM sales`)).id ?? 0;
+  const maxPago = (await c.get(`SELECT MAX(id) AS id FROM payments`)).id ?? 0;
 
-  if (desde == null || hasta == null || desde > hasta) {
+  const hayVentas = maxTicket > ultimoTicket;
+  const hayCobros = maxPago > ultimoPago;
+
+  if (!hayVentas && !hayCobros) {
     return { ultimo, vacio: true };
   }
+
+  // Sin ventas nuevas el rango de tickets queda vacío (desde > hasta), pero se conserva
+  // hasta dónde se cubrió para que el siguiente corte no repita tickets
+  const desde = ultimoTicket + 1;
+  const hasta = maxTicket;
 
   const ventas = await c.get(
     `
@@ -54,22 +67,20 @@ async function calcularCorte(c, tipo) {
       COALESCE(SUM(CASE WHEN payment_type='anticipo' THEN amount ELSE 0 END),0) AS total_anticipos,
       COALESCE(SUM(CASE WHEN payment_type='abono' THEN amount ELSE 0 END),0) AS total_abonos,
       COALESCE(SUM(CASE WHEN payment_type='normal' THEN amount ELSE 0 END),0) AS total_normal
-    FROM payments p
-    JOIN sales s ON s.id = p.sale_id
-    WHERE s.id BETWEEN ? AND ?
+    FROM payments
+    WHERE id > ? AND id <= ?
     `,
-    [desde, hasta]
+    [ultimoPago, maxPago]
   );
 
   const pagosRows = await c.all(
     `
     SELECT method, SUM(amount) AS total
-    FROM payments p
-    JOIN sales s ON s.id = p.sale_id
-    WHERE s.id BETWEEN ? AND ?
+    FROM payments
+    WHERE id > ? AND id <= ?
     GROUP BY method
     `,
-    [desde, hasta]
+    [ultimoPago, maxPago]
   );
 
   const pagos = pagosRows.reduce((acc, r) => {
@@ -80,8 +91,10 @@ async function calcularCorte(c, tipo) {
   return {
     ultimo,
     vacio: false,
+    hayVentas,
     desde,
     hasta,
+    ultimoPago: maxPago,
     ventas,
     pagos,
     total_anticipos: money.total_anticipos,
@@ -115,7 +128,11 @@ function respuestaCorte(corte, tipo) {
     total_anticipos: aPesos(corte.total_anticipos),
     total_abonos: aPesos(corte.total_abonos),
     total_recibido: aPesos(corte.total_recibido),
-    ticketRange: { first_ticket: corte.desde, last_ticket: corte.hasta },
+    ticketRange: corte.hayVentas
+      ? { first_ticket: corte.desde, last_ticket: corte.hasta }
+      : { first_ticket: null, last_ticket: null },
+    // true aunque no haya tickets nuevos, si hubo cobros (abonos a ventas anteriores)
+    hay_movimientos: true,
     ultimo_corte,
     tipo,
   };
@@ -156,7 +173,7 @@ exports.createCorte = async (req, res) => {
   try {
     const resultado = await enTransaccion(async (tx) => {
       const corte = await calcularCorte(tx, type);
-      if (corte.vacio) throw new ErrorNegocio(400, 'No hay ventas nuevas para este corte');
+      if (corte.vacio) throw new ErrorNegocio(400, 'No hay ventas ni cobros nuevos para este corte');
 
       const { date } = ahoraNegocio();
       const p = corte.pagos;
@@ -167,8 +184,8 @@ exports.createCorte = async (req, res) => {
       const id = await Cut.crear(tx, {
         type,
         date,
-        desde: String(corte.desde),
-        hasta: String(corte.hasta),
+        desde: corte.hayVentas ? String(corte.desde) : '-',
+        hasta: corte.hayVentas ? String(corte.hasta) : '-',
         cash_register: cash_register || null,
         user_nickname: req.user.nickname, // el usuario del corte sale del token
         total_sales: corte.ventas.total_ventas_monto,
@@ -184,11 +201,13 @@ exports.createCorte = async (req, res) => {
         pago_transferencia: p.transferencia || 0,
         pago_otros: otros,
         cash_in_box: p.efectivo || 0,
-        first_ticket: corte.desde,
+        // Sin ventas nuevas no hay primer ticket, pero last_ticket conserva hasta dónde se cubrió
+        first_ticket: corte.hayVentas ? corte.desde : null,
         last_ticket: corte.hasta,
+        last_payment_id: corte.ultimoPago,
       });
 
-      return { id, first_ticket: corte.desde, last_ticket: corte.hasta };
+      return { id, first_ticket: corte.hayVentas ? corte.desde : null, last_ticket: corte.hasta };
     });
 
     res.status(201).json({

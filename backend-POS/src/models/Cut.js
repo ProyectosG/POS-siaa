@@ -11,15 +11,15 @@ class Cut {
         total_sales, ventas_contado, ventas_credito, ventas_apartado, total_iva_gravado,
         total_recibido, total_anticipos, total_abonos,
         pago_efectivo, pago_tarjeta, pago_transferencia, pago_otros,
-        cash_in_box, first_ticket, last_ticket
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        cash_in_box, first_ticket, last_ticket, last_payment_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
         data.type, data.date, data.desde, data.hasta, data.cash_register, data.user_nickname,
         data.total_sales, data.ventas_contado, data.ventas_credito, data.ventas_apartado, data.total_iva_gravado,
         data.total_recibido, data.total_anticipos, data.total_abonos,
         data.pago_efectivo, data.pago_tarjeta, data.pago_transferencia, data.pago_otros,
-        data.cash_in_box, data.first_ticket, data.last_ticket,
+        data.cash_in_box, data.first_ticket, data.last_ticket, data.last_payment_id,
       ]
     );
     return lastID;

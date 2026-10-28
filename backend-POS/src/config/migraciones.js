@@ -84,6 +84,30 @@ const MIGRACIONES = [
       await recalcularSaldos(tx, 'Ajuste: saldo recalculado con lo pendiente de apartados y créditos');
     },
   },
+  {
+    version: 2,
+    nombre: 'fase2',
+    async aplicar(tx) {
+      // 1. Cada corte guarda el último pago que cubrió: el siguiente cuenta los cobros
+      //    desde ahí (antes se contaban por el ticket de la venta y los abonos a
+      //    apartados viejos no entraban en ningún corte).
+      await tx.run('ALTER TABLE cuts ADD COLUMN last_payment_id INTEGER');
+      // Cortes anteriores: se toman como cubiertos los pagos de sus tickets
+      await tx.run(
+        `UPDATE cuts SET last_payment_id = (
+           SELECT MAX(p.id) FROM payments p WHERE p.sale_id <= cuts.last_ticket
+         )
+         WHERE last_ticket IS NOT NULL`
+      );
+
+      // 2. Autorizaciones de precio libre ya usadas (cada una sirve una sola vez)
+      await tx.run(`CREATE TABLE IF NOT EXISTS autorizaciones_usadas (
+        jti TEXT PRIMARY KEY,
+        sale_id INTEGER,
+        usado TEXT NOT NULL
+      )`);
+    },
+  },
 ];
 
 async function migrar() {
