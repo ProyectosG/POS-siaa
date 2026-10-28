@@ -1,53 +1,78 @@
 // src/controllers/resetController.js
+// Solo SuperDeveloper (lo exige resetRoutes.js con requireSuperDev)
 const db = require('../config/database');
 const fs = require('fs');
 const path = require('path');
 
+// Únicas tablas que se pueden vaciar. Cualquier otro nombre se rechaza.
+const TABLAS_PERMITIDAS = [
+  'sale_details',
+  'entry_details',
+  'out_details',
+  'kardex',
+  'customer_balance_history',
+  'codigo_barras_historial',
+  'payments',
+  'sales',
+  'entries',
+  'outs',
+  'cuts',
+  'products',
+  'categories',
+  'customers',
+  'cash_registers',
+  'users',
+];
+
+// Carpeta de respaldos (ignorada por git). BACKUP_DIR en .env la cambia.
+const getBackupDir = () =>
+  process.env.BACKUP_DIR
+    ? path.resolve(process.env.BACKUP_DIR)
+    : path.join(__dirname, '../../backups');
+
+exports.TABLAS_PERMITIDAS = TABLAS_PERMITIDAS;
+
 exports.resetTables = (req, res) => {
-  console.log('[RESET] Solicitud recibida:', req.body);
-
-  if (!req.user || !req.user.isSuperDev) {
-    console.log('[RESET] Acceso denegado');
-    return res.status(403).json({ error: 'Acceso denegado. Solo superdevs!' });
-  }
-
   const { tables, resetIds } = req.body;
 
   if (!tables || !Array.isArray(tables) || tables.length === 0) {
     return res.status(400).json({ error: 'Debes seleccionar al menos una tabla' });
   }
 
+  const noPermitidas = tables.filter((t) => !TABLAS_PERMITIDAS.includes(t));
+  if (noPermitidas.length > 0) {
+    return res.status(400).json({ error: `Tablas no permitidas: ${noPermitidas.join(', ')}` });
+  }
+
   try {
-    const dbPath = path.join(__dirname, '../pos.db');
-    const backupPath = path.join(__dirname, '../../pos_backup_' + Date.now() + '.db');
+    const dbPath = db.dbPath;
 
     if (!fs.existsSync(dbPath)) {
-      console.error('[RESET] ERROR: pos.db NO encontrado en:', dbPath);
-      return res.status(500).json({ error: 'Base de datos pos.db no encontrada' });
+      console.error('[RESET] Base de datos no encontrada en:', dbPath);
+      return res.status(500).json({ error: 'Base de datos no encontrada' });
     }
 
+    const backupDir = getBackupDir();
+    fs.mkdirSync(backupDir, { recursive: true });
+    const backupPath = path.join(backupDir, 'pos_backup_' + Date.now() + '.db');
     fs.copyFileSync(dbPath, backupPath);
-    console.log('[RESET] Backup creado en:', backupPath);
+    console.log('[RESET] Respaldo creado en:', backupPath);
 
     db.serialize(() => {
       // 1. DESACTIVAR LLAVES FORÁNEAS (Para evitar el error de restricción)
-      db.run('PRAGMA foreign_keys = OFF', (err) => {
-        if (err) console.error('[RESET] Error desactivando FK:', err.message);
-        else console.log('[RESET] Foreign Keys desactivadas temporalmente');
-      });
+      db.run('PRAGMA foreign_keys = OFF');
 
       db.run('BEGIN TRANSACTION');
 
-      tables.forEach(table => {
-        console.log(`[RESET] Borrando tabla: ${table}`);
+      tables.forEach((table) => {
+        // table viene de la lista fija TABLAS_PERMITIDAS
         db.run(`DELETE FROM ${table}`, (err) => {
-          if (err) console.error(`Error borrando ${table}:`, err.message);
+          if (err) console.error(`[RESET] Error borrando ${table}:`, err.message);
         });
 
         if (resetIds) {
-          console.log(`[RESET] Reseteando ID de ${table}`);
           db.run(`DELETE FROM sqlite_sequence WHERE name = ?`, [table], (err) => {
-            if (err) console.error(`Error reseteando ID de ${table}:`, err.message);
+            if (err) console.error(`[RESET] Error reseteando ID de ${table}:`, err.message);
           });
         }
       });
@@ -56,7 +81,7 @@ exports.resetTables = (req, res) => {
         if (err) {
           console.error('[RESET] Error en COMMIT:', err);
           db.run('ROLLBACK');
-          
+
           // Reactivamos FK incluso si falla el commit
           db.run('PRAGMA foreign_keys = ON');
           return res.status(500).json({ error: 'Error al ejecutar el reset' });
@@ -65,13 +90,11 @@ exports.resetTables = (req, res) => {
         // 2. REACTIVAR LLAVES FORÁNEAS (Vital para la integridad futura)
         db.run('PRAGMA foreign_keys = ON', (err) => {
           if (err) console.error('[RESET] Error reactivando FK:', err.message);
-          else console.log('[RESET] Foreign Keys reactivadas correctamente');
         });
 
-        console.log('[RESET] ¡Zap completado!');
-        res.json({ 
+        res.json({
           message: '¡Boom! Datos zapeados con éxito. 💥',
-          backup: backupPath 
+          backup: path.basename(backupPath)
         });
       });
     });
@@ -84,10 +107,6 @@ exports.resetTables = (req, res) => {
 };
 
 exports.resetBalances = (req, res) => {
-  if (!req.user || !req.user.isSuperDev) {
-    return res.status(403).json({ error: 'Acceso denegado. Solo superdevs!' });
-  }
-
   try {
     db.serialize(() => {
       db.run('BEGIN TRANSACTION');
