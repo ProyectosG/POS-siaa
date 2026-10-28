@@ -17,7 +17,7 @@ import {
   Barcode,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { apiFetch } from "@/lib/apiFetch"
+import { apiFetch, enviarOperacion } from "@/lib/apiFetch"
 
 
 /* ======================================================
@@ -49,6 +49,7 @@ export default function RegistroEntradas() {
 
   const refNombre = useRef(null)
   const refCodigo = useRef(null)
+  const claveEntradaRef = useRef(null) // Idempotency-Key de la entrada en curso
 
   /* ================= FECHA / HORA ================= */
   useEffect(() => {
@@ -197,16 +198,8 @@ export default function RegistroEntradas() {
     }
 
     try {
-      const res = await apiFetch(`/entries`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      })
-
-      if (!res.ok) {
-        const err = await res.json()
-        throw new Error(err.error || "Error al guardar")
-      }
+      const { ok, data } = await enviarOperacion(`/entries`, payload, claveEntradaRef)
+      if (!ok) throw new Error(data.error || "Error al guardar")
 
       toast.success("Entrada registrada correctamente ✅")
       cancelarEntrada()

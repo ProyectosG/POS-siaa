@@ -29,3 +29,36 @@ export async function apiFetch(ruta, opciones = {}) {
 
   return res
 }
+
+/**
+ * Clave única para UNA operación que mueve dinero o inventario (venta, abono,
+ * entrada, salida). Va en el encabezado Idempotency-Key: si la misma clave llega
+ * dos veces (doble clic, reintento sin red), el servidor registra una sola vez.
+ * Se genera al primer intento y se reusa en los reintentos de esa operación.
+ * (getRandomValues funciona también abriendo la app por IP en la red local, sin https)
+ */
+export function nuevaClaveOperacion() {
+  const bytes = crypto.getRandomValues(new Uint8Array(16))
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")
+}
+
+/**
+ * POST de una operación con Idempotency-Key. claveRef es un useRef del
+ * componente que guarda la clave de ESTA operación: si se pierde la red, la
+ * clave se conserva y el reintento no registra dos veces; en cuanto el servidor
+ * responde (bien o mal) se libera para la siguiente operación.
+ * Devuelve { ok, status, data }.
+ */
+export async function enviarOperacion(ruta, body, claveRef) {
+  if (!claveRef.current) claveRef.current = nuevaClaveOperacion()
+
+  const res = await apiFetch(ruta, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Idempotency-Key": claveRef.current },
+    body: JSON.stringify(body),
+  })
+  claveRef.current = null
+
+  const data = await res.json().catch(() => ({}))
+  return { ok: res.ok, status: res.status, data }
+}

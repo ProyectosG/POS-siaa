@@ -24,6 +24,7 @@ import { Switch } from "@/components/ui/switch"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useCajaStore } from "@/store/useCajaStore"
 import { apiFetch } from "@/lib/apiFetch"
+import { armarRenglones, enviarVenta, aCentavosPesos } from "@/lib/ventas"
 
 
 
@@ -46,6 +47,7 @@ const beep = (ok = true) => {
 export default function VentasApartado() {
   const caja = useCajaStore((s) => s.caja)
   const user = useAuthStore((s) => s.user)
+  const claveVentaRef = React.useRef(null) // Idempotency-Key del apartado en curso
   const inicializadoRef = React.useRef(false)
   const [mostrarNuevoCliente, setMostrarNuevoCliente] = useState(false)
   
@@ -236,33 +238,15 @@ export default function VentasApartado() {
   const construirMenuPrecios = (precios) =>
     Array.isArray(precios) ? precios.filter((p) => p.valor > 0) : []
 
-  // PROCESAR VENTA - Fecha corregida con replace para evitar "/"
+  // PROCESAR APARTADO
+  // Precios, IVA y saldo los calcula el servidor (también la fecha); aquí solo se
+  // manda qué se aparta, el anticipo y el total que vio el cajero (total_esperado).
   const handleProcesarVenta = async ({ formaPago, efectivo, tarjeta }) => {
-// PROCESAR VENTA - Fecha ultra segura (reforzada)
-const now = new Date();
-
-// Fecha: YYYY-MM-DD garantizada (sin /)
-let date = now.toISOString().split('T')[0]; // Siempre 2026-01-24
-
-// Doble chequeo por si acaso
-date = date.replace(/\//g, '-').replace(/[^0-9-]/g, ''); // Elimina cualquier cosa rara
-
-const time = now.toLocaleTimeString('es-MX', {
-  hour12: false,
-  hour: '2-digit',
-  minute: '2-digit',
-  second: '2-digit'
-});
-
-
-
-
-    console.log('Fecha y hora ENVIADAS al backend:', { date, time })
-
     const efectivoRecibido = Number(efectivo || 0)
     const tarjetaPagada = Number(tarjeta || 0)
 
-    const efectivoAplicado = Math.min(efectivoRecibido, pagoInicialRequerido - tarjetaPagada)
+    // El anticipo es el requerido; el efectivo de más se devuelve como cambio
+    const efectivoAplicado = aCentavosPesos(Math.min(efectivoRecibido, pagoInicialRequerido - tarjetaPagada))
     const paid = efectivoAplicado + tarjetaPagada
 
     if (paid < pagoInicialRequerido) {
@@ -272,46 +256,20 @@ const time = now.toLocaleTimeString('es-MX', {
 
     const payments = []
 
-    const esApartado = tipoRequisito === "apartado" || granTotal > 0 && pagoInicialRequerido > 0
-
     if (efectivoAplicado > 0) {
-      payments.push({
-        method: "efectivo",
-        amount: efectivoAplicado,
-        payment_type: esApartado ? "anticipo" : "normal",
-        date,
-      })
+      payments.push({ method: "efectivo", amount: efectivoAplicado })
     }
 
     if (tarjetaPagada > 0) {
       payments.push({
         method: "tarjeta",
-        amount: tarjetaPagada,
+        amount: aCentavosPesos(tarjetaPagada),
         bank: bancoTarjeta || null,
         last4: ultimos4Tarjeta || null,
-        reference: null,
-        payment_type: esApartado ? "anticipo" : "normal",
-        date,
       })
     }
 
-    const details = items
-      .filter((i) => i.productId)
-      .map((i) => ({
-        product_id: i.productId,
-        quantity: i.cantidad,
-        base_price: i.precio,
-        price: i.precioConDesc || i.precio,
-        subtotal: i.importeBase,
-        discount_pct: i.descuentoPct || 0,
-        discount_amount: i.descuentoMonto || 0,
-        tax_rate: i.ivaPct || 0,
-        tax_amount: i.ivaMonto || 0,
-        tax_type: i.ivaPct > 0 ? "IVA" : "EXENTO",
-        articulo: i.articulo || "Sin nombre"
-      }))
-
-    if (!user?.id || !user?.nickname) {
+    if (!user?.id && !user?.isSuperDev) {
       toast.error("Sesión no válida")
       return
     }
@@ -321,37 +279,17 @@ const time = now.toLocaleTimeString('es-MX', {
     }
 
     const saleData = {
-      date,
-      time,
       type: "apartado",
-      movement_reason: "VENTA_APARTADO",
       customer_id: selectedCustomer.id,
-      subtotal,
-      tax_total: ivaTotal,
-      discount_total: descuentoTotal,
-      total: granTotal,
-      paid,
+      total_esperado: aCentavosPesos(granTotal),
       efectivo_recibido: efectivoRecibido,
-      cambio,
-      pending_balance: Math.max(granTotal - paid, 0),
-      status: paid >= granTotal ? "completed" : "pending",
-      id_user: user.id,
-      nickname_user: user.nickname,
-      details,
+      details: armarRenglones(items),
       payments,
     }
 
     try {
-      const res = await apiFetch(`/sales`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(saleData),
-      })
-
-      if (!res.ok) {
-        const err = await res.json()
-        throw new Error(err.error || "Error al guardar venta")
-      }
+      const r = await enviarVenta(saleData, claveVentaRef)
+      if (!r.ok) throw new Error(r.mensaje)
 
       // RESET TOTAL después de guardar (incluyendo cliente)
       inicializadoRef.current = false
@@ -365,7 +303,7 @@ const time = now.toLocaleTimeString('es-MX', {
       setCustomerQuery("")               // Limpia el input de búsqueda
       setShowOverlay(false)              // Cierra cualquier overlay abierto
 
-      toast.success("Venta guardada ✅")
+      toast.success(r.data.repetida ? "Este apartado ya estaba registrado ✅" : "Venta guardada ✅")
     } catch (err) {
       console.error(err)
       toast.error(err.message)
@@ -681,10 +619,13 @@ const handleClienteCreado = (clienteNuevo) => {
           precios={preciosProducto}
           selectedIndex={precioIndex}
           setSelectedIndex={setPrecioIndex}
+          productId={items[filaPrecio]?.productId}
           onSelect={(p) => {
             const item = items[filaPrecio]
             actualizarItem(item.id, "tipoPrecio", p.tipo)
             actualizarItem(item.id, "precio", p.valor)
+            // Precio libre: la autorización del servidor viaja con el renglón
+            actualizarItem(item.id, "autorizacionPrecio", p.autorizacion || null)
             setMostrarPrecios(false)
           }}
           onClose={() => setMostrarPrecios(false)}

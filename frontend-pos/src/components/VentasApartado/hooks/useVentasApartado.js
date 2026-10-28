@@ -30,21 +30,22 @@ export function useVentasApartado() {
     const descuentoPct = Number(item.descuentoPct || 0)
     const ivaPct = Number(item.ivaPct || 0)
 
-    const descuentoMonto = cantidad * precio * (descuentoPct / 100)
+    // En centavos, redondeado igual que el servidor (si no, el total no coincide)
+    const descuentoMonto = Math.round(cantidad * precio * descuentoPct) / 100
 
     const precioConDesc =
       cantidad > 0
         ? (cantidad * precio - descuentoMonto) / cantidad
         : 0
 
-    const importe = cantidad * precioConDesc
+    const importe = Math.round((cantidad * precio - descuentoMonto) * 100) / 100
 
     let importeBase = importe
     let ivaMonto = 0
 
     if (ivaPct > 0) {
       const divisor = 1 + ivaPct / 100
-      importeBase = importe / divisor
+      importeBase = Math.round((importe / divisor) * 100) / 100
       ivaMonto = importe - importeBase
     }
 
