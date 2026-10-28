@@ -7,7 +7,8 @@ import { useAuthStore } from "@/store/useAuthStore"
 import { useCajaStore } from "@/store/useCajaStore"
 import { useRouter } from "next/navigation"
 import toast from "react-hot-toast"
-import Cookies from 'js-cookie'  // ← Importamos js-cookie (asegúrate de tenerlo instalado)
+import Cookies from 'js-cookie'
+import { apiFetch } from "@/lib/apiFetch"
 
 export default function Login() {
   const router = useRouter()
@@ -18,6 +19,7 @@ export default function Login() {
   const [showPassword, setShowPassword] = React.useState(false)
   const [isLoading, setIsLoading] = React.useState(false)
   const [error, setError] = React.useState("")
+  const [modoSuperDev, setModoSuperDev] = React.useState(false)
 
   const handleLoginSubmit = async (e) => {
     e.preventDefault()
@@ -28,48 +30,53 @@ export default function Login() {
       return
     }
 
-    // ─────────────────────────────────────────────────────────────
-    //  SUPERDEVELOPER - ACCESO MÁGICO
-    // ─────────────────────────────────────────────────────────────
-    const today = new Date()
-    const day = String(today.getDate()).padStart(2, '0')
-    const month = String(today.getMonth() + 1).padStart(2, '0')
-    const superPassword = `${day}super${month}`
-
-    if (nickname.trim().toUpperCase() === "SUPERDEVELOPER" && password === superPassword) {
-      toast.success("¡Bienvenido SUPERdeveloper! Acceso total concedido")
-
-      // Guardamos en el store la sesión especial
-      login({
-        user: {
-          id: "superdev",
-          nickname: "SUPERdeveloper",
-          role: "superadmin",
-          photoUrl: null,
-          isSuperDev: true,
-        },
-        token: "superdev-token-temporal",
-      })
-
-      // ← AQUÍ VAN LAS COOKIES que necesita el middleware
-      Cookies.set('auth-token', 'superdev-token-temporal', { expires: 1, path: '/' })
-      Cookies.set('is-superdev', 'true', { expires: 1, path: '/' })
-      useCajaStore.getState().clearCaja();  // ← Limpia estado persistido
-      Cookies.remove('caja-id') // Aseguramos que no haya caja seleccionada
-
-      // Saltamos selección de caja y vamos directo al dashboard
-      router.replace("/dashboard")
-      return
-    }
-
-    // ─────────────────────────────────────────────────────────────
-    //  LOGIN NORMAL (usuarios de la base de datos)
-    // ─────────────────────────────────────────────────────────────
     try {
       setIsLoading(true)
 
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/users/login`,
+      // ─────────────────────────────────────────────────────────────
+      //  SUPERDEVELOPER: credenciales validadas en el servidor
+      // ─────────────────────────────────────────────────────────────
+      if (modoSuperDev) {
+        const res = await apiFetch(`/superdev/entrar`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ nickname, password }),
+        })
+        const data = await res.json().catch(() => ({}))
+
+        if (!res.ok) {
+          throw new Error(data?.error || "Credenciales incorrectas")
+        }
+
+        login({
+          user: {
+            id: 0,
+            nickname: data.user.nickname,
+            role: data.user.access_level,
+            accessLevel: data.user.access_level,
+            photoUrl: null,
+            isSuperDev: true,
+          },
+          token: data.token,
+        })
+
+        // La cookie solo sirve para las redirecciones del middleware de Next (dura lo que el token: 45 min)
+        Cookies.set('auth-token', data.token, { expires: 45 / (24 * 60), path: '/' })
+        useCajaStore.getState().clearCaja();  // ← Limpia estado persistido
+        Cookies.remove('caja-id') // Aseguramos que no haya caja seleccionada
+
+        toast.success("¡Bienvenido SUPERdeveloper!")
+
+        // Saltamos selección de caja y vamos directo al dashboard
+        router.replace("/dashboard")
+        return
+      }
+
+      // ─────────────────────────────────────────────────────────────
+      //  LOGIN NORMAL (usuarios de la base de datos)
+      // ─────────────────────────────────────────────────────────────
+      const res = await apiFetch(
+        `/users/login`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -77,26 +84,26 @@ export default function Login() {
         }
       )
 
-      const data = await res.json()
+      const data = await res.json().catch(() => ({}))
 
       if (!res.ok) {
-        throw new Error(data?.message || "Credenciales incorrectas")
+        throw new Error(data?.error || "Credenciales incorrectas")
       }
 
       login({
         user: {
           id: data.user.id,
           nickname: data.user.nickname,
-          role: data.user.role ?? data.user.access_level,
+          role: data.user.access_level,
+          accessLevel: data.user.access_level,
           photoUrl: data.user.photo_url,
           isSuperDev: false,
         },
-        token: data.token ?? null,
+        token: data.token,
       })
 
-      // ← También seteamos cookie para usuarios normales
-      Cookies.set('auth-token', data.token ?? 'normal-token', { expires: 1, path: '/' })
-      Cookies.remove('is-superdev')
+      // La cookie solo sirve para las redirecciones del middleware de Next (dura lo que el token: 12 h)
+      Cookies.set('auth-token', data.token, { expires: 0.5, path: '/' })
 
       router.replace("/seleccion-caja")
     } catch (err) {
@@ -182,7 +189,16 @@ export default function Login() {
               className="w-full py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-lg hover:opacity-90 transition disabled:opacity-50"
               disabled={isLoading}
             >
-              {isLoading ? "Ingresando..." : "Continuar"}
+              {isLoading ? "Ingresando..." : modoSuperDev ? "Entrar como SuperDeveloper" : "Continuar"}
+            </button>
+
+            {/* Cambia entre login normal y SuperDeveloper (el servidor valida las credenciales) */}
+            <button
+              type="button"
+              onClick={() => { setModoSuperDev(!modoSuperDev); setError("") }}
+              className="w-full text-xs text-slate-500 hover:text-slate-300 transition"
+            >
+              {modoSuperDev ? "Volver al inicio de sesión normal" : "Acceso SuperDeveloper"}
             </button>
           </form>
         </div>
