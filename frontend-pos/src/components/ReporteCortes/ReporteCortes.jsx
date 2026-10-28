@@ -245,7 +245,6 @@ Efectivo en Caja: $${Number(detalle.cash_in_box || 0).toFixed(2)}
     try {
       // Ruta real cuando la tengas
       // await apiFetch(`/cuts/${selectedCorteId}/print`, { method: 'POST' });
-      console.log(`Imprimiendo corte #${selectedCorteId}`);
       alert(`Corte #${selectedCorteId} enviado a impresión! 🖨️`);
       setShowPrintModal(false);
     } catch (err) {

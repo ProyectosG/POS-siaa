@@ -75,9 +75,6 @@ const handleSelectTable = (table) => {
     }
 
     try {
-      console.log('[FRONTEND] Iniciando reset con:', { selectedTables, resetIds, resetBalances });
-
-      console.log(selectedTables)
       // Resetear tablas seleccionadas
       if (selectedTables.length > 0) {
         const res = await apiFetch(`/reset/tables`, {

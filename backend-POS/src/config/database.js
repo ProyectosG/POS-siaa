@@ -23,8 +23,6 @@ const db = new sqlite3.Database(dbPath, (err) => {
     db.run('PRAGMA foreign_keys = ON;', (err) => {
       if (err) {
         console.error('Error al habilitar foreign keys:', err.message);
-      } else {
-        console.log('Foreign keys habilitadas correctamente');
       }
     });
   }
@@ -222,8 +220,6 @@ db.serialize(() => {
     (err) => {
       if (err && !err.message.includes('duplicate column name')) {
         console.error('Error al agregar columna created_at a cuts:', err.message);
-      } else if (!err) {
-        console.log('Columna created_at agregada a cuts correctamente');
       }
     }
   );
@@ -234,8 +230,6 @@ db.serialize(() => {
     (err) => {
       if (err) {
         console.error('Error al actualizar created_at en cortes existentes:', err.message);
-      } else {
-        console.log('created_at actualizado en registros existentes de cuts');
       }
     }
   );
