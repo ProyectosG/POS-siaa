@@ -260,7 +260,8 @@ exports.createCorte = async (req, res) => {
       });
     }
 
-    const cutId = await Cut.create({ ...data });
+    // El usuario del corte sale del token
+    const cutId = await Cut.create({ ...data, user_nickname: req.user.nickname });
 
     res.status(201).json({
       id: cutId,

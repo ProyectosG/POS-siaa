@@ -16,6 +16,10 @@ exports.createMovement = async (req, res) => {
       time
     } = req.body;
 
+    // El usuario sale del token, nunca del cuerpo de la petición
+    id_user = req.user.id;
+    nickname_user = req.user.nickname;
+
     if (!product_id) {
       return res.status(400).json({ error: 'product_id es requerido' });
     }

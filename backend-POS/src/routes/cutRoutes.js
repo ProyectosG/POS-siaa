@@ -1,21 +1,30 @@
 const express = require('express');
 const cutController = require('../controllers/cutController');
+const { requireLevel, tieneNivel, NIVELES } = require('../middleware/auth');
 
 const router = express.Router();
+const soloGerente = requireLevel(NIVELES.GERENTE);
+
+// El corte X lo hace cualquiera; el Z solo Gerente o superior
+const permisoPorTipoCorte = (req, res, next) => {
+  const tipo = String((req.body && req.body.type) || '').toUpperCase();
+  if (tipo === 'X') return next();
+  if (tipo === 'Z' && tieneNivel(req.user, NIVELES.GERENTE)) return next();
+  if (tipo === 'Z') return res.status(403).json({ error: 'Solo Gerente o superior puede hacer el corte Z' });
+  return res.status(400).json({ error: 'type debe ser X o Z' });
+};
 
 // Obtener corte X actual
 router.get('/current', cutController.getCurrentCorte);
 
 // Obtener corte Z actual
-router.get('/current-z', cutController.getCurrentCorteZ);
+router.get('/current-z', soloGerente, cutController.getCurrentCorteZ);
 
 // Crear nuevo corte (X o Z)
-router.post('/', cutController.createCorte);
+router.post('/', permisoPorTipoCorte, cutController.createCorte);
 
-// Listar TODOS los cortes (con filtros por query params)
-router.get('/', cutController.getAllCuts);
-
-// Obtener un corte específico por ID
-router.get('/:id', cutController.getCutById);
+// Reporte de cortes: Gerente o superior
+router.get('/', soloGerente, cutController.getAllCuts);
+router.get('/:id', soloGerente, cutController.getCutById);
 
 module.exports = router;

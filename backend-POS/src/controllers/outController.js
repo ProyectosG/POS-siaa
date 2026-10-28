@@ -4,8 +4,9 @@ exports.create = async (req, res) => {
   try {
     const out_id = await Out.create({
       ...req.body,
-      id_user: req.body.id_user,         // ⚠️ usar del body
-      nickname_user: req.body.nickname_user // ⚠️ usar del body
+      // El usuario sale del token, nunca del cuerpo de la petición
+      id_user: req.user.id,
+      nickname_user: req.user.nickname
     });
 
     res.status(201).json({

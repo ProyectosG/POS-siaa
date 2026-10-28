@@ -33,10 +33,6 @@ exports.create = async (req, res) => {
       return res.status(400).json({ error: 'category_id es requerido' });
     }
 
-    if (!data.id_user || !data.nickname_user) {
-      return res.status(400).json({ error: 'Usuario no válido' });
-    }
-
     const cleanData = {
       articulo: data.articulo.trim(),
       presentacion: data.presentacion || null,
@@ -74,8 +70,8 @@ exports.create = async (req, res) => {
 
     await Kardex.logMovement({
       product_id: productId,
-      id_user: data.id_user,
-      nickname_user: data.nickname_user,
+      id_user: req.user.id,               // del token
+      nickname_user: req.user.nickname,
       movement_type: "ALTA",
       previous_stock: 0,
       moved_quantity: 0,
@@ -141,8 +137,8 @@ exports.update = async (req, res) => {
     /*
     await Kardex.logMovement({
       product_id: req.params.id,
-      id_user: data.id_user || null,           // Si envías id_user desde frontend
-      nickname_user: data.nickname_user || null,
+      id_user: req.user.id,                    // del token
+      nickname_user: req.user.nickname,
       movement_type: "CAMBIO",
       movement_reason: "MODIFICACIÓN CATÁLOGO",
       previous_stock: 0,                       // Puedes obtener stock anterior si quieres
