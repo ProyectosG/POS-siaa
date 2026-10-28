@@ -1,13 +1,17 @@
 "use client"
 
 import { useEffect } from "react"
-import { useRouter } from "next/navigation"
+import Link from "next/link"
+import { useRouter, usePathname } from "next/navigation"
+import { ShieldX } from "lucide-react"
 import SidebarMenu from "@/components/SidebarMenu/SidebarMenu"
 import { useAuthStore } from "@/store/useAuthStore"
 import { useCajaStore } from "@/store/useCajaStore"
+import { puedeVer } from "@/lib/permisos"
 
 export default function DashboardLayout({ children }) {
   const router = useRouter()
+  const pathname = usePathname()
 
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const authHydrated = useAuthStore((s) => s.hydrated)
@@ -56,8 +60,25 @@ export default function DashboardLayout({ children }) {
     <div className="flex min-h-screen bg-background">
       <SidebarMenu />
       <main className="flex-1 p-6 overflow-auto">
-        {children}
+        {/* Si escribió a mano la dirección de una pantalla que no le toca, no se carga la pantalla */}
+        {puedeVer(user, pathname) ? children : <SinPermiso />}
       </main>
+    </div>
+  )
+}
+
+function SinPermiso() {
+  return (
+    <div className="flex flex-col items-center justify-center min-h-[70vh] gap-4 text-center">
+      <ShieldX className="w-16 h-16 text-rose-500" />
+      <h1 className="text-3xl font-bold">No tienes permiso</h1>
+      <p className="text-muted-foreground">Esta pantalla no está disponible para tu usuario.</p>
+      <Link
+        href="/dashboard"
+        className="mt-2 px-5 py-2.5 rounded-md bg-emerald-600 text-white font-semibold hover:bg-emerald-700"
+      >
+        Volver al inicio
+      </Link>
     </div>
   )
 }

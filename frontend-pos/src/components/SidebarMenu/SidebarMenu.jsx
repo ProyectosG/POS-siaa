@@ -9,7 +9,6 @@ import {
   X,
   LogOut,
   ShoppingCart,
-  ShoppingBag,
   Package,
   CreditCard,
   FolderOpen,
@@ -21,6 +20,7 @@ import {
 import { cn } from "@/lib/utils"
 import { useAuthStore } from "@/store/useAuthStore"
 import { useCajaStore } from "@/store/useCajaStore"
+import { puedeVer } from "@/lib/permisos"
 
 const menuItems = [
   {
@@ -59,7 +59,6 @@ const menuItems = [
       { label: "Familias", href: "/dashboard/catalogos/familias" },
       { label: "Productos", href: "/dashboard/catalogos/productos" },
       { label: "Clientes", href: "/dashboard/catalogos/clientes" },
-      { label: "Proveedores", href: "/dashboard/catalogos/proveedores" },
       { label: "Usuarios", href: "/dashboard/catalogos/usuarios" },
       { label: "Cajas", href: "/dashboard/catalogos/cajas" },
     ],
@@ -72,12 +71,6 @@ const menuItems = [
       { label: "Registro de Entradas", href: "/dashboard/inventario/entradas" },
       { label: "Registro de Salidas", href: "/dashboard/inventario/salidas" },
     ],
-  },
-  {
-    label: "COMPRAS",
-    icon: <ShoppingBag className="w-5 h-5" />,
-    iconColor: "text-blue-500",
-    subItems: [],
   },
   {
     label: "REPORTES",
@@ -97,8 +90,6 @@ const menuItems = [
     icon: <Wrench className="w-5 h-5" />,
     iconColor: "text-indigo-500",
     subItems: [
-      { label: "Tickets", href: "/dashboard/tools/tickets" },
-      { label: "Seguridad", href: "/dashboard/tools/seguridad" },
       { label: "Resetear Datos", href: "/dashboard/tools/resetDatos" },
       { label: "Configuración del Sistema", href: "/dashboard/tools/systemSettings" },
     ],
@@ -111,6 +102,11 @@ export default function SidebarMenu() {
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
   const clearCaja = useCajaStore((s) => s.clearCaja)
+
+  // Solo las opciones que el rol del usuario puede usar; los grupos vacíos no se muestran
+  const menuVisible = menuItems
+    .map((item) => ({ ...item, subItems: item.subItems.filter((s) => puedeVer(user, s.href)) }))
+    .filter((item) => item.subItems.length > 0)
 
   const [openItems, setOpenItems] = React.useState([])
   const [isMobileOpen, setIsMobileOpen] = React.useState(false)
@@ -195,7 +191,7 @@ export default function SidebarMenu() {
         {/* MENU */}
         <nav className="flex-1 overflow-y-auto py-4 px-3">
           <div className="space-y-1">
-            {menuItems.map((item) => (
+            {menuVisible.map((item) => (
               <div key={item.label}>
                 <button
                   onClick={() =>
