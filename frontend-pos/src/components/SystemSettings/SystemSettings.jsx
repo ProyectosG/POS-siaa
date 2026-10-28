@@ -10,8 +10,8 @@ import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
 import toast from "react-hot-toast"
 import TicketPreview from "./TicketPreview"
+import { apiFetch } from "@/lib/apiFetch"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL
 
 export default function SystemSettings() {
   const [settings, setSettings] = useState(null)
@@ -23,7 +23,7 @@ export default function SystemSettings() {
 
   const fetchSettings = async () => {
     try {
-      const res = await fetch(`${API_URL}/settings`)
+      const res = await apiFetch(`/settings`)
       if (!res.ok) throw new Error()
       const data = await res.json()
       setSettings(data)
@@ -40,14 +40,17 @@ export default function SystemSettings() {
     try {
       setSaving(true)
       const { created_at, updated_at, id, ...payload } = settings;
-      const res = await fetch(`${API_URL}/settings`, {
+      const res = await apiFetch(`/settings`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       })
       if (!res.ok) throw new Error()
+      // El servidor responde la configuración guardada, sin la clave de precios
+      const guardada = await res.json()
+      setSettings(guardada)
       toast.success("Configuración Sincronizada")
-    setGlobalSettings(settings) // 👈 Sincroniza con el store global
+      setGlobalSettings(guardada) // 👈 Sincroniza con el store global
     } catch (err) { toast.error("Error en persistencia") }
     finally { setSaving(false) }
   }
@@ -271,8 +274,8 @@ export default function SystemSettings() {
   </div>
   <div className="flex flex-row items-center justify-between gap-4 p-4 bg-black/40 rounded-2xl border border-white/5">
     <div className="flex flex-col">
-      <Label className="text-[13px] text-slate-300 font-bold uppercase shrink-0 tracking-tight">Clave de Autorización</Label>
-      <span className="text-[10px] text-emerald-500/50 font-mono font-bold uppercase italic">Acceso a Precio Libre</span>
+      <Label className="text-[13px] text-slate-300 font-bold uppercase shrink-0 tracking-tight">Nueva Clave de Autorización</Label>
+      <span className="text-[10px] text-emerald-500/50 font-mono font-bold uppercase italic">Vacía = no se cambia</span>
     </div>
     <div className="relative w-32 group">
       {/* Brillo sutil al enfocar */}
@@ -280,7 +283,8 @@ export default function SystemSettings() {
       
       <Input 
         type="password" 
-        value={settings.dynamic_price_auth_key} 
+        value={settings.dynamic_price_auth_key ?? ""}
+        autoComplete="new-password"
         onChange={(e) => handleChange("dynamic_price_auth_key", e.target.value)}
         className="relative bg-black border-slate-800 h-10 font-mono text-center rounded-xl text-emerald-400 tracking-widest text-lg focus:border-emerald-500/50 transition-all" 
         placeholder="****" 
