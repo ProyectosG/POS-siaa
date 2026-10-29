@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { AlertTriangle, Zap, Check } from "lucide-react";
+import { AlertTriangle, Zap, Check, Download } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
 import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
@@ -16,6 +16,7 @@ export default function ResetDatos() {
   const [resetBalances, setResetBalances] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [respaldando, setRespaldando] = useState(false);
 
   // Solo SUPERdeveloper puede ver y usar esto
   if (!user?.isSuperDev) {
@@ -25,6 +26,44 @@ export default function ResetDatos() {
       </div>
     );
   }
+
+  // "Respaldar ahora": el servidor hace la copia con VACUUM INTO (seguro con el
+  // servidor encendido) y la entrega para descargar
+  const handleRespaldar = async () => {
+    if (respaldando) return;
+    setRespaldando(true);
+    try {
+      const res = await apiFetch(`/superdev/respaldo`);
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'No se pudo hacer el respaldo');
+      }
+      const disposicion = res.headers.get('Content-Disposition') || '';
+      const nombre = (disposicion.match(/filename="?([^";]+)"?/) || [])[1] || 'pos_respaldo.db';
+      const archivo = await res.blob();
+
+      const url = URL.createObjectURL(archivo);
+      const enlace = document.createElement('a');
+      enlace.href = url;
+      enlace.download = nombre;
+      document.body.appendChild(enlace);
+      enlace.click();
+      enlace.remove();
+      URL.revokeObjectURL(url);
+
+      const tamaño = archivo.size >= 1024 * 1024
+        ? `${(archivo.size / (1024 * 1024)).toFixed(1)} MB`
+        : `${Math.ceil(archivo.size / 1024)} KB`;
+      toast.success(
+        `Respaldo descargado: ${nombre} (${tamaño}). Guarda este archivo en un lugar privado: contiene todos los datos del negocio`,
+        { duration: 10000 }
+      );
+    } catch (err) {
+      toast.error(err.message || 'No se pudo hacer el respaldo');
+    } finally {
+      setRespaldando(false);
+    }
+  };
 
 const allTables = [
     // 1. Primero los detalles (Las ramas)
@@ -132,6 +171,24 @@ const handleSelectTable = (table) => {
         <p className="text-slate-300 mb-3 text-center text-lg">
         Pero haremos backup automático antes del boom.
       </p>
+
+      {/* Respaldo manual */}
+      <section className="mb-10 bg-slate-800/50 p-6 rounded-xl border border-emerald-700/60 text-center">
+        <h2 className="text-2xl font-bold text-emerald-400 mb-2">Respaldo</h2>
+        <p className="text-slate-300 mb-4 text-sm">
+          Descarga una copia completa de la base. Es seguro con el servidor encendido.
+        </p>
+        <button
+          onClick={handleRespaldar}
+          disabled={respaldando}
+          className={cn(
+            "inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-white bg-emerald-600 hover:bg-emerald-500 transition",
+            respaldando && "opacity-60 cursor-not-allowed"
+          )}
+        >
+          <Download size={20} /> {respaldando ? 'Respaldando…' : 'Respaldar ahora'}
+        </button>
+      </section>
 
       {/* Selección de Tablas */}
       <section className="mb-10">

@@ -25,11 +25,7 @@ const TABLAS_PERMITIDAS = [
   'users',
 ];
 
-// Carpeta de respaldos (ignorada por git). BACKUP_DIR en .env la cambia.
-const getBackupDir = () =>
-  process.env.BACKUP_DIR
-    ? path.resolve(process.env.BACKUP_DIR)
-    : path.join(__dirname, '../../backups');
+const { dirRespaldos: getBackupDir } = require('../utils/respaldos');
 
 // Al borrar operaciones también se vacían sus claves de idempotencia y las
 // autorizaciones de precio usadas (se refieren a registros que ya no existen)
