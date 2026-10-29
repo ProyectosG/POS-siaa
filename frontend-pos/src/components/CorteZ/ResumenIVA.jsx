@@ -1,4 +1,5 @@
 "use client";
+import { pesos } from "@/lib/formato"
 
 export default function ResumenIVA({ totalIVA }) {
   return (
@@ -7,7 +8,7 @@ export default function ResumenIVA({ totalIVA }) {
         Ventas Gravadas con IVA
       </h3>
       <p className="text-sm text-foreground">
-        ${Number(totalIVA).toFixed(2)}
+        {pesos(Number(totalIVA))}
       </p>
       <p className="text-xs text-muted-foreground">
         (IVA total causado en el período)

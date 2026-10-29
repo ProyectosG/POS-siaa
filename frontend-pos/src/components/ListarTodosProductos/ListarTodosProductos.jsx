@@ -21,6 +21,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Package, Search, Filter } from "lucide-react"
 import { apiFetch } from "@/lib/apiFetch"
+import { pesos } from "@/lib/formato"
 
 
 export default function ListarTodosProductos() {
@@ -281,7 +282,7 @@ export default function ListarTodosProductos() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right font-semibold text-slate-800">
-                      ${Number(p.precio_menudeo || 0).toFixed(2)}
+                      {pesos(Number(p.precio_menudeo || 0))}
                     </TableCell>
                     <TableCell className="text-right">
                       <Badge

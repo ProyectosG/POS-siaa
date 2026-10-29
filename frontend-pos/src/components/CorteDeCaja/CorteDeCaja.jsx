@@ -6,6 +6,7 @@ import { useCajaStore } from "@/store/useCajaStore";
 import toast from "react-hot-toast";
 import { apiFetch } from "@/lib/apiFetch"
 import EncabezadoPantalla from "@/components/ui/encabezado-pantalla"
+import { pesos } from "@/lib/formato"
 
 
 
@@ -157,26 +158,26 @@ export default function CorteDeCaja() {
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-4">
           <div className="p-3 bg-card rounded-lg border border-border text-center shadow-md animate-pulse-slow">
             <p className="text-muted-foreground mb-0.5 text-sm">Total Ventas</p>
-            <p className="text-xl font-bold text-foreground">${data.ventas.total_ventas_monto?.toFixed(2) || "0.00"}</p>
+            <p className="text-xl font-bold text-foreground">{pesos(data.ventas.total_ventas_monto)}</p>
           </div>
           <div className="p-3 bg-card rounded-lg border border-border text-center shadow-md animate-pulse-slow">
             <p className="text-muted-foreground mb-0.5 text-sm">Contado</p>
-            <p className="text-xl font-bold text-exito">${data.ventas.ventas_contado?.toFixed(2) || "0.00"}</p>
+            <p className="text-xl font-bold text-exito">{pesos(data.ventas.ventas_contado)}</p>
           </div>
           <div className="p-3 bg-card rounded-lg border border-border text-center shadow-md animate-pulse-slow">
             <p className="text-muted-foreground mb-0.5 text-sm">Crédito</p>
-            <p className="text-xl font-bold text-aviso">${data.ventas.ventas_credito?.toFixed(2) || "0.00"}</p>
+            <p className="text-xl font-bold text-aviso">{pesos(data.ventas.ventas_credito)}</p>
           </div>
           <div className="p-3 bg-card rounded-lg border border-border text-center shadow-md animate-pulse-slow">
             <p className="text-muted-foreground mb-0.5 text-sm">Apartado</p>
-            <p className="text-xl font-bold text-primario">${data.ventas.ventas_apartado?.toFixed(2) || "0.00"}</p>
+            <p className="text-xl font-bold text-primario">{pesos(data.ventas.ventas_apartado)}</p>
           </div>
         </div>
 
         <div className="text-center bg-muted/40 p-2 rounded-md border border-yellow-500/10 shadow-sm max-w-sm mx-auto mt-1">
           <h3 className="text-xs font-normal text-aviso mb-0">Ventas Gravadas con IVA</h3>
           <p className="text-sm text-foreground font-normal">
-            ${data.ventas.total_iva_gravado?.toFixed(2) || "0.00"}
+            {pesos(data.ventas.total_iva_gravado)}
           </p>
           <p className="text-xs text-muted-foreground mt-0">(IVA total causado en el período)</p>
         </div>
@@ -191,7 +192,7 @@ export default function CorteDeCaja() {
         <div className="text-center bg-gradient-to-r from-exito-suave to-exito-suave p-4 rounded-xl border border-green-500/40 shadow-xl max-w-md mx-auto mb-3 animate-glow">
           <h3 className="text-lg font-semibold text-exito mb-1">TOTAL RECIBIDO EN CORTE</h3>
           <p className="text-3xl font-extrabold text-exito glow-text">
-            ${totalRecibido.toFixed(2)}
+            {pesos(totalRecibido)}
           </p>
           <p className="text-xs text-muted-foreground mt-1">(Efectivo + Tarjeta + Otros)</p>
         </div>
@@ -200,15 +201,15 @@ export default function CorteDeCaja() {
           <div className="flex flex-col justify-center items-center min-h-[150px] space-y-3 bg-card rounded-lg border border-border p-4">
             <div className="border-b border-border pb-2 w-full text-center">
               <p className="text-muted-foreground text-sm mb-0.5">Total de Contado</p>
-              <p className="text-lg font-bold text-exito">${totalContado.toFixed(2)}</p>
+              <p className="text-lg font-bold text-exito">{pesos(totalContado)}</p>
             </div>
             <div className="border-b border-border pb-2 w-full text-center">
               <p className="text-muted-foreground text-sm mb-0.5">Total Anticipos</p>
-              <p className="text-lg font-bold text-primario">${totalAnticipos.toFixed(2)}</p>
+              <p className="text-lg font-bold text-primario">{pesos(totalAnticipos)}</p>
             </div>
             <div className="border-b border-border pb-2 w-full text-center">
               <p className="text-muted-foreground text-sm mb-0.5">Total Abonos</p>
-              <p className="text-lg font-bold text-violet-700">${totalAbonos.toFixed(2)}</p>
+              <p className="text-lg font-bold text-violet-700">{pesos(totalAbonos)}</p>
             </div>
           </div>
 
@@ -223,7 +224,7 @@ export default function CorteDeCaja() {
                     <tr key={method} className="border-b border-border last:border-b-0">
                       <td className="py-2 px-3 capitalize font-medium text-center">{method}</td>
                       <td className="py-2 px-3 text-right font-bold text-exito">
-                        ${Number(amount).toFixed(2)}
+                        {pesos(Number(amount))}
                       </td>
                     </tr>
                   ))}

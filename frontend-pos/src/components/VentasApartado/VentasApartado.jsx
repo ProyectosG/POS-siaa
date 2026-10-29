@@ -28,6 +28,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useCajaStore } from "@/store/useCajaStore"
 import { apiFetch } from "@/lib/apiFetch"
 import { armarRenglones, enviarVenta, aCentavosPesos } from "@/lib/ventas"
+import { pesos } from "@/lib/formato"
 
 
 
@@ -253,7 +254,7 @@ export default function VentasApartado() {
     const paid = efectivoAplicado + tarjetaPagada
 
     if (paid < pagoInicialRequerido) {
-      toast.error(`El pago debe ser al menos $${pagoInicialRequerido.toFixed(2)}`)
+      toast.error(`El pago debe ser al menos ${pesos(pagoInicialRequerido)}`)
       return
     }
 
@@ -505,7 +506,7 @@ const handleClienteCreado = (clienteNuevo) => {
                       <div className="text-xs text-gray-600 mt-0.5 flex justify-between">
                         <span>{c.phone || "—"}</span>
                         <span className="font-medium text-emerald-700">
-                          Saldo: ${Number(c.current_balance || 0).toFixed(2)}
+                          Saldo: {pesos(Number(c.current_balance || 0))}
                         </span>
                       </div>
                     </div>
@@ -535,7 +536,7 @@ const handleClienteCreado = (clienteNuevo) => {
                 <div className="col-span-2">
                   <span className="text-muted-foreground block text-xs">Saldo actual</span>
                   <span className="font-bold text-emerald-700 text-lg">
-                    ${Number(selectedCustomer.current_balance || 0).toFixed(2)}
+                    {pesos(Number(selectedCustomer.current_balance || 0))}
                   </span>
                 </div>
               </div>

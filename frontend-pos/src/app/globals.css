@@ -150,6 +150,8 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Números del mismo ancho en toda la app: las cifras se alinean */
+    font-variant-numeric: tabular-nums;
   }
   /* Botones de al menos 44 px de alto (se tocan con el dedo) */
   /* (los interruptores [role=switch] conservan su forma) */

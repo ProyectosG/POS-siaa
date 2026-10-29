@@ -2,6 +2,7 @@ import { Edit2, Trash2, User, Phone, MapPin } from "lucide-react"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import toast from "react-hot-toast"
+import { pesos } from "@/lib/formato"
 
 export default function CustomerDetail({ customer, onEdit, onDelete }) {
   if (!customer) {
@@ -115,7 +116,7 @@ export default function CustomerDetail({ customer, onEdit, onDelete }) {
             <div>
               <p className="text-xs text-muted-foreground">Saldo Actual</p>
               <p className="text-xl font-semibold text-aviso mt-1">
-                ${Number(customer.current_balance || 0).toFixed(2)}
+                {pesos(Number(customer.current_balance || 0))}
               </p>
             </div>
           </div>

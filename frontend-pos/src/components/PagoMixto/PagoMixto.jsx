@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { enviarOperacion } from "@/lib/apiFetch"
+import { pesos } from "@/lib/formato"
 
 
 /* =====================================================
@@ -303,7 +304,7 @@ export default function PagoMixto({
       {/* RESUMEN */}
       {liquidar && (
         <p className="text-center text-sm text-muted-foreground">
-          Total asignado: <span className="font-semibold">${totalPagos.toFixed(2)}</span>
+          Total asignado: <span className="font-semibold">{pesos(totalPagos)}</span>
         </p>
       )}
 

@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import CatalogoProductosForm from "@/components/CatalogoProductos/CatalogoProductosForm"
 import { apiFetch } from "@/lib/apiFetch"
+import { pesos } from "@/lib/formato"
 
 
 export default function CatalogoProductos() {
@@ -130,7 +131,7 @@ export default function CatalogoProductos() {
           </div>
           <div className="p-6 bg-gradient-to-br from-violet-500/10 to-violet-500/5 border border-violet-500/20 rounded-lg">
             <p className="text-sm font-medium text-violet-600 dark:text-violet-700">Valor Inventario</p>
-            <p className="text-3xl font-bold text-violet-700 dark:text-violet-700">${totalValue.toFixed(2)}</p>
+            <p className="text-3xl font-bold text-violet-700 dark:text-violet-700">{pesos(totalValue)}</p>
           </div>
         </div>
 
@@ -184,10 +185,10 @@ export default function CatalogoProductos() {
               <TableCell className="text-foreground">{p.presentacion || "—"}</TableCell>
               <TableCell className="font-mono text-foreground">{p.codigo_barras || "—"}</TableCell>
               <TableCell className="text-right text-foreground">
-                ${Number(p.precio_menudeo || 0).toFixed(2)}
+                {pesos(Number(p.precio_menudeo || 0))}
               </TableCell>
               <TableCell className="text-right text-foreground">
-                ${Number(p.precio_mayoreo || 0).toFixed(2)}
+                {pesos(Number(p.precio_mayoreo || 0))}
               </TableCell>
               <TableCell className="text-right text-foreground">{p.stock || 0}</TableCell>
               <TableCell>

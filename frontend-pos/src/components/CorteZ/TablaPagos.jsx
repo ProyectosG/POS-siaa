@@ -1,4 +1,5 @@
 "use client";
+import { pesos } from "@/lib/formato"
 
 export default function TablaPagos({ pagos }) {
   const pagosNormalizados = {
@@ -14,7 +15,7 @@ export default function TablaPagos({ pagos }) {
             <tr key={method} className="border-b border-border">
               <td className="py-2 px-3 capitalize">{method}</td>
               <td className="py-2 px-3 text-right font-bold text-exito">
-                ${Number(amount || 0).toFixed(2)}
+                {pesos(Number(amount || 0))}
               </td>
             </tr>
           ))}

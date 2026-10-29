@@ -11,6 +11,7 @@ import ResumenTotales from "./ResumenTotales";
 import TablaPagos from "./TablaPagos";
 import AccionesCorteZ from "./AccionesCorteZ";
 import { apiFetch } from "@/lib/apiFetch"
+import { pesos } from "@/lib/formato"
 
 
 export default function CorteZ() {
@@ -99,7 +100,7 @@ export default function CorteZ() {
       Total Recibido en Corte
     </h3>
     <p className="text-3xl font-extrabold text-exito">
-      ${totalRecibido.toFixed(2)}
+      {pesos(totalRecibido)}
     </p>
     <p className="text-xs text-muted-foreground">(Efectivo + Tarjeta + Otros)</p>
   </div>

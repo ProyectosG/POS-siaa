@@ -1,4 +1,5 @@
 "use client";
+import { pesos } from "@/lib/formato"
 
 export default function ResumenTotales({
   totalRecibido,
@@ -24,7 +25,7 @@ function Bloque({ label, value }) {
     <div className="border-b border-border pb-2 w-full text-center">
       <p className="text-muted-foreground text-sm">{label}</p>
       <p className="text-lg font-bold text-exito">
-        ${Number(value).toFixed(2)}
+        {pesos(Number(value))}
       </p>
     </div>
   );

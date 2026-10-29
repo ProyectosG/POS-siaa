@@ -19,6 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { apiFetch } from "@/lib/apiFetch"
+import { pesos } from "@/lib/formato"
 
 
 export default function ListaVentas() {
@@ -401,22 +402,22 @@ const handleConfirmPrint = async () => {
                     </Badge>
                   </TableCell>
                   <TableCell>{v.movement_reason}</TableCell>
-                  <TableCell className="text-right">${v.subtotal.toFixed(2)}</TableCell>
-                  <TableCell className="text-right">${v.tax_total.toFixed(2)}</TableCell>
+                  <TableCell className="text-right">{pesos(v.subtotal)}</TableCell>
+                  <TableCell className="text-right">{pesos(v.tax_total)}</TableCell>
                   <TableCell className="text-right cursor-pointer" onClick={() => handleVerPagos(v)}>
                     <Badge variant="outline" className="rounded-full px-4 py-1.5 bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 transition-colors font-medium">
-                      ${v.total.toFixed(2)}
+                      {pesos(v.total)}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">${v.pending_balance.toFixed(2)}</TableCell>
-                  <TableCell className="text-right font-medium">${v.paid.toFixed(2)}</TableCell>
+                  <TableCell className="text-right">{pesos(v.pending_balance)}</TableCell>
+                  <TableCell className="text-right font-medium">{pesos(v.paid)}</TableCell>
                   <TableCell>
                     <Badge variant={v.status === "completed" ? "default" : "secondary"} className={v.status === "completed" ? "bg-green-100 text-green-800 border-green-200" : "bg-yellow-100 text-yellow-800 border-yellow-200"}>
                       {v.status === "completed" ? "✅ Completada" : "⏳ Pendiente"}
                     </Badge>
                   </TableCell>
-                  <TableCell className="text-right">${v.efectivo_recibido.toFixed(2)}</TableCell>
-                  <TableCell className="text-right font-medium text-slate-700">${v.cambio.toFixed(2)}</TableCell>
+                  <TableCell className="text-right">{pesos(v.efectivo_recibido)}</TableCell>
+                  <TableCell className="text-right font-medium text-slate-700">{pesos(v.cambio)}</TableCell>
                   <TableCell>{v.nickname_user}</TableCell>
                   <TableCell className="text-center">
                     <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleReimprimirTicket(v, e); }}>
@@ -540,17 +541,17 @@ const handleConfirmPrint = async () => {
                             {d.articulo || `Producto #${d.product_id}`}
                           </TableCell>
                           <TableCell>{d.quantity}</TableCell>
-                          <TableCell>${precioOriginal.toFixed(2)}</TableCell>
+                          <TableCell>{pesos(precioOriginal)}</TableCell>
                           <TableCell className="text-center">
                             {d.discount_pct ? `${d.discount_pct}%` : "—"}
                           </TableCell>
                           <TableCell className="text-center">
-                            ${(d.discount_amount || 0).toFixed(2)}
+                            {pesos((d.discount_amount || 0))}
                           </TableCell>
-                          <TableCell>${subtotalSinIVA.toFixed(2)}</TableCell>
-                          <TableCell>${ivaMonto.toFixed(2)}</TableCell>
+                          <TableCell>{pesos(subtotalSinIVA)}</TableCell>
+                          <TableCell>{pesos(ivaMonto)}</TableCell>
                           <TableCell className="text-right font-bold text-emerald-700">
-                            ${totalLinea.toFixed(2)}
+                            {pesos(totalLinea)}
                           </TableCell>
                         </TableRow>
                       );
@@ -592,7 +593,7 @@ const handleConfirmPrint = async () => {
                               {p.method === "efectivo" ? "💵 Efectivo" : "💳 Tarjeta"}
                             </Badge>
                           </TableCell>
-                          <TableCell className="font-medium">${p.amount.toFixed(2)}</TableCell>
+                          <TableCell className="font-medium">{pesos(p.amount)}</TableCell>
                           <TableCell>{p.bank || "—"}</TableCell>
                           <TableCell>{p.last4 || "—"}</TableCell>
                           <TableCell>{p.reference || "—"}</TableCell>
@@ -719,17 +720,17 @@ const handleConfirmPrint = async () => {
                               {d.articulo || `Producto #${d.product_id}`}
                             </TableCell>
                             <TableCell>{d.quantity}</TableCell>
-                            <TableCell>${precioOriginal.toFixed(2)}</TableCell>
+                            <TableCell>{pesos(precioOriginal)}</TableCell>
                             <TableCell className="text-center">
                               {d.discount_pct ? `${d.discount_pct}%` : "—"}
                             </TableCell>
                             <TableCell className="text-center">
-                              ${(d.discount_amount || 0).toFixed(2)}
+                              {pesos((d.discount_amount || 0))}
                             </TableCell>
-                            <TableCell>${subtotalSinIVA.toFixed(2)}</TableCell>
-                            <TableCell>${ivaMonto.toFixed(2)}</TableCell>
+                            <TableCell>{pesos(subtotalSinIVA)}</TableCell>
+                            <TableCell>{pesos(ivaMonto)}</TableCell>
                             <TableCell className="text-right font-bold text-emerald-700">
-                              ${totalLinea.toFixed(2)}
+                              {pesos(totalLinea)}
                             </TableCell>
                           </TableRow>
                         );
@@ -771,7 +772,7 @@ const handleConfirmPrint = async () => {
                               {p.method === "efectivo" ? "💵 Efectivo" : "💳 Tarjeta"}
                             </Badge>
                           </TableCell>
-                          <TableCell className="font-medium">${p.amount.toFixed(2)}</TableCell>
+                          <TableCell className="font-medium">{pesos(p.amount)}</TableCell>
                           <TableCell>{p.bank || "—"}</TableCell>
                           <TableCell>{p.last4 || "—"}</TableCell>
                           <TableCell>{p.reference || "—"}</TableCell>

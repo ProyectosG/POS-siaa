@@ -1,4 +1,5 @@
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
+import { pesos } from "@/lib/formato"
 
 export default function CustomerList({
   customers,
@@ -50,7 +51,7 @@ export default function CustomerList({
                   ? "text-aviso"
                   : "text-muted-foreground"}`}
               >
-                ${Number(customer.current_balance || 0).toFixed(2)}
+                {pesos(Number(customer.current_balance || 0))}
               </div>
             </div>
           </button>

@@ -32,6 +32,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { apiFetch } from "@/lib/apiFetch"
+import { pesos } from "@/lib/formato"
 
 
 const ReporteCortes = () => {
@@ -129,12 +130,12 @@ const ReporteCortes = () => {
       {
         accessorKey: 'total_sales',
         header: 'Total Ventas',
-        cell: info => `$${Number(info.getValue() || 0).toFixed(2)}`,
+        cell: info => <span className="monto block">{pesos(info.getValue())}</span>,
       },
       {
         accessorKey: 'cash_in_box',
         header: 'Efectivo en Caja',
-        cell: info => `$${Number(info.getValue() || 0).toFixed(2)}`,
+        cell: info => <span className="monto block">{pesos(info.getValue())}</span>,
       },
       {
         id: 'acciones',
@@ -454,10 +455,10 @@ Efectivo en Caja: $${Number(detalle.cash_in_box || 0).toFixed(2)}
                     Totales ({totales.conteo} cortes):
                   </td>
                   <td className="px-6 py-4 text-gray-900">
-                    ${totales.totalVentas.toFixed(2)}
+                    {pesos(totales.totalVentas)}
                   </td>
                   <td className="px-6 py-4 text-gray-900">
-                    ${totales.efectivoEnCaja.toFixed(2)}
+                    {pesos(totales.efectivoEnCaja)}
                   </td>
                   <td className="px-6 py-4"></td>
                 </tr>
@@ -545,23 +546,23 @@ Efectivo en Caja: $${Number(detalle.cash_in_box || 0).toFixed(2)}
   <CardContent className="!py-1.5 !px-3 !pt-1.5 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 text-xs !mt-0">
     <div className="text-center p-2 bg-emerald-50/50 rounded">
       <p className="text-gray-600 mb-0.5 text-xs">Total Ventas</p>
-      <p className="text-sm font-bold text-emerald-700">${Number(corteSeleccionado?.total_sales || 0).toFixed(2)}</p>
+      <p className="text-sm font-bold text-emerald-700">{pesos(Number(corteSeleccionado?.total_sales || 0))}</p>
     </div>
     <div className="text-center p-2 bg-green-50/50 rounded">
       <p className="text-gray-600 mb-0.5 text-xs">Contado</p>
-      <p className="text-xs font-semibold text-green-600">${Number(corteSeleccionado?.ventas_contado || 0).toFixed(2)}</p>
+      <p className="text-xs font-semibold text-green-600">{pesos(Number(corteSeleccionado?.ventas_contado || 0))}</p>
     </div>
     <div className="text-center p-2 bg-yellow-50/50 rounded">
       <p className="text-gray-600 mb-0.5 text-xs">Crédito</p>
-      <p className="text-xs font-semibold text-yellow-600">${Number(corteSeleccionado?.ventas_credito || 0).toFixed(2)}</p>
+      <p className="text-xs font-semibold text-yellow-600">{pesos(Number(corteSeleccionado?.ventas_credito || 0))}</p>
     </div>
     <div className="text-center p-2 bg-blue-50/50 rounded">
       <p className="text-gray-600 mb-0.5 text-xs">Apartado</p>
-      <p className="text-xs font-semibold text-blue-600">${Number(corteSeleccionado?.ventas_apartado || 0).toFixed(2)}</p>
+      <p className="text-xs font-semibold text-blue-600">{pesos(Number(corteSeleccionado?.ventas_apartado || 0))}</p>
     </div>
     <div className="text-center p-2 bg-purple-50/50 rounded">
       <p className="text-gray-600 mb-0.5 text-xs">IVA Gravado</p>
-      <p className="text-xs font-semibold text-purple-600">${Number(corteSeleccionado?.total_iva_gravado || 0).toFixed(2)}</p>
+      <p className="text-xs font-semibold text-purple-600">{pesos(Number(corteSeleccionado?.total_iva_gravado || 0))}</p>
     </div>
   </CardContent>
 </Card>
@@ -577,19 +578,19 @@ Efectivo en Caja: $${Number(detalle.cash_in_box || 0).toFixed(2)}
         <CardContent className="!py-1 !px-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-xs">
           <div className="text-center p-2 bg-emerald-50/50 rounded">
             <p className="text-gray-600 mb-0.5 text-xs">Total Recibido</p>
-            <p className="text-sm font-bold text-emerald-700">${Number(corteSeleccionado?.total_recibido || 0).toFixed(2)}</p>
+            <p className="text-sm font-bold text-emerald-700">{pesos(Number(corteSeleccionado?.total_recibido || 0))}</p>
           </div>
           <div className="text-center p-2 bg-blue-50/50 rounded">
             <p className="text-gray-600 mb-0.5 text-xs">Anticipos</p>
-            <p className="text-xs font-bold text-blue-600">${Number(corteSeleccionado?.total_anticipos || 0).toFixed(2)}</p>
+            <p className="text-xs font-bold text-blue-600">{pesos(Number(corteSeleccionado?.total_anticipos || 0))}</p>
           </div>
           <div className="text-center p-2 bg-purple-50/50 rounded">
             <p className="text-gray-600 mb-0.5 text-xs">Abonos</p>
-            <p className="text-xs font-bold text-purple-600">${Number(corteSeleccionado?.total_abonos || 0).toFixed(2)}</p>
+            <p className="text-xs font-bold text-purple-600">{pesos(Number(corteSeleccionado?.total_abonos || 0))}</p>
           </div>
           <div className="text-center p-2 bg-green-50/50 rounded">
             <p className="text-gray-600 mb-0.5 text-xs">Efectivo en Caja</p>
-            <p className="text-sm font-bold text-green-700">${Number(corteSeleccionado?.cash_in_box || 0).toFixed(2)}</p>
+            <p className="text-sm font-bold text-green-700">{pesos(Number(corteSeleccionado?.cash_in_box || 0))}</p>
           </div>
         </CardContent>
       </Card>
@@ -605,19 +606,19 @@ Efectivo en Caja: $${Number(detalle.cash_in_box || 0).toFixed(2)}
         <CardContent className="!py-1 !px-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
           <div className="text-center p-2 bg-green-50/50 rounded border border-green-100">
             <p className="text-gray-600 mb-0.5 text-xs">Efectivo</p>
-            <p className="text-xs font-bold text-green-700">${Number(corteSeleccionado?.pago_efectivo || 0).toFixed(2)}</p>
+            <p className="text-xs font-bold text-green-700">{pesos(Number(corteSeleccionado?.pago_efectivo || 0))}</p>
           </div>
           <div className="text-center p-2 bg-blue-50/50 rounded border border-blue-100">
             <p className="text-gray-600 mb-0.5 text-xs">Tarjeta</p>
-            <p className="text-xs font-bold text-blue-600">${Number(corteSeleccionado?.pago_tarjeta || 0).toFixed(2)}</p>
+            <p className="text-xs font-bold text-blue-600">{pesos(Number(corteSeleccionado?.pago_tarjeta || 0))}</p>
           </div>
           <div className="text-center p-2 bg-indigo-50/50 rounded border border-indigo-100">
             <p className="text-gray-600 mb-0.5 text-xs">Transferencia</p>
-            <p className="text-xs font-bold text-indigo-600">${Number(corteSeleccionado?.pago_transferencia || 0).toFixed(2)}</p>
+            <p className="text-xs font-bold text-indigo-600">{pesos(Number(corteSeleccionado?.pago_transferencia || 0))}</p>
           </div>
           <div className="text-center p-2 bg-purple-50/50 rounded border border-purple-100">
             <p className="text-gray-600 mb-0.5 text-xs">Otros</p>
-            <p className="text-xs font-bold text-purple-600">${Number(corteSeleccionado?.pago_otros || 0).toFixed(2)}</p>
+            <p className="text-xs font-bold text-purple-600">{pesos(Number(corteSeleccionado?.pago_otros || 0))}</p>
           </div>
         </CardContent>
       </Card>
