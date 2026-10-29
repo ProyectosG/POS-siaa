@@ -17,16 +17,21 @@ exports.getSettings = async (req, res) => {
 // PUT /api/settings (solo Administrador, ver rutas)
 exports.updateSettings = async (req, res) => {
   try {
+    // Primero los campos (si uno es inválido responde 400 sin guardar nada)
+    await Settings.update(req.body);
+
     // Nueva clave de precios: si viene vacía no se cambia; si viene, se guarda con hash
     const nuevaClave = req.body.dynamic_price_auth_key;
     if (typeof nuevaClave === 'string' && nuevaClave.trim() !== '') {
       await Settings.updatePriceKey(await hashear(nuevaClave.trim()));
     }
 
-    await Settings.update(req.body);
     const updated = await Settings.get();
     res.json(updated);
   } catch (error) {
+    if (error instanceof Settings.ErrorCampo) {
+      return res.status(400).json({ error: error.message });
+    }
     console.error('Error al actualizar settings:', error);
     res.status(500).json({ error: 'Error al actualizar configuración' });
   }
