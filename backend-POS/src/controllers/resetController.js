@@ -1,6 +1,7 @@
 // src/controllers/resetController.js
 // Solo SuperDeveloper (lo exige resetRoutes.js con requireSuperDev)
-const db = require('../config/database');
+const { prisma } = require('../config/prisma');
+const { enTransaccion } = require('../config/transaccion');
 const fs = require('fs');
 const path = require('path');
 
@@ -37,7 +38,7 @@ const TABLAS_AUXILIARES = ['idempotencia', 'autorizaciones_usadas'];
 
 exports.TABLAS_PERMITIDAS = TABLAS_PERMITIDAS;
 
-exports.resetTables = (req, res) => {
+exports.resetTables = async (req, res) => {
   const { tables, resetIds } = req.body;
 
   if (!tables || !Array.isArray(tables) || tables.length === 0) {
@@ -50,86 +51,51 @@ exports.resetTables = (req, res) => {
   }
 
   try {
-    const dbPath = db.dbPath;
-
-    if (!fs.existsSync(dbPath)) {
-      console.error('[RESET] Base de datos no encontrada en:', dbPath);
-      return res.status(500).json({ error: 'Base de datos no encontrada' });
-    }
-
+    // Respaldo consistente antes de borrar (VACUUM INTO no copia a medias)
     const backupDir = getBackupDir();
     fs.mkdirSync(backupDir, { recursive: true });
     const backupPath = path.join(backupDir, 'pos_backup_' + Date.now() + '.db');
-    fs.copyFileSync(dbPath, backupPath);
+    await prisma.$executeRawUnsafe(`VACUUM INTO '${backupPath.replace(/'/g, "''")}'`);
     console.log('[RESET] Respaldo creado en:', backupPath);
 
-    db.serialize(() => {
-      // 1. DESACTIVAR LLAVES FORÁNEAS (Para evitar el error de restricción)
-      db.run('PRAGMA foreign_keys = OFF');
+    const borraOperaciones = tables.some((t) => TABLAS_DE_OPERACIONES.includes(t));
+    const aVaciar = borraOperaciones ? [...tables, ...TABLAS_AUXILIARES] : tables;
 
-      db.run('BEGIN TRANSACTION');
-
-      const borraOperaciones = tables.some((t) => TABLAS_DE_OPERACIONES.includes(t));
-      const aVaciar = borraOperaciones ? [...tables, ...TABLAS_AUXILIARES] : tables;
-
-      aVaciar.forEach((table) => {
-        // table viene de las listas fijas de arriba
-        db.run(`DELETE FROM ${table}`, (err) => {
-          if (err) console.error(`[RESET] Error borrando ${table}:`, err.message);
-        });
-
-        if (resetIds) {
-          db.run(`DELETE FROM sqlite_sequence WHERE name = ?`, [table], (err) => {
-            if (err) console.error(`[RESET] Error reseteando ID de ${table}:`, err.message);
-          });
+    // Se pueden vaciar tablas con registros que dependen de ellas (como antes):
+    // las llaves foráneas se apagan en la conexión que usará la transacción.
+    // La conexión siguiente las vuelve a tener activas.
+    await prisma.$executeRawUnsafe('PRAGMA foreign_keys = OFF');
+    try {
+      await enTransaccion(async (tx) => {
+        for (const table of aVaciar) {
+          // table viene de las listas fijas de arriba
+          await tx.$executeRawUnsafe(`DELETE FROM ${table}`);
+          if (resetIds) await tx.$executeRawUnsafe('DELETE FROM sqlite_sequence WHERE name = ?', table);
         }
       });
+    } finally {
+      await prisma.$executeRawUnsafe('PRAGMA foreign_keys = ON');
+    }
 
-      db.run('COMMIT', (err) => {
-        if (err) {
-          console.error('[RESET] Error en COMMIT:', err);
-          db.run('ROLLBACK');
-
-          // Reactivamos FK incluso si falla el commit
-          db.run('PRAGMA foreign_keys = ON');
-          return res.status(500).json({ error: 'Error al ejecutar el reset' });
-        }
-
-        // 2. REACTIVAR LLAVES FORÁNEAS (Vital para la integridad futura)
-        db.run('PRAGMA foreign_keys = ON', (err) => {
-          if (err) console.error('[RESET] Error reactivando FK:', err.message);
-        });
-
-        res.json({
-          message: '¡Boom! Datos zapeados con éxito. 💥',
-          backup: path.basename(backupPath)
-        });
-      });
+    res.json({
+      message: '¡Boom! Datos zapeados con éxito. 💥',
+      backup: path.basename(backupPath)
     });
   } catch (err) {
-    console.error('[RESET] Error general:', err);
-    db.run('ROLLBACK');
-    db.run('PRAGMA foreign_keys = ON'); // Asegurar reactivación en catch
+    console.error('[RESET] Error:', err);
     res.status(500).json({ error: '¡Ups! Error en el zap: ' + err.message });
   }
 };
 
-exports.resetBalances = (req, res) => {
+// Saldos de clientes y stocks a cero (sin kardex: herramienta del SuperDeveloper)
+exports.resetBalances = async (req, res) => {
   try {
-    db.serialize(() => {
-      db.run('BEGIN TRANSACTION');
-      db.run(`UPDATE customers SET current_balance = 0`);
-      db.run(`UPDATE products SET stock = 0`);
-      db.run('COMMIT', (err) => {
-        if (err) {
-          db.run('ROLLBACK');
-          return res.status(500).json({ error: 'Error al confirmar reset de balances' });
-        }
-        res.json({ message: '¡Saldos y stocks a cero! 🧹 Listo para un nuevo comienzo.' });
-      });
+    await enTransaccion(async (tx) => {
+      await tx.customers.updateMany({ data: { current_balance: 0 } });
+      await tx.products.updateMany({ data: { stock: 0 } });
     });
+    res.json({ message: '¡Saldos y stocks a cero! 🧹 Listo para un nuevo comienzo.' });
   } catch (err) {
-    db.run('ROLLBACK');
     res.status(500).json({ error: 'Error al resetear balances: ' + err.message });
   }
 };
