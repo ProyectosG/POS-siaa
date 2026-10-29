@@ -68,16 +68,24 @@ export default function CatalogoFamilias() {
     fetchCategories();
   };
 
-  const handleEliminar = async (id) => {
-    if (!confirm("¿Estás seguro de eliminar esta categoría?")) return;
-    const res = await apiFetch(`/categories/${id}`, { method: "DELETE" });
+  // Recibe un id (subfamilia) o una lista de ids (familia completa)
+  const handleEliminar = async (ids) => {
+    const lista = Array.isArray(ids) ? ids : [ids];
+    const pregunta = lista.length > 1
+      ? "¿Estás seguro de eliminar esta familia y sus subfamilias?"
+      : "¿Estás seguro de eliminar esta categoría?";
+    if (!confirm(pregunta)) return;
+
     // Antes un borrado fallido se ignoraba; ahora se muestra el motivo (p. ej. tiene productos)
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setError(data.error || "No se pudo eliminar la categoría");
-    } else {
-      setError("");
+    let fallo = "";
+    for (const id of lista) {
+      const res = await apiFetch(`/categories/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        fallo = data.error || "No se pudo eliminar la categoría";
+      }
     }
+    setError(fallo);
     fetchCategories();
   };
 
