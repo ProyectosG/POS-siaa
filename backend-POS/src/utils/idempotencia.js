@@ -17,10 +17,10 @@ async function operacionIdempotente(req, ruta, fn) {
   }
 
   return enTransaccion(async (tx) => {
-    const previa = await tx.get(
-      'SELECT ruta, status, respuesta FROM idempotencia WHERE id_user = ? AND clave = ?',
-      [req.user.id, clave]
-    );
+    const previa = await tx.idempotencia.findUnique({
+      where: { id_user_clave: { id_user: req.user.id, clave } },
+      select: { ruta: true, status: true, respuesta: true },
+    });
 
     if (previa) {
       if (previa.ruta !== ruta) {
@@ -32,10 +32,9 @@ async function operacionIdempotente(req, ruta, fn) {
     const { status, body } = await fn(tx);
     const { date, time } = ahoraNegocio();
 
-    await tx.run(
-      'INSERT INTO idempotencia (id_user, clave, ruta, status, respuesta, creado) VALUES (?, ?, ?, ?, ?, ?)',
-      [req.user.id, clave, ruta, status, JSON.stringify(body), `${date} ${time}`]
-    );
+    await tx.idempotencia.create({
+      data: { id_user: req.user.id, clave, ruta, status, respuesta: JSON.stringify(body), creado: `${date} ${time}` },
+    });
 
     return { status, body };
   });

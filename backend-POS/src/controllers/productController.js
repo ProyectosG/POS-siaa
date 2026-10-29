@@ -2,7 +2,7 @@ const Product = require('../models/Product');
 const Kardex = require('../models/Kardex');
 const { ahoraNegocio } = require('../utils/fechas');
 const { enTransaccion } = require('../config/transaccion');
-const { leerId, esDuplicado, tieneRelacionados, ErrorCampo } = require('../utils/peticion');
+const { idEntero, leerId, esDuplicado, tieneRelacionados, ErrorCampo } = require('../utils/peticion');
 
 const CODIGO_REPETIDO = 'Ya existe un producto con ese código de barras';
 
@@ -34,7 +34,8 @@ exports.create = async (req, res) => {
       return res.status(400).json({ error: 'articulo es requerido' });
     }
 
-    if (!data.category_id) {
+    const categoria = idEntero(data.category_id);
+    if (!categoria) {
       return res.status(400).json({ error: 'category_id es requerido' });
     }
 
@@ -49,7 +50,7 @@ exports.create = async (req, res) => {
       iva: data.iva || null,
       ieps: data.ieps || null,
       stock: data.stock || 0,
-      category_id: data.category_id,
+      category_id: categoria,
       photo_url: data.photo_url || null,
       codigo_barras: data.codigo_barras || null,
       codigo_interno: data.codigo_interno || null,
@@ -90,13 +91,9 @@ exports.create = async (req, res) => {
     });
 
   } catch (err) {
-    // El alta va por sqlite3 (en su transacción): sus errores no son de Prisma
-    if (err.code === 'SQLITE_CONSTRAINT' && /UNIQUE/.test(err.message)) {
-      return res.status(409).json({ error: CODIGO_REPETIDO });
-    }
-    if (err.code === 'SQLITE_CONSTRAINT' && /FOREIGN KEY/.test(err.message)) {
-      return res.status(400).json({ error: 'La familia (category_id) no existe' });
-    }
+    if (err instanceof ErrorCampo) return res.status(400).json({ error: err.message });
+    if (esDuplicado(err)) return res.status(409).json({ error: CODIGO_REPETIDO });
+    if (tieneRelacionados(err)) return res.status(400).json({ error: 'La familia (category_id) no existe' });
     console.error(err);
     res.status(500).json({ error: err.message });
   }

@@ -80,7 +80,6 @@ async function iniciar({ antesDeMigrar } = {}) {
 
 async function detener() {
   if (server) await new Promise((resolve) => server.close(resolve));
-  await require('../src/config/transaccion').cerrarTransacciones();
   await require('../src/config/prisma').cerrarPrisma();
   const db = require('../src/config/database');
   await new Promise((resolve) => db.close(() => resolve()));

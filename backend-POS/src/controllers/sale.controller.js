@@ -10,7 +10,7 @@ const { aCentavos, aPesos } = require('../utils/dinero');
 const { ahoraNegocio } = require('../utils/fechas');
 const { calcularVenta, leerPagos } = require('../utils/precios');
 const { operacionIdempotente, responderError } = require('../utils/idempotencia');
-const { leerId } = require('../utils/peticion');
+const { idEntero, leerId } = require('../utils/peticion');
 
 const TIPOS_VENTA = ['contado', 'apartado', 'credito'];
 const MOTIVO_KARDEX = { contado: 'VENTA_CONTADO', apartado: 'VENTA_APARTADO', credito: 'VENTA_CREDITO' };
@@ -100,9 +100,12 @@ exports.create = async (req, res) => {
           ? 'El pago no cubre el total de la venta'
           : 'Los pagos exceden el total de la venta');
       }
+      // El cliente (opcional en contado) debe existir
+      const idCliente = idEntero(customer_id);
+      if (customer_id != null && customer_id !== '' && !idCliente) throw new ErrorNegocio(400, 'Cliente no encontrado');
       if (type !== 'contado') {
-        if (!customer_id) throw new ErrorNegocio(400, `La venta de ${type} requiere un cliente`);
-        const cliente = await tx.get('SELECT id FROM customers WHERE id = ?', [customer_id]);
+        if (!idCliente) throw new ErrorNegocio(400, `La venta de ${type} requiere un cliente`);
+        const cliente = await tx.customers.findUnique({ where: { id: idCliente }, select: { id: true } });
         if (!cliente) throw new ErrorNegocio(400, 'Cliente no encontrado');
         if (pagado > venta.total) throw new ErrorNegocio(400, 'Los pagos exceden el total de la venta');
         if (type === 'apartado' && pagado <= 0) throw new ErrorNegocio(400, 'El apartado requiere un anticipo');
@@ -124,7 +127,7 @@ exports.create = async (req, res) => {
         time,
         type,
         movement_reason: MOTIVO_KARDEX[type],
-        customer_id: type === 'contado' ? customer_id ?? null : customer_id,
+        customer_id: idCliente,
         subtotal: venta.subtotal,
         tax_total: venta.tax_total,
         discount_total: venta.discount_total,
@@ -143,17 +146,16 @@ exports.create = async (req, res) => {
 
         // La autorización de precio libre queda gastada con esta venta
         if (l.jti) {
-          await tx.run('INSERT INTO autorizaciones_usadas (jti, sale_id, usado) VALUES (?, ?, ?)',
-            [l.jti, saleId, `${date} ${time}`]);
+          await tx.autorizaciones_usadas.create({ data: { jti: l.jti, sale_id: saleId, usado: `${date} ${time}` } });
         }
 
         // Stock leído DENTRO de la transacción: dos ventas no venden la misma última pieza
-        const { stock } = await tx.get('SELECT stock FROM products WHERE id = ?', [l.product_id]);
+        const { stock } = await tx.products.findUnique({ where: { id: l.product_id }, select: { stock: true } });
         if (stock < l.quantity && !venta.config.permiteStockNegativo) {
           throw new ErrorNegocio(409, `Stock insuficiente para ${l.articulo}. Disponible: ${stock}`);
         }
         const nuevoStock = stock - l.quantity;
-        await tx.run('UPDATE products SET stock = ? WHERE id = ?', [nuevoStock, l.product_id]);
+        await tx.products.update({ where: { id: l.product_id }, data: { stock: nuevoStock } });
 
         await Kardex.logMovement({
           product_id: l.product_id,
@@ -182,7 +184,7 @@ exports.create = async (req, res) => {
 
       // 5. Saldo del cliente: sube por lo que queda pendiente
       if (type !== 'contado' && pendiente > 0) {
-        await Customer.moverSaldo(tx, customer_id, pendiente, saleId,
+        await Customer.moverSaldo(tx, idCliente, pendiente, saleId,
           `Saldo pendiente de ${type} #${saleId}`);
       }
 

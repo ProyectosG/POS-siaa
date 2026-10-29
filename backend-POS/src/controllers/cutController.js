@@ -1,4 +1,4 @@
-const db = require('../config/database');
+const { prisma } = require('../config/prisma');
 const Cut = require('../models/Cut');
 const { enTransaccion, ErrorNegocio } = require('../config/transaccion');
 const { aPesos, camposAPesos, filaAPesos } = require('../utils/dinero');
@@ -6,19 +6,11 @@ const { ahoraNegocio } = require('../utils/fechas');
 const { responderError } = require('../utils/idempotencia');
 const { leerId } = require('../utils/peticion');
 
-// Consultas sobre la conexión principal (para los GET)
-const principal = {
-  get: (sql, params = []) =>
-    new Promise((resolve, reject) => db.get(sql, params, (err, row) => (err ? reject(err) : resolve(row)))),
-  all: (sql, params = []) =>
-    new Promise((resolve, reject) => db.all(sql, params, (err, rows) => (err ? reject(err) : resolve(rows)))),
-};
-
 const CAMPOS_VENTAS = ['total_ventas_monto', 'ventas_contado', 'ventas_credito', 'ventas_apartado', 'total_iva_gravado'];
 
 /**
  * Calcula un corte en CENTAVOS. El X va desde el último corte (X o Z); el Z desde
- * el último Z. c es la conexión principal o una transacción (mismas funciones).
+ * el último Z.
  *
  * Ventas y cobros llevan cada uno su rango:
  * - Ventas: los tickets después del último que cubrió el corte anterior.
@@ -26,14 +18,13 @@ const CAMPOS_VENTAS = ['total_ventas_monto', 'ventas_contado', 'ventas_credito',
  *   de qué venta son. Así un abono de hoy a un apartado viejo entra en el corte de hoy.
  */
 async function calcularCorte(c, tipo) {
-  const ultimo = tipo === 'Z'
-    ? await c.get(`SELECT * FROM cuts WHERE type='Z' ORDER BY id DESC LIMIT 1`)
-    : await c.get(`SELECT * FROM cuts ORDER BY id DESC LIMIT 1`);
+  // c es el cliente de Prisma (GET) o el tx de una transacción (al guardar)
+  const ultimo = await c.cuts.findFirst({ where: tipo === 'Z' ? { type: 'Z' } : {}, orderBy: { id: 'desc' } });
 
   const ultimoTicket = ultimo?.last_ticket ?? 0;
   const ultimoPago = ultimo?.last_payment_id ?? 0;
-  const maxTicket = (await c.get(`SELECT MAX(id) AS id FROM sales`)).id ?? 0;
-  const maxPago = (await c.get(`SELECT MAX(id) AS id FROM payments`)).id ?? 0;
+  const maxTicket = (await c.sales.aggregate({ _max: { id: true } }))._max.id ?? 0;
+  const maxPago = (await c.payments.aggregate({ _max: { id: true } }))._max.id ?? 0;
 
   const hayVentas = maxTicket > ultimoTicket;
   const hayCobros = maxPago > ultimoPago;
@@ -47,47 +38,34 @@ async function calcularCorte(c, tipo) {
   const desde = ultimoTicket + 1;
   const hasta = maxTicket;
 
-  const ventas = await c.get(
-    `
-    SELECT
-      COUNT(*) AS total_ventas,
-      COALESCE(SUM(total),0) AS total_ventas_monto,
-      COALESCE(SUM(CASE WHEN type='contado' THEN total ELSE 0 END),0) AS ventas_contado,
-      COALESCE(SUM(CASE WHEN type='credito' THEN total ELSE 0 END),0) AS ventas_credito,
-      COALESCE(SUM(CASE WHEN type='apartado' THEN total ELSE 0 END),0) AS ventas_apartado,
-      COALESCE(SUM(tax_total),0) AS total_iva_gravado
-    FROM sales
-    WHERE id BETWEEN ? AND ?
-    `,
-    [desde, hasta]
-  );
+  // Ventas del rango: conteo, total, IVA y total por tipo
+  const enRangoVentas = { id: { gte: desde, lte: hasta } };
+  const totales = await c.sales.aggregate({
+    where: enRangoVentas,
+    _count: { _all: true },
+    _sum: { total: true, tax_total: true },
+  });
+  const porTipo = await c.sales.groupBy({ by: ['type'], where: enRangoVentas, _sum: { total: true } });
+  const totalDeTipo = (t) => porTipo.find((r) => r.type === t)?._sum.total ?? 0;
 
-  const money = await c.get(
-    `
-    SELECT
-      COALESCE(SUM(CASE WHEN payment_type='anticipo' THEN amount ELSE 0 END),0) AS total_anticipos,
-      COALESCE(SUM(CASE WHEN payment_type='abono' THEN amount ELSE 0 END),0) AS total_abonos,
-      COALESCE(SUM(CASE WHEN payment_type='normal' THEN amount ELSE 0 END),0) AS total_normal
-    FROM payments
-    WHERE id > ? AND id <= ?
-    `,
-    [ultimoPago, maxPago]
-  );
+  const ventas = {
+    total_ventas: totales._count._all,
+    total_ventas_monto: totales._sum.total ?? 0,
+    ventas_contado: totalDeTipo('contado'),
+    ventas_credito: totalDeTipo('credito'),
+    ventas_apartado: totalDeTipo('apartado'),
+    total_iva_gravado: totales._sum.tax_total ?? 0,
+  };
 
-  const pagosRows = await c.all(
-    `
-    SELECT method, SUM(amount) AS total
-    FROM payments
-    WHERE id > ? AND id <= ?
-    GROUP BY method
-    `,
-    [ultimoPago, maxPago]
-  );
+  // Cobros del rango: por tipo de pago y por forma de pago
+  const enRangoPagos = { id: { gt: ultimoPago, lte: maxPago } };
+  const porTipoPago = await c.payments.groupBy({ by: ['payment_type'], where: enRangoPagos, _sum: { amount: true } });
+  const cobradoDe = (t) => porTipoPago.find((r) => r.payment_type === t)?._sum.amount ?? 0;
+  const porMetodo = await c.payments.groupBy({ by: ['method'], where: enRangoPagos, _sum: { amount: true } });
+  const pagos = Object.fromEntries(porMetodo.map((r) => [r.method, r._sum.amount ?? 0]));
 
-  const pagos = pagosRows.reduce((acc, r) => {
-    acc[r.method] = r.total;
-    return acc;
-  }, {});
+  const total_anticipos = cobradoDe('anticipo');
+  const total_abonos = cobradoDe('abono');
 
   return {
     ultimo,
@@ -98,9 +76,9 @@ async function calcularCorte(c, tipo) {
     ultimoPago: maxPago,
     ventas,
     pagos,
-    total_anticipos: money.total_anticipos,
-    total_abonos: money.total_abonos,
-    total_recibido: money.total_anticipos + money.total_abonos + money.total_normal,
+    total_anticipos,
+    total_abonos,
+    total_recibido: total_anticipos + total_abonos + cobradoDe('normal'),
   };
 }
 
@@ -144,7 +122,7 @@ function respuestaCorte(corte, tipo) {
  */
 exports.getCurrentCorte = async (req, res) => {
   try {
-    res.json(respuestaCorte(await calcularCorte(principal, 'X'), 'X'));
+    res.json(respuestaCorte(await calcularCorte(prisma, 'X'), 'X'));
   } catch (err) {
     console.error('❌ Error Corte X:', err);
     res.status(500).json({ error: 'Error al calcular corte X' });
@@ -156,7 +134,7 @@ exports.getCurrentCorte = async (req, res) => {
  */
 exports.getCurrentCorteZ = async (req, res) => {
   try {
-    res.json(respuestaCorte(await calcularCorte(principal, 'Z'), 'Z'));
+    res.json(respuestaCorte(await calcularCorte(prisma, 'Z'), 'Z'));
   } catch (err) {
     console.error('❌ Error Corte Z:', err);
     res.status(500).json({ error: 'Error al calcular corte Z' });

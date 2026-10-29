@@ -6,15 +6,24 @@ const { filasAPesos } = require('../utils/dinero');
 const METODOS = ['efectivo', 'tarjeta', 'transferencia'];
 
 class Payment {
-  // Va DENTRO de una transacción; amount en centavos y date del servidor
+  // Va DENTRO de una transacción (tx de Prisma); amount en centavos y date del servidor
   static async crear(tx, { sale_id, method, amount, payment_type = 'normal', bank, last4, reference, date }) {
-    const { lastID } = await tx.run(
-      `INSERT INTO payments (sale_id, method, amount, payment_type, bank, last4, reference, date)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [sale_id, method, amount, payment_type, bank ?? null, last4 ?? null, reference ?? null, date]
-    );
-    return lastID;
+    const pago = await tx.payments.create({
+      data: {
+        sale_id,
+        method,
+        amount,
+        payment_type,
+        bank: bank == null ? null : String(bank),
+        last4: last4 == null ? null : String(last4),
+        reference: reference == null ? null : String(reference),
+        date,
+      },
+      select: { id: true },
+    });
+    return pago.id;
   }
+
 
   // En pesos, para responder al API
   static async findBySaleId(sale_id) {

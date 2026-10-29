@@ -1,9 +1,10 @@
 const { prisma } = require('../config/prisma');
 const { ErrorNegocio } = require('../config/transaccion');
 const Kardex = require('./Kardex');
+const { idEntero } = require('../utils/peticion');
 
 class Out {
-  // Va DENTRO de una transacción (config/transaccion.js): si un producto no
+  // Va DENTRO de una transacción (tx de Prisma): si un producto no
   // alcanza, no queda nada registrado.
   static async crear(tx, data) {
     const { out_type, comments, movement_reason, date, time, related_folio, items, id_user, nickname_user } = data;
@@ -15,11 +16,18 @@ class Out {
       throw new ErrorNegocio(400, 'No se enviaron productos');
     }
 
-    const { lastID: out_id } = await tx.run(
-      `INSERT INTO outs (out_type, comments, date, time, related_folio, id_user, nickname_user)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [out_type, comments || null, date, time, related_folio || null, id_user, nickname_user]
-    );
+    const { id: out_id } = await tx.outs.create({
+      data: {
+        out_type: String(out_type),
+        comments: comments ? String(comments) : null,
+        date,
+        time,
+        related_folio: related_folio ? String(related_folio) : null,
+        id_user,
+        nickname_user,
+      },
+      select: { id: true },
+    });
 
     for (const { product_id, quantity } of items) {
       const cantidad = Number(quantity);
@@ -28,7 +36,11 @@ class Out {
       }
 
       // Stock leído DENTRO de la transacción
-      const product = await tx.get('SELECT id, articulo, stock FROM products WHERE id = ?', [product_id]);
+      const idProducto = idEntero(product_id);
+      const product = idProducto && (await tx.products.findUnique({
+        where: { id: idProducto },
+        select: { id: true, articulo: true, stock: true },
+      }));
       if (!product) throw new ErrorNegocio(400, `Producto no encontrado: ${product_id}`);
 
       const previous_stock = product.stock;
@@ -37,14 +49,11 @@ class Out {
       }
       const new_stock = previous_stock - cantidad;
 
-      await tx.run('UPDATE products SET stock = ? WHERE id = ?', [new_stock, product_id]);
-      await tx.run(
-        `INSERT INTO out_details (out_id, product_id, quantity) VALUES (?, ?, ?)`,
-        [out_id, product_id, cantidad]
-      );
+      await tx.products.update({ where: { id: product.id }, data: { stock: new_stock } });
+      await tx.out_details.create({ data: { out_id, product_id: product.id, quantity: cantidad } });
 
       await Kardex.logMovement({
-        product_id,
+        product_id: product.id,
         id_user,
         nickname_user,
         movement_type: 'SALIDA',

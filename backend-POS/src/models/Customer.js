@@ -1,6 +1,6 @@
 // src/models/Customer.js
-// Alta, consulta, edición, baja y búsqueda con Prisma. moverSaldo sigue con la
-// conexión de transacciones (va dentro de ventas y abonos).
+// Alta, consulta, edición, baja y búsqueda con Prisma. moverSaldo va dentro de
+// la transacción de ventas y abonos.
 const { prisma } = require('../config/prisma');
 const { filaAPesos, filasAPesos } = require('../utils/dinero');
 const { ahoraNegocio } = require('../utils/fechas');
@@ -47,25 +47,32 @@ class Customer {
   }
 
   // Mueve el saldo (lo que el cliente debe) y deja historial. Va DENTRO de una
-  // transacción (tx de config/transaccion.js). centavos > 0 aumenta la deuda,
-  // < 0 la reduce. Devuelve el saldo nuevo en centavos.
+  // transacción (tx de Prisma). centavos > 0 aumenta la deuda, < 0 la reduce.
+  // Devuelve el saldo nuevo en centavos.
   static async moverSaldo(tx, id, centavos, saleId, description) {
-    const row = await tx.get(`SELECT current_balance FROM customers WHERE id = ?`, [id]);
+    const row = await tx.customers.findUnique({ where: { id }, select: { current_balance: true } });
     if (!row) throw new Error('Cliente no encontrado');
 
     const previousBalance = Math.round(row.current_balance || 0);
     const newBalance = previousBalance + centavos;
     const { date, time } = ahoraNegocio();
 
-    await tx.run(`UPDATE customers SET current_balance = ? WHERE id = ?`, [newBalance, id]);
-    await tx.run(
-      `INSERT INTO customer_balance_history
-       (customer_id, date, time, sale_id, previous_balance, amount, new_balance, description)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [id, date, time, saleId, previousBalance, centavos, newBalance, description]
-    );
+    await tx.customers.update({ where: { id }, data: { current_balance: newBalance } });
+    await tx.customer_balance_history.create({
+      data: {
+        customer_id: id,
+        date,
+        time,
+        sale_id: saleId ?? null,
+        previous_balance: previousBalance,
+        amount: centavos,
+        new_balance: newBalance,
+        description,
+      },
+    });
     return newBalance;
   }
+
 
   // Devuelve false si no existe. Si tiene ventas o historial de saldo, SQLite
   // rechaza el borrado (llave foránea) y Prisma lanza el error P2003.

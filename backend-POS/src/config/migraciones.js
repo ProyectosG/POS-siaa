@@ -2,10 +2,11 @@
 // Migraciones de datos versionadas con PRAGMA user_version. Cada una corre una
 // sola vez, dentro de una transacción (todo o nada). Antes de la primera se hace
 // un respaldo completo de la base si ya tiene datos.
+// Corren al arrancar, con la conexión sqlite3 del arranque (antes de que Prisma
+// atienda nada).
 const fs = require('fs');
 const path = require('path');
 const db = require('./database');
-const { enTransaccion } = require('./transaccion');
 const { CAMPOS_DINERO } = require('../utils/dinero');
 const { ahoraNegocio } = require('../utils/fechas');
 
@@ -16,6 +17,22 @@ const getMain = (sql, params = []) =>
   new Promise((resolve, reject) => db.get(sql, params, (err, row) => (err ? reject(err) : resolve(row))));
 const runMain = (sql, params = []) =>
   new Promise((resolve, reject) => db.run(sql, params, (err) => (err ? reject(err) : resolve())));
+const allMain = (sql, params = []) =>
+  new Promise((resolve, reject) => db.all(sql, params, (err, rows) => (err ? reject(err) : resolve(rows))));
+
+// Transacción sobre la conexión del arranque: fn(tx) con tx.run/get/all
+async function enTransaccionArranque(fn) {
+  const tx = { run: runMain, get: getMain, all: allMain };
+  await runMain('BEGIN IMMEDIATE');
+  try {
+    const resultado = await fn(tx);
+    await runMain('COMMIT');
+    return resultado;
+  } catch (err) {
+    await runMain('ROLLBACK').catch(() => {});
+    throw err;
+  }
+}
 
 // Respaldo consistente de la base completa (VACUUM INTO no copia a medias)
 async function respaldar(motivo) {
@@ -140,7 +157,7 @@ async function migrar() {
   if (hay > 0) await respaldar(pendientes[0].nombre);
 
   for (const m of pendientes) {
-    await enTransaccion(async (tx) => {
+    await enTransaccionArranque(async (tx) => {
       await m.aplicar(tx);
       await tx.run(`PRAGMA user_version = ${m.version}`);
     });

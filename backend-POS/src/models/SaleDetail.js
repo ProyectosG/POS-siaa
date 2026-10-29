@@ -1,29 +1,27 @@
 // models/SaleDetail.js
 
 class SaleDetail {
-  // Va DENTRO de una transacción; los montos ya vienen en centavos
+  // Va DENTRO de una transacción (tx de Prisma); los montos ya vienen en centavos
   static async crear(tx, d) {
-    const { lastID } = await tx.run(
-      `INSERT INTO sale_details
-       (sale_id, product_id, articulo, quantity, base_price, price, discount_pct, discount_amount, subtotal, tax_rate, tax_amount, tax_type, precio_libre)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        d.sale_id,
-        d.product_id,
-        d.articulo || null,
-        d.quantity,
-        d.base_price,
-        d.price,
-        d.discount_pct,
-        d.discount_amount,
-        d.subtotal,
-        d.tax_rate,
-        d.tax_amount,
-        d.tax_type,
-        d.precio_libre ? 1 : 0,
-      ]
-    );
-    return lastID;
+    const renglon = await tx.sale_details.create({
+      data: {
+        sale_id: d.sale_id,
+        product_id: d.product_id,
+        articulo: d.articulo || null,
+        quantity: d.quantity,
+        base_price: d.base_price,
+        price: d.price,
+        discount_pct: d.discount_pct,
+        discount_amount: d.discount_amount,
+        subtotal: d.subtotal,
+        tax_rate: d.tax_rate,
+        tax_amount: d.tax_amount,
+        tax_type: d.tax_type,
+        precio_libre: d.precio_libre ? 1 : 0,
+      },
+      select: { id: true },
+    });
+    return renglon.id;
   }
 }
 

@@ -7,6 +7,7 @@ const { aCentavos, aPesos, filasAPesos } = require('../utils/dinero');
 const { ahoraNegocio } = require('../utils/fechas');
 const { leerPagos } = require('../utils/precios');
 const { operacionIdempotente, responderError } = require('../utils/idempotencia');
+const { idEntero } = require('../utils/peticion');
 
 // Ventas que se pagan con abonos (la ruta conserva el nombre /apartados/abono)
 const TIPOS_CON_ABONO = { apartado: 'apartado', credito: 'crédito' };
@@ -56,7 +57,8 @@ exports.registrarAbono = async (req, res) => {
       }
 
       // La venta se lee DENTRO de la transacción: dos abonos no pueden pasarse del saldo
-      const sale = await tx.get('SELECT * FROM sales WHERE id = ?', [sale_id]);
+      const idVenta = idEntero(sale_id);
+      const sale = idVenta && (await tx.sales.findUnique({ where: { id: idVenta } }));
       if (!sale) throw new ErrorNegocio(404, 'Venta no encontrada');
 
       // El abono solo aplica a un apartado o crédito de ese mismo cliente (nunca a contado)
@@ -74,17 +76,17 @@ exports.registrarAbono = async (req, res) => {
       const { date } = ahoraNegocio();
 
       for (const p of pagosCentavos) {
-        await Payment.crear(tx, { ...p, sale_id, payment_type: 'abono', date });
+        await Payment.crear(tx, { ...p, sale_id: sale.id, payment_type: 'abono', date });
       }
 
       const newPaid = Math.round(sale.paid || 0) + abono;
       const newPending = pendiente - abono;
       const newStatus = newPending <= 0 ? 'paid' : 'pending';
 
-      await tx.run(
-        'UPDATE sales SET paid = ?, pending_balance = ?, status = ? WHERE id = ?',
-        [newPaid, newPending, newStatus, sale_id]
-      );
+      await tx.sales.update({
+        where: { id: sale.id },
+        data: { paid: newPaid, pending_balance: newPending, status: newStatus },
+      });
 
       // Baja la deuda del cliente
       await Customer.moverSaldo(tx, sale.customer_id, -abono, sale.id,

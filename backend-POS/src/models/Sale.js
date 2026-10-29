@@ -2,33 +2,32 @@ const { prisma } = require('../config/prisma');
 const { filaAPesos, filasAPesos } = require('../utils/dinero');
 
 class Sale {
-  // Va DENTRO de una transacción; los montos ya vienen en centavos
+  // Va DENTRO de una transacción (tx de Prisma); los montos ya vienen en centavos
   static async crear(tx, data) {
-    const { lastID } = await tx.run(
-      `INSERT INTO sales
-       (date, time, type, movement_reason, customer_id, subtotal, tax_total, discount_total, total, paid, efectivo_recibido, cambio, pending_balance, status, id_user, nickname_user)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        data.date,
-        data.time,
-        data.type,
-        data.movement_reason,
-        data.customer_id,
-        data.subtotal,
-        data.tax_total,
-        data.discount_total,
-        data.total,
-        data.paid,
-        data.efectivo_recibido,
-        data.cambio,
-        data.pending_balance,
-        data.status,
-        data.id_user,
-        data.nickname_user,
-      ]
-    );
-    return lastID;
+    const venta = await tx.sales.create({
+      data: {
+        date: data.date,
+        time: data.time,
+        type: data.type,
+        movement_reason: data.movement_reason,
+        customer_id: data.customer_id ?? null,
+        subtotal: data.subtotal,
+        tax_total: data.tax_total,
+        discount_total: data.discount_total,
+        total: data.total,
+        paid: data.paid,
+        efectivo_recibido: data.efectivo_recibido,
+        cambio: data.cambio,
+        pending_balance: data.pending_balance,
+        status: data.status,
+        id_user: data.id_user,
+        nickname_user: data.nickname_user,
+      },
+      select: { id: true },
+    });
+    return venta.id;
   }
+
 
   // Las lecturas son con Prisma y en pesos, para responder al API
 
