@@ -65,10 +65,16 @@ export default function CatalogoProductos() {
 
   const handleDeleteConfirm = async () => {
     try {
-      await apiFetch(`/products/${productToDelete.id}`, { method: "DELETE" })
+      const res = await apiFetch(`/products/${productToDelete.id}`, { method: "DELETE" })
+      // Un producto con movimientos no se borra (409): el servidor dice que se desactive
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || "Error al eliminar")
+      }
+      setError("")
       fetchProducts()
-    } catch {
-      setError("Error al eliminar")
+    } catch (err) {
+      setError(err.message || "Error al eliminar")
     } finally {
       setIsDeleteDialogOpen(false)
       setProductToDelete(null)

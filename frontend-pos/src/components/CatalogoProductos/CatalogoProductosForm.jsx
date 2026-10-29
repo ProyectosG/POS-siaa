@@ -187,11 +187,14 @@ export default function CatalogoProductosForm({ product, onSave, onCancel }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       })
-      if (!res.ok) throw new Error()
+      // El servidor dice qué falló (p. ej. código de barras repetido)
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}))
+        throw new Error(data.error || "Error al guardar producto")
+      }
       onSave()
     } catch (err) {
-      console.error(err)
-      alert("Error al guardar producto")
+      alert(err.message || "Error al guardar producto")
     } finally {
       setLoading(false)
     }
