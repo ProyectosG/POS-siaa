@@ -8,6 +8,21 @@ const dbPath = process.env.DB_PATH
   ? path.resolve(process.env.DB_PATH)
   : path.join(__dirname, '../pos.db');
 
+// Protección: en las pruebas (node --test marca sus procesos con
+// NODE_TEST_CONTEXT; test/helpers.js pone POS_PRUEBAS) solo se abre una base
+// dentro de la carpeta temporal. Si una prueba carga un módulo antes de preparar
+// su base temporal, falla aquí, antes de abrir o crear la base del .env.
+if (process.env.NODE_TEST_CONTEXT || process.env.POS_PRUEBAS) {
+  const temporal = path.resolve(require('os').tmpdir()) + path.sep;
+  const igual = process.platform === 'win32' ? (s) => s.toLowerCase() : (s) => s;
+  if (!igual(dbPath).startsWith(igual(temporal))) {
+    throw new Error(
+      `Las pruebas no pueden abrir una base fuera de la carpeta temporal (${dbPath}). ` +
+      'Prepara la base temporal (require de test/helpers.js) antes de cargar cualquier módulo del servidor.'
+    );
+  }
+}
+
 const db = new sqlite3.Database(dbPath, (err) => {
   if (err) {
     console.error('❌ Error al conectar a la base de datos:', err.message);

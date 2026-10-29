@@ -99,6 +99,6 @@ Los archivos `*.db` y la carpeta `backups/` están ignorados por git. **No subas
 
 La base trabaja en **modo WAL** de SQLite: junto a `pos.db` aparecen `pos.db-wal` y `pos.db-shm`. Mientras el servidor está encendido, las últimas ventas pueden estar todavía en `pos.db-wal`.
 
-- **Con el servidor encendido, no copies `pos.db` a mano**: la copia podría quedar sin las últimas ventas.
-- **Para respaldar a mano, apaga el servidor (Ctrl+C) y después copia `pos.db`.** Al apagarse, todo queda dentro de `pos.db`. Si ves `pos.db-wal` o `pos.db-shm`, cópialos también.
-- La app respalda sola, de forma consistente, antes de cada migración y antes de un reset del SuperDeveloper (en `backups/`).
+- **Con el servidor encendido, respalda con el botón "Respaldar ahora"** (pantalla del SuperDeveloper): descarga una copia completa y consistente, con las últimas ventas. Queda además una copia en `backups/` (se guardan las 10 más recientes). **Guarda el archivo en un lugar privado: contiene todos los datos del negocio.**
+- **No copies `pos.db` a mano con el servidor encendido**: la copia podría quedar sin las últimas ventas. A mano, solo con el servidor apagado (Ctrl+C); si ves `pos.db-wal` o `pos.db-shm`, cópialos también.
+- La app también respalda sola antes de cada migración y antes de un reset del SuperDeveloper (en `backups/`).

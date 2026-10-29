@@ -2,6 +2,7 @@
 // Acceso del SuperDeveloper con credenciales de .env (SUPERDEV_USER / SUPERDEV_PASSWORD)
 const crypto = require('crypto');
 const { firmarTokenSuperDev } = require('../middleware/auth');
+const { respaldarAhora } = require('../utils/respaldos');
 
 const MAX_INTENTOS = 5;
 const BLOQUEO_MS = 15 * 60 * 1000;
@@ -58,3 +59,18 @@ exports.entrar = (req, res) => {
 
 // Solo para las pruebas: limpia el registro de intentos
 exports._limpiarIntentos = () => intentos.clear();
+
+// GET /api/superdev/respaldo → descarga un respaldo completo de la base
+// ("Respaldar ahora"). Queda también una copia en backups/ (las 10 más recientes).
+exports.respaldo = async (req, res) => {
+  try {
+    const { archivo, nombre, bytes } = await respaldarAhora();
+    console.log(`💾 Respaldo manual: ${nombre} (${bytes} bytes)`);
+    res.download(archivo, nombre, (err) => {
+      if (err && !res.headersSent) res.status(500).json({ error: 'No se pudo enviar el respaldo' });
+    });
+  } catch (err) {
+    console.error('❌ Respaldo manual:', err);
+    res.status(500).json({ error: 'No se pudo hacer el respaldo: ' + err.message });
+  }
+};

@@ -24,7 +24,9 @@ const CORS_ORIGINS = (process.env.CORS_ORIGIN || 'http://localhost:3000')
 app.use(cors({
   origin: CORS_ORIGINS,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key'],
+  // Para que el navegador lea el nombre del archivo del respaldo descargado
+  exposedHeaders: ['Content-Disposition']
 }));
 
 // Body parser con límite alto para imágenes base64
