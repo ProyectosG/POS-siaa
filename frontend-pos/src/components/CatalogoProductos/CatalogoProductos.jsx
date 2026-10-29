@@ -1,7 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Plus, Search, Pencil, Trash2, ArrowLeft } from "lucide-react"
+import { Plus, Search, Pencil, Trash2, ArrowLeft, Package } from "lucide-react"
+import EncabezadoPantalla from "@/components/ui/encabezado-pantalla"
+
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -102,20 +104,19 @@ export default function CatalogoProductos() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-background p-6">
+    <div>
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header y botón nuevo */}
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <h2 className="text-3xl font-bold tracking-tight bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              Catálogo de Productos
-            </h2>
-            <p className="text-muted-foreground mt-1">Gestiona tu inventario de productos</p>
-          </div>
-          <Button onClick={() => setShowForm(true)} className="gap-2 bg-gradient-to-r from-primary to-accent">
-            <Plus className="w-4 h-4" /> Nuevo Producto
-          </Button>
-        </div>
+        <EncabezadoPantalla
+          titulo="Catálogo de Productos"
+          subtitulo="Precios, existencias y datos de cada producto"
+          icono={Package}
+          className="mb-0"
+          acciones={
+            <Button onClick={() => setShowForm(true)} className="gap-2">
+              <Plus className="w-4 h-4" /> Nuevo Producto
+            </Button>
+          }
+        />
 
         {/* Estadísticas */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

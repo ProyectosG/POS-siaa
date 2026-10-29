@@ -280,14 +280,17 @@ const handleConfirmPrint = async () => {
   }
 
   return (
-    <Card className="border-none shadow-xl rounded-xl overflow-hidden bg-white">
-      <CardHeader className="bg-gradient-to-r from-emerald-50 to-teal-50 pb-4">
-        <CardTitle className="text-2xl font-bold text-emerald-800 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <DollarSign className="h-6 w-6 text-emerald-600" /> Listado de Ventas
+    <Card className="overflow-hidden">
+      <CardHeader className="border-b pb-4">
+        <CardTitle className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+              <DollarSign className="size-7 shrink-0 text-primario" /> Listado de Ventas
+            </h1>
+            <p className="mt-1 text-sm font-normal text-muted-foreground">Todas las ventas con su tipo, estado y montos</p>
           </div>
           {/* Botones de exportación */}
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={exportToExcel} className="gap-1">
               <FileSpreadsheet className="h-4 w-4" /> Excel
             </Button>

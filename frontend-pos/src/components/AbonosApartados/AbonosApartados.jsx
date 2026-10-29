@@ -10,6 +10,9 @@ import { Switch } from "@/components/ui/switch"
 
 import PagoMixto from "@/components/PagoMixto/PagoMixto"
 import { apiFetch } from "@/lib/apiFetch"
+import { HandCoins } from "lucide-react"
+import EncabezadoPantalla from "@/components/ui/encabezado-pantalla"
+
 
 // Ventas que se pagan con abonos: apartados y créditos
 const TIPOS_CON_ABONO = {
@@ -67,7 +70,13 @@ export default function AbonosApartados() {
   }, [liquidar, venta])
 
   return (
-    <div className="mt-[60px] space-y-10">
+    <div className="space-y-8">
+      <EncabezadoPantalla
+        titulo="Registro de abonos"
+        subtitulo="Cobra abonos de apartados y créditos: escribe el número de ticket y presiona Enter"
+        icono={HandCoins}
+        className="mb-0"
+      />
 
       {/* =====================================================
          FILA SUPERIOR – KPIs
