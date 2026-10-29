@@ -552,7 +552,7 @@ const handleClienteCreado = (clienteNuevo) => {
       </div>
 
       {/* TICKET: resumen con anticipo y pago */}
-      <div className="space-y-5 md:sticky md:top-20 lg:static lg:grid lg:grid-cols-2 lg:gap-5 lg:space-y-0 2xl:sticky 2xl:top-6 2xl:block 2xl:space-y-5">
+      <div className="min-w-0 space-y-5 [&>*]:min-w-0 md:sticky md:top-20 lg:static lg:grid lg:grid-cols-2 lg:gap-5 lg:space-y-0 2xl:sticky 2xl:top-6 2xl:block 2xl:space-y-5">
         {/* Card 2: Resumen + Anticipo */}
         <ResumenApartado
           subtotal={subtotal}
