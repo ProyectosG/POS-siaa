@@ -1,4 +1,5 @@
 const Entry = require('../models/Entry');
+const { leerId } = require('../utils/peticion');
 const { ahoraNegocio } = require('../utils/fechas');
 const { operacionIdempotente, responderError } = require('../utils/idempotencia');
 
@@ -13,7 +14,8 @@ exports.getAll = async (req, res) => {
 
 exports.getById = async (req, res) => {
   try {
-    const entry = await Entry.findById(req.params.id);
+    const id = leerId(req);
+    const entry = id && (await Entry.findById(id));
     if (!entry) return res.status(404).json({ error: 'Entry not found' });
     res.json(entry);
   } catch (err) {

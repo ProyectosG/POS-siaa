@@ -1,4 +1,4 @@
-const db = require('../config/database');
+const { prisma } = require('../config/prisma');
 const { filaAPesos, filasAPesos } = require('../utils/dinero');
 
 class Cut {
@@ -26,69 +26,21 @@ class Cut {
   }
 
   // En pesos, para responder al API
-  static findLast() {
-    return new Promise((resolve, reject) => {
-      db.get(
-        `SELECT * FROM cuts ORDER BY id DESC LIMIT 1`,
-        [],
-        (err, row) => {
-          if (err) {
-            console.error('❌ Error al obtener último corte:', err.message);
-            return reject(err);
-          }
-          resolve(filaAPesos(row, 'cuts'));
-        }
-      );
-    });
+  // Lista con filtros opcionales: type, fromDate y toDate (AAAA-MM-DD)
+  static async findAll(filters = {}) {
+    const where = {};
+    if (filters.type) where.type = String(filters.type);
+    if (filters.fromDate || filters.toDate) {
+      where.date = {};
+      if (filters.fromDate) where.date.gte = String(filters.fromDate);
+      if (filters.toDate) where.date.lte = String(filters.toDate);
+    }
+    const filas = await prisma.cuts.findMany({ where, orderBy: [{ date: 'desc' }, { id: 'desc' }] });
+    return filasAPesos(filas, 'cuts');
   }
 
-  // Método para listar TODOS los cortes con filtros opcionales
-  static findAll(filters = {}) {
-    let query = 'SELECT * FROM cuts';
-    const whereClauses = [];
-    const params = [];
-
-    if (filters.type) {
-      whereClauses.push('type = ?');
-      params.push(filters.type);
-    }
-    if (filters.fromDate) {
-      whereClauses.push('date >= ?');
-      params.push(filters.fromDate);
-    }
-    if (filters.toDate) {
-      whereClauses.push('date <= ?');
-      params.push(filters.toDate);
-    }
-
-    if (whereClauses.length > 0) {
-      query += ' WHERE ' + whereClauses.join(' AND ');
-    }
-
-    query += ' ORDER BY date DESC, id DESC';
-
-    return new Promise((resolve, reject) => {
-      db.all(query, params, (err, rows) => {
-        if (err) {
-          console.error('❌ Error en Cut.findAll:', err.message);
-          return reject(err);
-        }
-        resolve(filasAPesos(rows, 'cuts'));
-      });
-    });
-  }
-
-  // Método para obtener un corte por ID
-  static findById(id) {
-    return new Promise((resolve, reject) => {
-      db.get('SELECT * FROM cuts WHERE id = ?', [id], (err, row) => {
-        if (err) {
-          console.error('❌ Error en Cut.findById:', err.message);
-          return reject(err);
-        }
-        resolve(filaAPesos(row, 'cuts'));
-      });
-    });
+  static async findById(id) {
+    return filaAPesos(await prisma.cuts.findUnique({ where: { id } }), 'cuts');
   }
 }
 

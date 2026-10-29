@@ -1,5 +1,5 @@
 // models/Entry.js
-const db = require('../config/database');
+const { prisma } = require('../config/prisma');
 const { ErrorNegocio } = require('../config/transaccion');
 const Kardex = require('./Kardex');
 
@@ -61,42 +61,24 @@ class Entry {
 
 
   static findAll() {
-    return new Promise((resolve, reject) => {
-      db.all(
-        `SELECT * FROM entries ORDER BY date DESC, time DESC`,
-        [],
-        (err, rows) => {
-          if (err) reject(err);
-          resolve(rows);
-        }
-      );
-    });
+    return prisma.entries.findMany({ orderBy: [{ date: 'desc' }, { time: 'desc' }] });
   }
 
-  static findById(id) {
-    return new Promise((resolve, reject) => {
-      db.get(
-        `SELECT * FROM entries WHERE id = ?`,
-        [id],
-        (err, entry) => {
-          if (err) return reject(err);
-          if (!entry) return resolve(null);
-
-          db.all(
-            `SELECT ed.*, p.articulo, p.presentacion, p.codigo_barras
-             FROM entry_details ed
-             JOIN products p ON p.id = ed.product_id
-             WHERE ed.entry_id = ?`,
-            [id],
-            (err, details) => {
-              if (err) reject(err);
-              entry.items = details;
-              resolve(entry);
-            }
-          );
-        }
-      );
+  // Con sus renglones (items), cada uno con artículo, presentación y código de barras
+  static async findById(id) {
+    const fila = await prisma.entries.findUnique({
+      where: { id },
+      include: {
+        entry_details: {
+          include: { products: { select: { articulo: true, presentacion: true, codigo_barras: true } } },
+          orderBy: { id: 'asc' },
+        },
+      },
     });
+    if (!fila) return null;
+    const { entry_details: renglones, ...entry } = fila;
+    entry.items = renglones.map(({ products, ...d }) => ({ ...d, ...products }));
+    return entry;
   }
 }
 
