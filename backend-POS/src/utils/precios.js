@@ -59,14 +59,31 @@ async function calcularVenta(tx, details, id_user) {
   const config = await leerConfigVentas(tx);
   const lineas = [];
 
+  // Todos los productos de la venta en una consulta (dentro de la transacción:
+  // su stock es el vigente y nadie lo cambia mientras tanto)
+  const idsProductos = [...new Set(details.map((d) => idEntero(d.product_id)).filter(Boolean))];
+  const productos = new Map(
+    (await tx.products.findMany({ where: { id: { in: idsProductos } } })).map((p) => [p.id, p])
+  );
+
+  // Autorizaciones de precio libre ya usadas (una consulta para todas)
+  const jtis = details
+    .filter((d) => d.autorizacion_precio)
+    .map((d) => verificarAutorizacionPrecio(d.autorizacion_precio, d.product_id, id_user)?.jti)
+    .filter(Boolean);
+  const usadas = new Set(
+    jtis.length
+      ? (await tx.autorizaciones_usadas.findMany({ where: { jti: { in: jtis } }, select: { jti: true } })).map((u) => u.jti)
+      : []
+  );
+
   for (const d of details) {
     const cantidad = Number(d.quantity);
     if (!Number.isInteger(cantidad) || cantidad <= 0) {
       throw new ErrorNegocio(400, 'Cada producto debe llevar una cantidad entera mayor a cero');
     }
 
-    const idProducto = idEntero(d.product_id);
-    const producto = idProducto && (await tx.products.findUnique({ where: { id: idProducto } }));
+    const producto = productos.get(idEntero(d.product_id));
     if (!producto) throw new ErrorNegocio(400, `Producto no encontrado: ${d.product_id}`);
     if (Number(producto.activo) === 0) throw new ErrorNegocio(400, `Producto inactivo: ${producto.articulo}`);
 
@@ -79,8 +96,7 @@ async function calcularVenta(tx, details, id_user) {
       if (!autorizacion) {
         throw new ErrorNegocio(400, `La autorización de precio de ${producto.articulo} no es válida o ya venció`);
       }
-      const usada = await tx.autorizaciones_usadas.findUnique({ where: { jti: autorizacion.jti }, select: { jti: true } });
-      if (usada || lineas.some((l) => l.jti === autorizacion.jti)) {
+      if (usadas.has(autorizacion.jti) || lineas.some((l) => l.jti === autorizacion.jti)) {
         throw new ErrorNegocio(400, `La autorización de precio de ${producto.articulo} ya se usó; pide una nueva`);
       }
       ({ precio, jti } = autorizacion);

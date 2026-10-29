@@ -141,23 +141,17 @@ exports.create = async (req, res) => {
         nickname_user,
       });
 
+      // Stock: el que calcularVenta leyó DENTRO de esta transacción (dos ventas
+      // no venden la misma última pieza), descontado renglón por renglón
+      const stockNuevo = new Map();
+      const movimientos = [];
       for (const l of venta.lineas) {
-        await SaleDetail.crear(tx, { ...l, sale_id: saleId });
-
-        // La autorización de precio libre queda gastada con esta venta
-        if (l.jti) {
-          await tx.autorizaciones_usadas.create({ data: { jti: l.jti, sale_id: saleId, usado: `${date} ${time}` } });
-        }
-
-        // Stock leído DENTRO de la transacción: dos ventas no venden la misma última pieza
-        const { stock } = await tx.products.findUnique({ where: { id: l.product_id }, select: { stock: true } });
+        const stock = stockNuevo.has(l.product_id) ? stockNuevo.get(l.product_id) : l.producto.stock;
         if (stock < l.quantity && !venta.config.permiteStockNegativo) {
           throw new ErrorNegocio(409, `Stock insuficiente para ${l.articulo}. Disponible: ${stock}`);
         }
-        const nuevoStock = stock - l.quantity;
-        await tx.products.update({ where: { id: l.product_id }, data: { stock: nuevoStock } });
-
-        await Kardex.logMovement({
+        stockNuevo.set(l.product_id, stock - l.quantity);
+        movimientos.push({
           product_id: l.product_id,
           id_user,
           nickname_user,
@@ -165,22 +159,29 @@ exports.create = async (req, res) => {
           movement_reason: MOTIVO_KARDEX[type],
           previous_stock: stock,
           moved_quantity: l.quantity,
-          new_stock: nuevoStock,
+          new_stock: stock - l.quantity,
           date,
           time,
           related_folio: String(saleId),
-        }, tx);
-      }
-
-      // 4. Pagos (anticipo en apartado y crédito)
-      for (const p of pagos) {
-        await Payment.crear(tx, {
-          ...p,
-          sale_id: saleId,
-          payment_type: type === 'contado' ? 'normal' : 'anticipo',
-          date,
         });
       }
+
+      await SaleDetail.crearVarios(tx, venta.lineas.map((l) => ({ ...l, sale_id: saleId })));
+      // Las autorizaciones de precio libre quedan gastadas con esta venta
+      const usadas = venta.lineas.filter((l) => l.jti).map((l) => ({ jti: l.jti, sale_id: saleId, usado: `${date} ${time}` }));
+      if (usadas.length) await tx.autorizaciones_usadas.createMany({ data: usadas });
+      for (const [product_id, stock] of stockNuevo) {
+        await tx.products.update({ where: { id: product_id }, data: { stock }, select: { id: true } });
+      }
+      await Kardex.registrarVarios(movimientos, tx);
+
+      // 4. Pagos (anticipo en apartado y crédito)
+      await Payment.crearVarios(tx, pagos.map((p) => ({
+        ...p,
+        sale_id: saleId,
+        payment_type: type === 'contado' ? 'normal' : 'anticipo',
+        date,
+      })));
 
       // 5. Saldo del cliente: sube por lo que queda pendiente
       if (type !== 'contado' && pendiente > 0) {

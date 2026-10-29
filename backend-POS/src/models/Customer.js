@@ -50,14 +50,14 @@ class Customer {
   // transacción (tx de Prisma). centavos > 0 aumenta la deuda, < 0 la reduce.
   // Devuelve el saldo nuevo en centavos.
   static async moverSaldo(tx, id, centavos, saleId, description) {
-    const row = await tx.customers.findUnique({ where: { id }, select: { current_balance: true } });
-    if (!row) throw new Error('Cliente no encontrado');
+    const actualizado = await tx.customers.updateMany({ where: { id }, data: { current_balance: { increment: centavos } } });
+    if (actualizado.count === 0) throw new Error('Cliente no encontrado');
+    const { current_balance } = await tx.customers.findUnique({ where: { id }, select: { current_balance: true } });
 
-    const previousBalance = Math.round(row.current_balance || 0);
-    const newBalance = previousBalance + centavos;
+    const newBalance = Math.round(current_balance || 0);
+    const previousBalance = newBalance - centavos;
     const { date, time } = ahoraNegocio();
 
-    await tx.customers.update({ where: { id }, data: { current_balance: newBalance } });
     await tx.customer_balance_history.create({
       data: {
         customer_id: id,

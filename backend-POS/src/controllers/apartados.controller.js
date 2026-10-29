@@ -75,9 +75,7 @@ exports.registrarAbono = async (req, res) => {
 
       const { date } = ahoraNegocio();
 
-      for (const p of pagosCentavos) {
-        await Payment.crear(tx, { ...p, sale_id: sale.id, payment_type: 'abono', date });
-      }
+      await Payment.crearVarios(tx, pagosCentavos.map((p) => ({ ...p, sale_id: sale.id, payment_type: 'abono', date })));
 
       const newPaid = Math.round(sale.paid || 0) + abono;
       const newPending = pendiente - abono;

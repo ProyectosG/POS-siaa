@@ -24,6 +24,23 @@ class Payment {
     return pago.id;
   }
 
+  // Varios pagos en una sola inserción (mismo orden)
+  static async crearVarios(tx, pagos) {
+    if (pagos.length === 0) return;
+    await tx.payments.createMany({
+      data: pagos.map(({ sale_id, method, amount, payment_type = 'normal', bank, last4, reference, date }) => ({
+        sale_id,
+        method,
+        amount,
+        payment_type,
+        bank: bank == null ? null : String(bank),
+        last4: last4 == null ? null : String(last4),
+        reference: reference == null ? null : String(reference),
+        date,
+      })),
+    });
+  }
+
 
   // En pesos, para responder al API
   static async findBySaleId(sale_id) {

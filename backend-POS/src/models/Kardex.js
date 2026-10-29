@@ -40,6 +40,28 @@ class Kardex {
     return movimiento.id;
   }
 
+  // Varios movimientos en una sola inserción (mismo orden), dentro de la
+  // transacción que cambia el stock
+  static async registrarVarios(movimientos, tx) {
+    if (!tx) throw new Error('El kardex solo se registra dentro de una transacción');
+    if (movimientos.length === 0) return;
+    await tx.kardex.createMany({
+      data: movimientos.map((m) => ({
+        product_id: m.product_id,
+        id_user: m.id_user ?? null,
+        nickname_user: m.nickname_user ?? null,
+        movement_type: m.movement_type,
+        movement_reason: m.movement_reason || null,
+        previous_stock: m.previous_stock,
+        moved_quantity: m.moved_quantity,
+        new_stock: m.new_stock,
+        date: m.date,
+        time: m.time,
+        related_folio: m.related_folio == null || m.related_folio === '' ? null : String(m.related_folio),
+      })),
+    });
+  }
+
 
   // En orden cronológico (id desempata los del mismo segundo)
   static findByProductId(product_id) {
