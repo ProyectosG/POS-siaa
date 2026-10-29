@@ -83,6 +83,8 @@ Arreglos encontrados en el camino: el ticket imprimía como anticipo el 30 % del
 
 ## Pendientes (sin hacer)
 
+- **Las ventas a crédito no se pueden cobrar**: `POST /api/apartados/abono` solo acepta apartados y no hay otra ruta para abonar a un crédito; la deuda sube con la venta y no hay forma de bajarla desde el sistema.
+
 - **Reimprimir un corte viejo**: en Reporte de Cortes el botón de imprimir solo muestra un aviso; no hay ruta (`printCorteById` se quitó porque no tenía ruta y fallaba). Si se necesita, crear `GET /api/cuts/:id/print`.
 - "Saldos y stocks a cero" del reset pone el stock en 0 sin kardex (es una herramienta del SuperDeveloper).
 - Los intentos del SuperDeveloper y de la clave de precios se guardan en memoria: se reinician si se reinicia el servidor.
@@ -96,7 +98,10 @@ Cómo funciona hoy:
 - **Prisma 7.10.1** (la 8 sigue en versión de prueba y su cliente no está publicado), adaptador **`@prisma/adapter-libsql`**. El backend sigue en JavaScript CommonJS.
 - `prisma/schema.prisma` salió de `prisma db pull` sobre una copia migrada. **Las migraciones siguen siendo de `config/migraciones.js`**: nunca usar `prisma migrate` ni `prisma db push`. Si una migración cambia tablas, volver a correr `db pull` sobre una copia temporal (con `DB_PATH`, nunca la base real).
 - `npm run prisma:generar` genera el cliente (TypeScript) y lo compila a JavaScript en `src/generated/prisma-js` (`tsconfig.prisma.json`). Corre solo después de `npm install`. `src/generated/` no va a git.
-- `src/config/prisma.js` exporta `prisma`. Solo **Categorías** usa Prisma por ahora.
+- `src/config/prisma.js` exporta `prisma`. Usan Prisma: **Categorías, Cajas, Usuarios, Configuración y Clientes** (alta, consulta, edición, baja y búsqueda). Siguen en sqlite3: `Customer.moverSaldo` y la lectura de configuración dentro de la venta (van en transacciones), el estado de cuenta de clientes, la conversión de contraseñas al arrancar y todo lo demás.
+- **Fechas de registro como texto**: en `schema.prisma`, `created_at`, `updated_at` y `fecha` son `String` con `dbgenerated("CURRENT_TIMESTAMP")`, no `DateTime` (como `DateTime`, el API cambiaría de formato y las consultas crudas les suman 6 horas). Un `db pull` las regresa a `DateTime`: volver a cambiarlas. Al escribirlas a mano usar `ahoraUTC()` (`utils/fechas.js`, `"AAAA-MM-DD HH:MM:SS"` en UTC): el alta de usuarios pone `created_at` y toda edición de Configuración pone `updated_at` (Prisma no lo hace solo). Cajas y clientes no tienen esas columnas.
+- Errores de Prisma en los controladores (`utils/peticion.js`): `esDuplicado` (P2002) → 409; `tieneRelacionados` (P2003, llave foránea) → 409; `leerId` para el id de la ruta; 404 si no existe.
+- Prisma no acepta texto en columnas numéricas como SQLite: convertir antes de guardar (ver `settings.model.js`).
 
 Reglas mientras Prisma conviva con sqlite3:
 - **Toda consulta de modelo de Prisma pasa por la cola de transacciones** (`enCola` de `transaccion.js`, ya hecho con `$extends` en `config/prisma.js`). Motivo: mientras Prisma espera el candado de SQLite **detiene todo Node**; si eso pasa con una transacción de sqlite3 a medias, esa transacción ya no puede terminar y Prisma falla a los 5 s (comprobado).
@@ -104,4 +109,4 @@ Reglas mientras Prisma conviva con sqlite3:
 - **No usar `@prisma/adapter-better-sqlite3`**: con él, una consulta de otra petición se mete en una `$transaction` abierta y se pierde si esa transacción falla (comprobado). Con libsql la otra petición espera.
 - En Windows libsql no suelta el archivo al desconectarse; las pruebas borran las bases temporales de corridas anteriores.
 
-Lo que falta (si se sigue): pasar el resto de los modelos (catálogos y lecturas primero; al final ventas, abonos, entradas, salidas y cortes juntos, cambiando la cola por `$transaction` de Prisma con una sola conexión y una prueba de carga); `autorizaciones_usadas` quedó fuera del esquema porque su `jti` admite nulos (necesita una migración que lo haga `NOT NULL`); `created_at` de SQLite es texto UTC y hay que revisar cómo lo entrega Prisma. Si se descarta Prisma: pasar las columnas de dinero de `REAL` a `INTEGER` con una migración propia.
+Lo que falta (si se sigue): pasar el resto de los modelos (productos y kardex, reportes y lecturas; al final ventas, abonos, entradas, salidas y cortes juntos, cambiando la cola por `$transaction` de Prisma con una sola conexión y una prueba de carga); `autorizaciones_usadas` quedó fuera del esquema porque su `jti` admite nulos (necesita una migración que lo haga `NOT NULL`); `created_at` de SQLite es texto UTC y hay que revisar cómo lo entrega Prisma. Si se descarta Prisma: pasar las columnas de dinero de `REAL` a `INTEGER` con una migración propia.
