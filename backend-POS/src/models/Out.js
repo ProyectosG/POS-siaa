@@ -1,9 +1,10 @@
 const { prisma } = require('../config/prisma');
 const { ErrorNegocio } = require('../config/transaccion');
 const Kardex = require('./Kardex');
+const { idEntero } = require('../utils/peticion');
 
 class Out {
-  // Va DENTRO de una transacción (config/transaccion.js): si un producto no
+  // Va DENTRO de una transacción (tx de Prisma): si un producto no
   // alcanza, no queda nada registrado.
   static async crear(tx, data) {
     const { out_type, comments, movement_reason, date, time, related_folio, items, id_user, nickname_user } = data;
@@ -15,11 +16,27 @@ class Out {
       throw new ErrorNegocio(400, 'No se enviaron productos');
     }
 
-    const { lastID: out_id } = await tx.run(
-      `INSERT INTO outs (out_type, comments, date, time, related_folio, id_user, nickname_user)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [out_type, comments || null, date, time, related_folio || null, id_user, nickname_user]
+    const { id: out_id } = await tx.outs.create({
+      data: {
+        out_type: String(out_type),
+        comments: comments ? String(comments) : null,
+        date,
+        time,
+        related_folio: related_folio ? String(related_folio) : null,
+        id_user,
+        nickname_user,
+      },
+      select: { id: true },
+    });
+
+    // Productos de una vez, con su stock leído DENTRO de la transacción
+    const ids = [...new Set(items.map((i) => idEntero(i.product_id)).filter(Boolean))];
+    const productos = new Map(
+      (await tx.products.findMany({ where: { id: { in: ids } }, select: { id: true, articulo: true, stock: true } }))
+        .map((p) => [p.id, p])
     );
+    const renglones = [];
+    const movimientos = [];
 
     for (const { product_id, quantity } of items) {
       const cantidad = Number(quantity);
@@ -27,8 +44,7 @@ class Out {
         throw new ErrorNegocio(400, 'Cada producto debe llevar una cantidad entera mayor a cero');
       }
 
-      // Stock leído DENTRO de la transacción
-      const product = await tx.get('SELECT id, articulo, stock FROM products WHERE id = ?', [product_id]);
+      const product = productos.get(idEntero(product_id));
       if (!product) throw new ErrorNegocio(400, `Producto no encontrado: ${product_id}`);
 
       const previous_stock = product.stock;
@@ -37,14 +53,10 @@ class Out {
       }
       const new_stock = previous_stock - cantidad;
 
-      await tx.run('UPDATE products SET stock = ? WHERE id = ?', [new_stock, product_id]);
-      await tx.run(
-        `INSERT INTO out_details (out_id, product_id, quantity) VALUES (?, ?, ?)`,
-        [out_id, product_id, cantidad]
-      );
-
-      await Kardex.logMovement({
-        product_id,
+      product.stock = new_stock; // el siguiente renglón del mismo producto parte de aquí
+      renglones.push({ out_id, product_id: product.id, quantity: cantidad });
+      movimientos.push({
+        product_id: product.id,
         id_user,
         nickname_user,
         movement_type: 'SALIDA',
@@ -55,8 +67,14 @@ class Out {
         date,
         time,
         related_folio: related_folio || out_id
-      }, tx);
+      });
     }
+
+    for (const p of productos.values()) {
+      await tx.products.update({ where: { id: p.id }, data: { stock: p.stock }, select: { id: true } });
+    }
+    await tx.out_details.createMany({ data: renglones });
+    await Kardex.registrarVarios(movimientos, tx);
 
     return out_id;
   }

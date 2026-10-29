@@ -52,11 +52,29 @@ test('el saldo del cliente se recalcula con lo pendiente y deja historial', asyn
 test('se respaldó la base antes de migrar y la versión quedó marcada', async () => {
   const respaldos = fs.readdirSync(process.env.BACKUP_DIR).filter((f) => f.startsWith('pos_antes_fase1_'));
   assert.equal(respaldos.length, 1);
-  assert.equal((await dbGet(db, 'PRAGMA user_version')).user_version, 2);
+  assert.equal((await dbGet(db, 'PRAGMA user_version')).user_version, 4);
 });
 
 test('los cortes viejos quedan con el último pago que cubrieron (migración 2)', async () => {
   const corte = await dbGet(db, 'SELECT total_sales, last_payment_id FROM cuts LIMIT 1');
   assert.equal(corte.total_sales, 25010);
   assert.equal(corte.last_payment_id, 1);
+});
+
+test('con WAL: la base queda en modo WAL y el respaldo de la migración trae los datos de antes', async () => {
+  assert.equal((await dbGet(db, 'PRAGMA journal_mode')).journal_mode, 'wal');
+
+  // Los datos viejos se escribieron con la base ya en WAL (estaban en pos.db-wal
+  // al respaldar); el respaldo debe tenerlos tal como estaban: en pesos
+  const path = require('path');
+  const sqlite3 = require('sqlite3');
+  const archivo = fs.readdirSync(process.env.BACKUP_DIR).find((f) => f.startsWith('pos_antes_fase1_'));
+  const respaldo = new sqlite3.Database(path.join(process.env.BACKUP_DIR, archivo), sqlite3.OPEN_READONLY);
+  const fila = await dbGet(respaldo, 'SELECT precio_menudeo FROM products WHERE id = 1');
+  const venta = await dbGet(respaldo, 'SELECT total, pending_balance FROM sales WHERE id = 1');
+  const version = (await dbGet(respaldo, 'PRAGMA user_version')).user_version;
+  await new Promise((r) => respaldo.close(r));
+  assert.equal(fila.precio_menudeo, 250.1);
+  assert.deepEqual({ ...venta }, { total: 250.1, pending_balance: 175.1 });
+  assert.equal(version, 0);
 });

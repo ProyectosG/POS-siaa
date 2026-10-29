@@ -1,50 +1,54 @@
 // src/config/prisma.js
-// Cliente de Prisma sobre la misma base que config/database.js, con el
-// adaptador libsql (sus transacciones no se mezclan con otras peticiones).
+// Cliente de Prisma: la única conexión a la base mientras el servidor atiende.
+// Adaptador libsql: sus transacciones no se mezclan con otras peticiones (las
+// demás consultas esperan a que terminen).
 // El cliente se genera y compila a JavaScript con `npm run prisma:generar`
-// (corre solo después de npm install). Las tablas y migraciones las sigue
-// creando config/database.js y config/migraciones.js, no Prisma.
-//
-// Mientras Prisma conviva con las conexiones sqlite3, TODA consulta de modelo de
-// Prisma pasa por la cola de transacciones (enCola): si Prisma tiene que esperar
-// el candado de SQLite, detiene todo Node, y una transacción de sqlite3 a medias
-// ya no podría terminar. Por lo mismo, durante la convivencia:
-//   - no usar prisma.$transaction ni consultas crudas ($queryRaw, $executeRaw):
-//     no pasan por la cola;
-//   - no llamar a Prisma desde dentro de enTransaccion (esperaría a su propia cola).
+// (corre solo después de npm install). Las tablas y migraciones las crea el
+// arranque (config/database.js y config/migraciones.js con sqlite3), que cierra
+// su conexión antes de atender.
 const { PrismaClient } = require('../generated/prisma-js/client');
 const { PrismaLibSql } = require('@prisma/adapter-libsql');
 const { dbPath } = require('./database');
-const { enCola } = require('./transaccion');
 
-const base = new PrismaClient({ adapter: new PrismaLibSql({ url: `file:${dbPath}` }) });
+// libsql abre una conexión NUEVA después de cada transacción (para permitir
+// varias a la vez), y cada conexión nueva vuelve a preparar todas sus
+// consultas: medido, era la mayor parte del costo de una venta. El adaptador
+// de Prisma nunca deja correr dos transacciones a la vez (las forma en espera),
+// así que aquí la transacción usa la misma conexión con BEGIN/COMMIT.
+// Depende de cómo usa el adaptador al cliente (versión fija 7.10.1): lo cubren
+// las pruebas de transacciones y la de carga.
+class PrismaLibSqlUnaConexion extends PrismaLibSql {
+  createClient(config) {
+    const client = super.createClient(config);
+    client.transaction = async (modo = 'write') => {
+      await client.execute(modo === 'deferred' ? 'BEGIN DEFERRED' : 'BEGIN IMMEDIATE');
+      let cerrada = false;
+      const terminar = async (sql) => {
+        if (cerrada) return;
+        cerrada = true;
+        await client.execute(sql);
+      };
+      return {
+        execute: (stmt) => client.execute(stmt),
+        commit: () => terminar('COMMIT'),
+        rollback: () => terminar('ROLLBACK'),
+        close: () => {
+          if (!cerrada) terminar('ROLLBACK').catch(() => {});
+        },
+        get closed() {
+          return cerrada;
+        },
+      };
+    };
+    return client;
+  }
+}
 
-// Si una sentencia suelta de la conexión principal tiene el candado, espera hasta
-// 5 s (como el busyTimeout de sqlite3) en vez de fallar con SQLITE_BUSY. Esa
-// sentencia corre fuera del hilo de Node, así que la espera siempre termina.
-let preparado = null;
-const preparar = () =>
-  (preparado ??= base.$queryRawUnsafe('PRAGMA busy_timeout = 5000').catch((err) => {
-    preparado = null;
-    throw err;
-  }));
-
-const prisma = base.$extends({
-  query: {
-    $allModels: {
-      $allOperations({ args, query }) {
-        return enCola(async () => {
-          await preparar();
-          return query(args);
-        });
-      },
-    },
-  },
-});
+const prisma = new PrismaClient({ adapter: new PrismaLibSqlUnaConexion({ url: `file:${dbPath}` }) });
 
 // Cierra la conexión de Prisma (al apagar o al terminar las pruebas)
 async function cerrarPrisma() {
-  await base.$disconnect();
+  await prisma.$disconnect();
 }
 
 module.exports = { prisma, cerrarPrisma };

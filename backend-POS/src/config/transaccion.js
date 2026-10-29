@@ -1,80 +1,21 @@
 // src/config/transaccion.js
-// Transacciones reales para las operaciones que mueven dinero o inventario
-// (ventas, abonos, entradas, salidas, cortes).
+// Transacciones para las operaciones que mueven dinero o inventario (ventas,
+// abonos, entradas, salidas, cortes, alta de producto).
 //
-// Por qué una conexión aparte: la conexión principal la comparten todas las
-// peticiones; si una venta abre BEGIN ahí, las sentencias de otra petición se
-// meten en su transacción. Esta conexión solo la usa la cola, y la cola deja
-// pasar UNA transacción a la vez: lo que corre dentro es todo o nada.
-const sqlite3 = require('sqlite3');
-const db = require('./database');
+// Son transacciones interactivas de Prisma sobre su única conexión (adaptador
+// libsql): mientras una está abierta, el adaptador forma en espera todo lo demás
+// (otras transacciones y consultas sueltas), así que lo que corre dentro es todo
+// o nada y nunca se mezcla con otra petición.
+const { prisma } = require('./prisma');
 
-let conexion = null;
-let cola = Promise.resolve();
+// Por omisión Prisma espera solo 2 s para entrar a una transacción: con muchas
+// ventas a la vez las últimas fallarían por tiempo y no por falta de stock
+const OPCIONES = { maxWait: 15000, timeout: 15000 };
 
-function abrirConexion() {
-  if (conexion) return conexion;
-  conexion = db.ready.then(
-    () =>
-      new Promise((resolve, reject) => {
-        const c = new sqlite3.Database(db.dbPath, (err) => {
-          if (err) return reject(err);
-          c.configure('busyTimeout', 5000);
-          c.run('PRAGMA foreign_keys = ON', (e) => (e ? reject(e) : resolve(c)));
-        });
-      })
-  );
-  return conexion;
-}
-
-// Funciones con promesa sobre una conexión
-function envolver(c) {
-  return {
-    run: (sql, params = []) =>
-      new Promise((resolve, reject) =>
-        c.run(sql, params, function (err) {
-          if (err) reject(err);
-          else resolve({ lastID: this.lastID, changes: this.changes });
-        })
-      ),
-    get: (sql, params = []) =>
-      new Promise((resolve, reject) => c.get(sql, params, (err, row) => (err ? reject(err) : resolve(row)))),
-    all: (sql, params = []) =>
-      new Promise((resolve, reject) => c.all(sql, params, (err, rows) => (err ? reject(err) : resolve(rows)))),
-  };
-}
-
-// Forma fn() en la cola: corre cuando terminó lo anterior
-function formar(fn) {
-  const tarea = cola.then(fn);
-  // La cola sigue aunque esta tarea falle
-  cola = tarea.catch(() => {});
-  return tarea;
-}
-
-// Corre fn(tx) dentro de BEGIN IMMEDIATE ... COMMIT. Si fn lanza un error, ROLLBACK.
-// Las llamadas se forman en cola: nunca hay dos transacciones mezcladas.
+// Corre fn(tx) en una transacción; tx es el cliente de Prisma de esa transacción.
+// Si fn lanza un error, se deshace todo y el error sale tal cual.
 function enTransaccion(fn) {
-  return formar(async () => {
-    const tx = envolver(await abrirConexion());
-    await tx.run('BEGIN IMMEDIATE');
-    try {
-      const resultado = await fn(tx);
-      await tx.run('COMMIT');
-      return resultado;
-    } catch (err) {
-      await tx.run('ROLLBACK').catch(() => {});
-      throw err;
-    }
-  });
-}
-
-// Corre fn() en la misma cola, sin abrir transacción. Lo usa Prisma
-// (config/prisma.js): mientras espera el candado de SQLite, Prisma detiene todo
-// Node, y si eso pasa con una transacción a medias, esa transacción ya no puede
-// terminar. En la cola nunca coinciden.
-function enCola(fn) {
-  return formar(fn);
+  return prisma.$transaction((tx) => fn(tx), OPCIONES);
 }
 
 // Error con código HTTP: el controlador responde ese status con el mensaje
@@ -86,12 +27,4 @@ class ErrorNegocio extends Error {
   }
 }
 
-// Cierra la conexión de transacciones (al apagar o al terminar las pruebas)
-async function cerrarTransacciones() {
-  if (!conexion) return;
-  const c = await conexion.catch(() => null);
-  conexion = null;
-  if (c) await new Promise((resolve) => c.close(() => resolve()));
-}
-
-module.exports = { enTransaccion, enCola, ErrorNegocio, cerrarTransacciones };
+module.exports = { enTransaccion, ErrorNegocio, OPCIONES };

@@ -1,6 +1,6 @@
 // src/models/Product.js
-// Consulta, edición y baja con Prisma. El alta (crear) sigue con la conexión
-// de transacciones: va junto con el kardex de su stock inicial.
+// Con Prisma. El alta (crear) va en una transacción junto con el kardex de su
+// stock inicial.
 const { prisma } = require('../config/prisma');
 const { aCentavos, filaAPesos } = require('../utils/dinero');
 const { ErrorCampo, numeroONulo } = require('../utils/peticion');
@@ -47,33 +47,39 @@ function convertir(campo, valor) {
 }
 
 class Product {
-  // Va DENTRO de una transacción, junto con el kardex del alta
+  // Va DENTRO de una transacción (tx de Prisma), junto con el kardex del alta.
+  // Lanza ErrorCampo si un precio o el IVA no son número.
   static async crear(tx, data) {
-    const { lastID } = await tx.run(
-        `INSERT INTO products
-        (codigo_barras, codigo_interno,articulo, presentacion, unidad_medida, precio_menudeo, precio_mayoreo, precio_especial, precio_oferta,
-          iva, ieps, stock, category_id, photo_url, activo)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          data.codigo_barras || null,          // codigo_barras
-          data.codigo_interno || null,         // codigo_interno
-          data.articulo.trim(),               // articulo
-          data.presentacion || null,          // presentacion
-          data.unidad_medida || null,         // unidad_medida
-          aCentavos(data.precio_menudeo) || null,        // precio_menudeo
-          aCentavos(data.precio_mayoreo) || null,        // precio_mayoreo
-          aCentavos(data.precio_especial) || null,       // precio_especial
-          aCentavos(data.precio_oferta) || null,         // precio_oferta
-          data.iva || null,                    // iva
-          data.ieps || null,                   // ieps
-          data.stock || 0,                     // stock
-          data.category_id || null,            // category_id
-          data.photo_url || null,              // photo_url
-          data.activo ? 1 : 0                  // activo
-        ]
-    );
-    return lastID;
+    const precio = (campo) => {
+      const v = data[campo];
+      if (v === null || v === undefined || v === '') return null;
+      const centavos = aCentavos(v);
+      if (centavos === null) throw new ErrorCampo(campo);
+      return centavos || null;
+    };
+    const producto = await tx.products.create({
+      data: {
+        codigo_barras: data.codigo_barras ? String(data.codigo_barras) : null,
+        codigo_interno: data.codigo_interno ? String(data.codigo_interno) : null,
+        articulo: String(data.articulo).trim(),
+        presentacion: data.presentacion ? String(data.presentacion) : null,
+        unidad_medida: data.unidad_medida ? String(data.unidad_medida) : null,
+        precio_menudeo: precio('precio_menudeo'),
+        precio_mayoreo: precio('precio_mayoreo'),
+        precio_especial: precio('precio_especial'),
+        precio_oferta: precio('precio_oferta'),
+        iva: numeroONulo('iva', data.iva) || null,
+        ieps: numeroONulo('ieps', data.ieps) || null,
+        stock: data.stock || 0,
+        category_id: data.category_id,
+        photo_url: data.photo_url || null,
+        activo: data.activo ? 1 : 0,
+      },
+      select: { id: true },
+    });
+    return producto.id;
   }
+
 
   static async findAll() {
     const filas = await prisma.products.findMany({ include: CON_CATEGORIA, orderBy: { articulo: 'asc' } });

@@ -1,10 +1,16 @@
 // src/utils/peticion.js
 // Ayudas comunes de los controladores que usan Prisma.
 
+// Un id (número o texto con número) → entero positivo; si no, null
+function idEntero(valor) {
+  if (valor === null || valor === undefined || valor === '') return null;
+  const id = Number(valor);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
 // El id de la ruta debe ser un entero positivo; si no, null
 function leerId(req, nombre = 'id') {
-  const id = Number(req.params[nombre]);
-  return Number.isInteger(id) && id > 0 ? id : null;
+  return idEntero(req.params[nombre]);
 }
 
 // P2002: se repitió un valor único (número de caja, nickname, email...)
@@ -32,4 +38,4 @@ function numeroONulo(campo, valor, { entero = false } = {}) {
   return n;
 }
 
-module.exports = { leerId, esDuplicado, tieneRelacionados, ErrorCampo, numeroONulo };
+module.exports = { idEntero, leerId, esDuplicado, tieneRelacionados, ErrorCampo, numeroONulo };

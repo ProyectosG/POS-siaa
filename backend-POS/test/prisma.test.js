@@ -1,5 +1,4 @@
-// Pruebas de la Fase 3 (prueba de concepto): categorías con Prisma conviviendo
-// con las conexiones sqlite3 sobre la misma base
+// Pruebas de Prisma: categorías y que una transacción abierta no congele el servidor
 const { test, before, after } = require('node:test');
 const assert = require('node:assert/strict');
 const { iniciar, detener, api, login, dbGet } = require('./helpers');
@@ -55,11 +54,11 @@ test('no se borra una categoría con productos (409) y sí una vacía', async ()
   assert.equal(await dbGet(db, 'SELECT id FROM categories WHERE id = ?', [vacia]), undefined);
 });
 
-test('Prisma espera su turno mientras una venta tiene la base bloqueada, sin congelar el servidor', async () => {
+test('una consulta espera a que termine la transacción abierta, sin congelar el servidor', async () => {
   const { enTransaccion } = require('../src/config/transaccion');
   // Una transacción escribe y tarda 800 ms; mientras, Prisma intenta escribir
   const larga = enTransaccion(async (tx) => {
-    await tx.run(`INSERT INTO categories (family) VALUES ('Dentro de transacción')`);
+    await tx.categories.create({ data: { family: 'Dentro de transacción' } });
     await new Promise((r) => setTimeout(r, 800));
   });
   await new Promise((r) => setTimeout(r, 100));
@@ -79,14 +78,14 @@ test('Prisma espera su turno mientras una venta tiene la base bloqueada, sin con
   assert.ok(await dbGet(db, `SELECT id FROM categories WHERE family = 'Dentro de transacción'`));
 });
 
-test('una sentencia suelta de sqlite3 y Prisma escriben a la vez sin SQLITE_BUSY', async () => {
-  const sqlite = (sql) => new Promise((res, rej) => db.run(sql, (e) => (e ? rej(e) : res())));
-  const respuestas = await Promise.all(
-    Array.from({ length: 20 }, (_, i) =>
-      i % 2
-        ? sqlite(`INSERT INTO categories (family) VALUES ('sqlite3 ${i}')`).then(() => ({ status: 201 }))
-        : api('POST', '/api/categories', { token: tokens.gerente, body: { family: `Prisma ${i}` } })
-    )
+test('la conexión sqlite3 del arranque está cerrada mientras se atiende', async () => {
+  const arranque = require('../src/config/database');
+  assert.equal(arranque.cerradaArranque(), true);
+  // Cualquier uso de esa conexión falla: nada del servidor la puede usar ya
+  await assert.rejects(
+    new Promise((res, rej) => arranque.get('SELECT 1', (e, r) => (e ? rej(e) : res(r)))),
+    /closed|MISUSE/i
   );
-  assert.deepEqual(respuestas.map((r) => r.status), Array(20).fill(201));
+  // Y el servidor sigue atendiendo con Prisma
+  assert.equal((await api('GET', '/api/categories', { token: tokens.cajero })).status, 200);
 });

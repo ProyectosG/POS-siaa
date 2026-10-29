@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { ErrorNegocio } = require('../config/transaccion');
 const { aCentavos } = require('./dinero');
+const { idEntero } = require('./peticion');
 
 const TIPOS_PRECIO = ['menudeo', 'mayoreo', 'especial', 'oferta'];
 const IVA_PCT = 16; // los precios del catálogo ya incluyen IVA
@@ -35,9 +36,10 @@ function verificarAutorizacionPrecio(autorizacion, product_id, id_user) {
 
 // Configuración de ventas vigente (descuentos y stock negativo)
 async function leerConfigVentas(tx) {
-  const s = await tx.get(
-    'SELECT allow_discounts, max_discount_without_auth, allow_negative_balance FROM settings WHERE id = 1'
-  );
+  const s = await tx.settings.findUnique({
+    where: { id: 1 },
+    select: { allow_discounts: true, max_discount_without_auth: true, allow_negative_balance: true },
+  });
   return {
     permiteDescuentos: Number(s?.allow_discounts ?? 1) !== 0,
     descuentoMaximo: Number(s?.max_discount_without_auth ?? 0),
@@ -57,13 +59,31 @@ async function calcularVenta(tx, details, id_user) {
   const config = await leerConfigVentas(tx);
   const lineas = [];
 
+  // Todos los productos de la venta en una consulta (dentro de la transacción:
+  // su stock es el vigente y nadie lo cambia mientras tanto)
+  const idsProductos = [...new Set(details.map((d) => idEntero(d.product_id)).filter(Boolean))];
+  const productos = new Map(
+    (await tx.products.findMany({ where: { id: { in: idsProductos } } })).map((p) => [p.id, p])
+  );
+
+  // Autorizaciones de precio libre ya usadas (una consulta para todas)
+  const jtis = details
+    .filter((d) => d.autorizacion_precio)
+    .map((d) => verificarAutorizacionPrecio(d.autorizacion_precio, d.product_id, id_user)?.jti)
+    .filter(Boolean);
+  const usadas = new Set(
+    jtis.length
+      ? (await tx.autorizaciones_usadas.findMany({ where: { jti: { in: jtis } }, select: { jti: true } })).map((u) => u.jti)
+      : []
+  );
+
   for (const d of details) {
     const cantidad = Number(d.quantity);
     if (!Number.isInteger(cantidad) || cantidad <= 0) {
       throw new ErrorNegocio(400, 'Cada producto debe llevar una cantidad entera mayor a cero');
     }
 
-    const producto = await tx.get('SELECT * FROM products WHERE id = ?', [d.product_id]);
+    const producto = productos.get(idEntero(d.product_id));
     if (!producto) throw new ErrorNegocio(400, `Producto no encontrado: ${d.product_id}`);
     if (Number(producto.activo) === 0) throw new ErrorNegocio(400, `Producto inactivo: ${producto.articulo}`);
 
@@ -76,8 +96,7 @@ async function calcularVenta(tx, details, id_user) {
       if (!autorizacion) {
         throw new ErrorNegocio(400, `La autorización de precio de ${producto.articulo} no es válida o ya venció`);
       }
-      const usada = await tx.get('SELECT 1 FROM autorizaciones_usadas WHERE jti = ?', [autorizacion.jti]);
-      if (usada || lineas.some((l) => l.jti === autorizacion.jti)) {
+      if (usadas.has(autorizacion.jti) || lineas.some((l) => l.jti === autorizacion.jti)) {
         throw new ErrorNegocio(400, `La autorización de precio de ${producto.articulo} ya se usó; pide una nueva`);
       }
       ({ precio, jti } = autorizacion);

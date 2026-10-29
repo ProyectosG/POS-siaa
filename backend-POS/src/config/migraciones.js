@@ -2,10 +2,11 @@
 // Migraciones de datos versionadas con PRAGMA user_version. Cada una corre una
 // sola vez, dentro de una transacción (todo o nada). Antes de la primera se hace
 // un respaldo completo de la base si ya tiene datos.
+// Corren al arrancar, con la conexión sqlite3 del arranque (antes de que Prisma
+// atienda nada).
 const fs = require('fs');
 const path = require('path');
 const db = require('./database');
-const { enTransaccion } = require('./transaccion');
 const { CAMPOS_DINERO } = require('../utils/dinero');
 const { ahoraNegocio } = require('../utils/fechas');
 
@@ -16,6 +17,22 @@ const getMain = (sql, params = []) =>
   new Promise((resolve, reject) => db.get(sql, params, (err, row) => (err ? reject(err) : resolve(row))));
 const runMain = (sql, params = []) =>
   new Promise((resolve, reject) => db.run(sql, params, (err) => (err ? reject(err) : resolve())));
+const allMain = (sql, params = []) =>
+  new Promise((resolve, reject) => db.all(sql, params, (err, rows) => (err ? reject(err) : resolve(rows))));
+
+// Transacción sobre la conexión del arranque: fn(tx) con tx.run/get/all
+async function enTransaccionArranque(fn) {
+  const tx = { run: runMain, get: getMain, all: allMain };
+  await runMain('BEGIN IMMEDIATE');
+  try {
+    const resultado = await fn(tx);
+    await runMain('COMMIT');
+    return resultado;
+  } catch (err) {
+    await runMain('ROLLBACK').catch(() => {});
+    throw err;
+  }
+}
 
 // Respaldo consistente de la base completa (VACUUM INTO no copia a medias)
 async function respaldar(motivo) {
@@ -49,6 +66,82 @@ async function recalcularSaldos(tx, descripcion) {
        VALUES (?, ?, ?, NULL, ?, ?, ?, ?)`,
       [c.id, date, time, actual, debe - actual, debe, descripcion]
     );
+  }
+}
+
+// Migración 4: las columnas de dinero (CAMPOS_DINERO) pasan de REAL a INTEGER.
+// Desde la migración 1 guardan centavos enteros, pero declaradas REAL. SQLite no
+// cambia el tipo de una columna: cada tabla se reconstruye (nueva tabla, copia,
+// borrar la vieja, renombrar), conservando índices y el contador de folios.
+// Ningún monto cambia: se comprueba suma y conteo de cada columna antes y después.
+async function dineroAEntero(tx) {
+  // 1. Todos los montos deben ser enteros: si alguno no lo es, no se redondea
+  //    en silencio, se detiene la migración
+  for (const [tabla, campos] of Object.entries(CAMPOS_DINERO)) {
+    for (const campo of campos) {
+      const { n } = await tx.get(
+        `SELECT COUNT(*) AS n FROM ${tabla} WHERE ${campo} IS NOT NULL AND ${campo} != CAST(${campo} AS INTEGER)`
+      );
+      if (n > 0) throw new Error(`${tabla}.${campo}: ${n} monto(s) con decimales; no se migra para no cambiar dinero`);
+    }
+  }
+
+  // Suma y conteo de cada columna de dinero (para comparar después)
+  const medir = async () => {
+    const r = {};
+    for (const [tabla, campos] of Object.entries(CAMPOS_DINERO)) {
+      for (const campo of campos) {
+        const fila = await tx.get(`SELECT COUNT(*) AS filas, COUNT(${campo}) AS con_valor, TOTAL(${campo}) AS suma FROM ${tabla}`);
+        r[`${tabla}.${campo}`] = fila;
+      }
+    }
+    return r;
+  };
+  const antes = await medir();
+
+  for (const [tabla, campos] of Object.entries(CAMPOS_DINERO)) {
+    const { sql } = await tx.get(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?`, [tabla]);
+    const indices = await tx.all(`SELECT sql FROM sqlite_master WHERE type IN ('index', 'trigger') AND tbl_name = ? AND sql IS NOT NULL`, [tabla]);
+    const secuencia = await tx.get('SELECT seq FROM sqlite_sequence WHERE name = ?', [tabla]);
+
+    // La misma definición con las columnas de dinero en INTEGER
+    let nueva = sql.replace(new RegExp(`^CREATE TABLE (IF NOT EXISTS )?["\`]?${tabla}["\`]?`, 'i'), `CREATE TABLE ${tabla}_nueva`);
+    if (nueva === sql) throw new Error(`No se reconoció la definición de ${tabla}`);
+    for (const campo of campos) {
+      const re = new RegExp(`(\\b${campo}\\s+)(\\w+)`, 'i');
+      const tipo = (nueva.match(re) || [])[2];
+      if (!tipo) throw new Error(`No se encontró la columna ${tabla}.${campo}`);
+      if (tipo.toUpperCase() === 'INTEGER') continue;
+      if (tipo.toUpperCase() !== 'REAL') throw new Error(`${tabla}.${campo} es ${tipo}, se esperaba REAL`);
+      nueva = nueva.replace(re, '$1INTEGER');
+    }
+
+    await tx.run(nueva);
+    await tx.run(`INSERT INTO ${tabla}_nueva SELECT * FROM ${tabla}`);
+    await tx.run(`DROP TABLE ${tabla}`);
+    await tx.run(`ALTER TABLE ${tabla}_nueva RENAME TO ${tabla}`);
+    for (const { sql: s } of indices) await tx.run(s);
+    // El contador de folios sigue donde iba (si no, tras borrar registros se
+    // repetirían folios ya usados)
+    if (secuencia) {
+      await tx.run('UPDATE sqlite_sequence SET seq = MAX(seq, ?) WHERE name = ?', [secuencia.seq, tabla]);
+      const { n } = await tx.get('SELECT COUNT(*) AS n FROM sqlite_sequence WHERE name = ?', [tabla]);
+      if (n === 0) await tx.run('INSERT INTO sqlite_sequence (name, seq) VALUES (?, ?)', [tabla, secuencia.seq]);
+    }
+  }
+
+  // 2. Ningún monto cambió y ya no queda ninguno guardado como REAL
+  const despues = await medir();
+  for (const clave of Object.keys(antes)) {
+    if (JSON.stringify(antes[clave]) !== JSON.stringify(despues[clave])) {
+      throw new Error(`${clave} cambió: ${JSON.stringify(antes[clave])} → ${JSON.stringify(despues[clave])}`);
+    }
+  }
+  for (const [tabla, campos] of Object.entries(CAMPOS_DINERO)) {
+    for (const campo of campos) {
+      const { n } = await tx.get(`SELECT COUNT(*) AS n FROM ${tabla} WHERE typeof(${campo}) = 'real'`);
+      if (n > 0) throw new Error(`${tabla}.${campo}: quedaron ${n} valor(es) REAL`);
+    }
   }
 }
 
@@ -108,6 +201,35 @@ const MIGRACIONES = [
       )`);
     },
   },
+  {
+    version: 3,
+    nombre: 'autorizaciones',
+    async aplicar(tx) {
+      // En SQLite un "TEXT PRIMARY KEY" admite NULL, y Prisma no puede usar una
+      // tabla así. Se reconstruye igual pero con jti NOT NULL (una autorización
+      // sin jti no sirve para nada: no se puede volver a encontrar).
+      await tx.run(`CREATE TABLE autorizaciones_usadas_nueva (
+        jti TEXT NOT NULL PRIMARY KEY,
+        sale_id INTEGER,
+        usado TEXT NOT NULL
+      )`);
+      await tx.run(`INSERT INTO autorizaciones_usadas_nueva (jti, sale_id, usado)
+        SELECT jti, sale_id, usado FROM autorizaciones_usadas WHERE jti IS NOT NULL`);
+      await tx.run('DROP TABLE autorizaciones_usadas');
+      await tx.run('ALTER TABLE autorizaciones_usadas_nueva RENAME TO autorizaciones_usadas');
+    },
+  },
+  {
+    version: 4,
+    nombre: 'dinero_entero',
+    // Reconstruir tablas exige las llaves foráneas apagadas (SQLite no deja
+    // cambiarlo dentro de una transacción): el runner las apaga antes y revisa
+    // con foreign_key_check antes de confirmar.
+    sinLlavesForaneas: true,
+    async aplicar(tx) {
+      await dineroAEntero(tx);
+    },
+  },
 ];
 
 async function migrar() {
@@ -122,10 +244,19 @@ async function migrar() {
   if (hay > 0) await respaldar(pendientes[0].nombre);
 
   for (const m of pendientes) {
-    await enTransaccion(async (tx) => {
-      await m.aplicar(tx);
-      await tx.run(`PRAGMA user_version = ${m.version}`);
-    });
+    if (m.sinLlavesForaneas) await runMain('PRAGMA foreign_keys = OFF');
+    try {
+      await enTransaccionArranque(async (tx) => {
+        await m.aplicar(tx);
+        if (m.sinLlavesForaneas) {
+          const rotas = await tx.all('PRAGMA foreign_key_check');
+          if (rotas.length > 0) throw new Error(`Llaves foráneas rotas: ${JSON.stringify(rotas.slice(0, 5))}`);
+        }
+        await tx.run(`PRAGMA user_version = ${m.version}`);
+      });
+    } finally {
+      if (m.sinLlavesForaneas) await runMain('PRAGMA foreign_keys = ON');
+    }
     console.log(`✅ Migración ${m.version} (${m.nombre}) aplicada`);
   }
 }

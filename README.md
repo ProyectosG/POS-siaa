@@ -96,3 +96,9 @@ Las pruebas usan `node --test` y crean una base SQLite temporal para cada archiv
 ## Bases de datos y respaldos
 
 Los archivos `*.db` y la carpeta `backups/` están ignorados por git. **No subas bases de datos al repositorio**: es público.
+
+La base trabaja en **modo WAL** de SQLite: junto a `pos.db` aparecen `pos.db-wal` y `pos.db-shm`. Mientras el servidor está encendido, las últimas ventas pueden estar todavía en `pos.db-wal`.
+
+- **Con el servidor encendido, no copies `pos.db` a mano**: la copia podría quedar sin las últimas ventas.
+- **Para respaldar a mano, apaga el servidor (Ctrl+C) y después copia `pos.db`.** Al apagarse, todo queda dentro de `pos.db`. Si ves `pos.db-wal` o `pos.db-shm`, cópialos también.
+- La app respalda sola, de forma consistente, antes de cada migración y antes de un reset del SuperDeveloper (en `backups/`).
