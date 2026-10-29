@@ -1,15 +1,16 @@
 // src/controllers/sale.controller.js
-const db = require('../config/database');
+const { prisma } = require('../config/prisma');
 const Sale = require('../models/Sale');
 const SaleDetail = require('../models/SaleDetail');
 const Payment = require('../models/Payment');
 const Customer = require('../models/Customer');
 const Kardex = require('../models/Kardex');
 const { ErrorNegocio } = require('../config/transaccion');
-const { aCentavos, aPesos, filasAPesos } = require('../utils/dinero');
+const { aCentavos, aPesos } = require('../utils/dinero');
 const { ahoraNegocio } = require('../utils/fechas');
 const { calcularVenta, leerPagos } = require('../utils/precios');
 const { operacionIdempotente, responderError } = require('../utils/idempotencia');
+const { leerId } = require('../utils/peticion');
 
 const TIPOS_VENTA = ['contado', 'apartado', 'credito'];
 const MOTIVO_KARDEX = { contado: 'VENTA_CONTADO', apartado: 'VENTA_APARTADO', credito: 'VENTA_CREDITO' };
@@ -20,13 +21,7 @@ const MOTIVO_KARDEX = { contado: 'VENTA_CONTADO', apartado: 'VENTA_APARTADO', cr
 
 exports.getAll = async (req, res) => {
   try {
-    const rows = await new Promise((resolve, reject) => {
-      db.all('SELECT * FROM sales ORDER BY date DESC, id DESC', [], (err, rows) =>
-        err ? reject(err) : resolve(rows)
-      );
-    });
-
-    res.json(filasAPesos(rows, 'sales'));
+    res.json(await Sale.findAll());
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -34,55 +29,30 @@ exports.getAll = async (req, res) => {
 
 exports.getById = async (req, res) => {
   try {
-    const sale = await Sale.findById(req.params.id);
+    const id = leerId(req);
+    const sale = id && (await Sale.findById(id));
     if (!sale) {
       return res.status(404).json({ error: 'Venta no encontrada' });
     }
 
-    const details = await new Promise((resolve, reject) => {
-      db.all(
-        `
-        SELECT sd.*,
-               p.articulo AS articulo
-        FROM sale_details sd
-        LEFT JOIN products p ON sd.product_id = p.id
-        WHERE sd.sale_id = ?
-        `,
-        [req.params.id],
-        (err, rows) => (err ? reject(err) : resolve(rows))
-      );
-    });
-
-    const payments = await Payment.findBySaleId(req.params.id);
-
-    let client = null;
-    if (sale.customer_id) {
-      client = await new Promise((resolve, reject) => {
-        db.get(
-          'SELECT id, first_name, last_name_paternal, last_name_maternal, phone FROM customers WHERE id = ?',
-          [sale.customer_id],
-          (err, row) => (err ? reject(err) : resolve(row))
-        );
-      });
-    }
-
-    let user = null;
-    if (sale.id_user) {
-      user = await new Promise((resolve, reject) => {
-        db.get(
-          'SELECT id, nickname AS name FROM users WHERE id = ?',
-          [sale.id_user],
-          (err, row) => (err ? reject(err) : resolve(row))
-        );
-      });
-    }
+    const [details, payments, client, cajero] = await Promise.all([
+      Sale.renglones(id),
+      Payment.findBySaleId(id),
+      sale.customer_id
+        ? prisma.customers.findUnique({
+            where: { id: sale.customer_id },
+            select: { id: true, first_name: true, last_name_paternal: true, last_name_maternal: true, phone: true },
+          })
+        : null,
+      sale.id_user ? prisma.users.findUnique({ where: { id: sale.id_user }, select: { id: true, nickname: true } }) : null,
+    ]);
 
     res.json({
       ...sale,
-      details: filasAPesos(details, 'sale_details'),
-      payments: payments || [],
+      details,
+      payments,
       client: client || null,
-      user: user || { name: 'admin' },
+      user: cajero ? { id: cajero.id, name: cajero.nickname } : { name: 'admin' },
     });
   } catch (err) {
     console.error('Error al obtener venta por ID:', err);
@@ -235,28 +205,17 @@ exports.create = async (req, res) => {
   }
 };
 
-exports.getTicketRange = (req, res) => {
+exports.getTicketRange = async (req, res) => {
   const { desde, hasta } = req.query;
 
   if (!desde || !hasta) {
     return res.status(400).json({ error: 'Faltan parámetros desde/hasta' });
   }
 
-  const query = `
-    SELECT MIN(id) AS firstTicket, MAX(id) AS lastTicket
-    FROM sales
-    WHERE date >= ? AND date <= ?
-  `;
-
-  db.get(query, [desde, hasta], (err, row) => {
-    if (err) {
-      console.error('Error al obtener rango de tickets:', err);
-      return res.status(500).json({ error: 'Error en la base de datos' });
-    }
-
-    res.json({
-      firstTicket: row.firstTicket || null,
-      lastTicket: row.lastTicket || null
-    });
-  });
+  try {
+    res.json(await Sale.rangoTickets(String(desde), String(hasta)));
+  } catch (err) {
+    console.error('Error al obtener rango de tickets:', err);
+    res.status(500).json({ error: 'Error en la base de datos' });
+  }
 };

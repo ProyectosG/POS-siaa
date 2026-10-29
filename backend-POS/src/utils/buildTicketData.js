@@ -1,51 +1,25 @@
-const db = require('../config/database');
+// src/utils/buildTicketData.js
+// Datos para imprimir el ticket de una venta (con Prisma, en pesos)
+const { prisma } = require('../config/prisma');
 const Sale = require('../models/Sale');
-const { filasAPesos } = require('./dinero');
+const Payment = require('../models/Payment');
 
 module.exports = async function buildTicketData(saleId) {
-  const sale = await Sale.findById(saleId);
-  if (!sale) throw new Error('Venta no encontrada');
+  const id = Number(saleId);
+  const sale = Number.isInteger(id) && id > 0 ? await Sale.findById(id) : null;
+  if (!sale) throw Object.assign(new Error('Venta no encontrada'), { status: 404 });
 
-  const details = await new Promise((resolve, reject) => {
-    db.all(
-      'SELECT * FROM sale_details WHERE sale_id = ?',
-      [saleId],
-      (err, rows) => (err ? reject(err) : resolve(rows || []))
-    );
-  });
+  // Renglones con el nombre guardado al vender
+  const [details, payments, customer] = await Promise.all([
+    Sale.renglones(id),
+    Payment.findBySaleId(id),
+    sale.customer_id
+      ? prisma.customers.findUnique({
+          where: { id: sale.customer_id },
+          select: { first_name: true, last_name_paternal: true, last_name_maternal: true, phone: true },
+        })
+      : null,
+  ]);
 
-  const payments = await new Promise((resolve, reject) => {
-    db.all(
-      'SELECT * FROM payments WHERE sale_id = ?',
-      [saleId],
-      (err, rows) => (err ? reject(err) : resolve(rows || []))
-    );
-  });
-
-  let customer = null;
-  if (sale.customer_id) {
-    customer = await new Promise((resolve) => {
-      db.get(
-        `
-        SELECT
-          first_name,
-          last_name_paternal,
-          last_name_maternal,
-          phone
-        FROM customers
-        WHERE id = ?
-        `,
-        [sale.customer_id],
-        (_, row) => resolve(row || null)
-      );
-    });
-  }
-
-  // Sale.findById ya viene en pesos; renglones y pagos se convierten aquí
-  return {
-    sale,
-    details: filasAPesos(details, 'sale_details'),
-    payments: filasAPesos(payments, 'payments'),
-    customer,
-  };
+  return { sale, details, payments, customer: customer || null };
 };
