@@ -211,6 +211,8 @@ test('después de la carga: el corte cuadra con las ventas y los pagos', async (
 });
 
 test('reset del SuperDeveloper: vacía tablas con dependientes y las llaves siguen activas', async () => {
+  const ventasAntes = (await una('SELECT COUNT(*) AS n FROM sales')).n;
+  assert.ok(ventasAntes > 0);
   const sd = await api('POST', '/api/superdev/entrar', { body: { nickname: 'superdev', password: 'clave-super-de-prueba' } });
   const r = await api('POST', '/api/reset/tables', {
     token: sd.data.token,
@@ -218,6 +220,12 @@ test('reset del SuperDeveloper: vacía tablas con dependientes y las llaves sigu
   });
   assert.equal(r.status, 200, JSON.stringify(r.data));
   assert.match(r.data.backup, /^pos_backup_\d+\.db$/);
+  // El respaldo (VACUUM INTO, con la base en WAL) trae todas las ventas de antes del reset
+  const sqlite3 = require('sqlite3');
+  const respaldo = new sqlite3.Database(require('path').join(process.env.BACKUP_DIR, r.data.backup), sqlite3.OPEN_READONLY);
+  const enRespaldo = await new Promise((res, rej) => respaldo.get('SELECT COUNT(*) AS n FROM sales', (e, x) => (e ? rej(e) : res(x.n))));
+  await new Promise((res) => respaldo.close(res));
+  assert.equal(enRespaldo, ventasAntes);
   assert.equal((await una('SELECT COUNT(*) AS n FROM sales')).n, 0);
   assert.equal((await una('SELECT COUNT(*) AS n FROM idempotencia')).n, 0);
 
