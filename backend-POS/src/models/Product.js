@@ -5,8 +5,8 @@ const { prisma } = require('../config/prisma');
 const { aCentavos, filaAPesos } = require('../utils/dinero');
 const { ErrorCampo, numeroONulo } = require('../utils/peticion');
 
-// Precios: llegan y salen en pesos; en la base van en centavos
-const PRECIOS = ['precio_menudeo', 'precio_mayoreo', 'precio_especial', 'precio_oferta'];
+// Precios y costo: llegan y salen en pesos; en la base van en centavos
+const PRECIOS = ['precio_menudeo', 'precio_mayoreo', 'precio_especial', 'precio_oferta', 'costo'];
 
 // Campos que se pueden modificar con update(). El stock NO: solo cambia con
 // ventas, entradas y salidas, que dejan kardex (el formulario de productos
@@ -15,6 +15,7 @@ const CAMPOS_EDITABLES = [
   'codigo_barras', 'codigo_interno', 'articulo', 'presentacion', 'unidad_medida',
   'precio_menudeo', 'precio_mayoreo', 'precio_especial', 'precio_oferta',
   'iva', 'ieps', 'category_id', 'photo_url', 'activo',
+  'costo', // solo el Administrador (lo revisa productController)
 ];
 const NUMEROS = ['iva', 'ieps'];
 
@@ -68,6 +69,7 @@ class Product {
         precio_mayoreo: precio('precio_mayoreo'),
         precio_especial: precio('precio_especial'),
         precio_oferta: precio('precio_oferta'),
+        costo: precio('costo'),
         iva: numeroONulo('iva', data.iva) || null,
         ieps: numeroONulo('ieps', data.ieps) || null,
         stock: data.stock || 0,

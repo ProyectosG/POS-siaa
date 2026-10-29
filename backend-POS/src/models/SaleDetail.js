@@ -18,6 +18,7 @@ class SaleDetail {
         tax_amount: d.tax_amount,
         tax_type: d.tax_type,
         precio_libre: d.precio_libre ? 1 : 0,
+        costo_unitario: d.costo_unitario ?? null,
       },
       select: { id: true },
     });
@@ -41,6 +42,7 @@ class SaleDetail {
         tax_amount: d.tax_amount,
         tax_type: d.tax_type,
         precio_libre: d.precio_libre ? 1 : 0,
+        costo_unitario: d.costo_unitario ?? null,
       })),
     });
   }

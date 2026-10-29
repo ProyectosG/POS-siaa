@@ -4,12 +4,24 @@ const { ahoraNegocio } = require('../utils/fechas');
 const { enTransaccion } = require('../config/transaccion');
 const { idEntero, leerId, esDuplicado, tieneRelacionados, ErrorCampo } = require('../utils/peticion');
 
+const { tieneNivel, NIVELES } = require('../middleware/auth');
+
 const CODIGO_REPETIDO = 'Ya existe un producto con ese código de barras';
+const SOLO_ADMIN_COSTO = 'Solo el Administrador puede capturar el costo';
+
+// El costo solo lo ve y lo captura el Administrador (el cajero usa estas mismas
+// rutas para vender y el gerente para el catálogo)
+const veCosto = (req) => tieneNivel(req.user, NIVELES.ADMIN);
+function paraUsuario(req, producto) {
+  if (!producto || veCosto(req)) return producto;
+  const { costo, ...resto } = producto;
+  return resto;
+}
 
 exports.getAll = async (req, res) => {
   try {
     const products = await Product.findAll();
-    res.json(products);
+    res.json(products.map((p) => paraUsuario(req, p)));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -20,7 +32,7 @@ exports.getById = async (req, res) => {
     const id = leerId(req);
     const product = id && (await Product.findById(id));
     if (!product) return res.status(404).json({ error: 'Producto no encontrado' });
-    res.json(product);
+    res.json(paraUsuario(req, product));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -29,6 +41,9 @@ exports.getById = async (req, res) => {
 exports.create = async (req, res) => {
   try {
     const data = req.body;
+
+    const traeCosto = data.costo !== undefined && data.costo !== null && data.costo !== '';
+    if (traeCosto && !veCosto(req)) return res.status(403).json({ error: SOLO_ADMIN_COSTO });
 
     if (!data.articulo || data.articulo.trim() === '') {
       return res.status(400).json({ error: 'articulo es requerido' });
@@ -47,6 +62,7 @@ exports.create = async (req, res) => {
       precio_mayoreo: data.precio_mayoreo || null,
       precio_especial: data.precio_especial || null,
       precio_oferta: data.precio_oferta || null,
+      costo: traeCosto ? data.costo : null,
       iva: data.iva || null,
       ieps: data.ieps || null,
       stock: data.stock || 0,
@@ -105,6 +121,7 @@ exports.update = async (req, res) => {
     if (!id) return res.status(404).json({ error: 'Producto no encontrado' });
 
     const data = req.body;
+    if (data.costo !== undefined && !veCosto(req)) return res.status(403).json({ error: SOLO_ADMIN_COSTO });
     if (data.articulo && data.articulo.trim() === '') {
       return res.status(400).json({ error: 'articulo no puede estar vacío' });
     }
@@ -117,6 +134,7 @@ exports.update = async (req, res) => {
     if (data.precio_mayoreo !== undefined) cleanData.precio_mayoreo = data.precio_mayoreo;
     if (data.precio_especial !== undefined) cleanData.precio_especial = data.precio_especial;
     if (data.precio_oferta !== undefined) cleanData.precio_oferta = data.precio_oferta;
+    if (data.costo !== undefined) cleanData.costo = data.costo;
     if (data.iva !== undefined) cleanData.iva = data.iva;
     if (data.ieps !== undefined) cleanData.ieps = data.ieps;
     // El stock no se edita aquí: solo con ventas, entradas y salidas
@@ -162,7 +180,7 @@ exports.getByBarcode = async (req, res) => {
       return res.status(404).json({ error: 'Producto no encontrado' });
     }
 
-    res.json(product);
+    res.json(paraUsuario(req, product));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -178,7 +196,7 @@ exports.searchByName = async (req, res) => {
 
     const products = await Product.searchByName(term.trim());
 
-    res.json(products);
+    res.json(products.map((p) => paraUsuario(req, p)));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

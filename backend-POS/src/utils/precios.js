@@ -143,6 +143,9 @@ async function calcularVenta(tx, details, id_user) {
       tax_amount: iva,
       tax_type: ivaPct > 0 ? 'IVA' : 'EXENTO',
       precio_libre: precioLibre,
+      // Costo del catálogo en este momento (centavos); sin costo = null. La
+      // utilidad de la venta usa siempre este, aunque el costo cambie después.
+      costo_unitario: producto.costo ?? null,
       jti,
       importe,
     });

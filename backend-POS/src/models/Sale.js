@@ -51,11 +51,12 @@ class Sale {
 
   // Renglones de una venta. articulo: el nombre que tenía el producto al
   // venderse (guardado en el renglón); si un renglón viejo no lo tiene, el del
-  // catálogo
+  // catálogo. El costo no sale (el ticket y el detalle los ve el cajero).
   static async renglones(sale_id) {
     const filas = await prisma.sale_details.findMany({
       where: { sale_id },
       include: { products: { select: { articulo: true } } },
+      omit: { costo_unitario: true },
       orderBy: { id: 'asc' },
     });
     return filasAPesos(

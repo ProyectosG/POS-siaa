@@ -39,7 +39,7 @@ before(async () => {
 after(detener);
 
 test('las columnas de dinero quedan INTEGER y guardan enteros', async () => {
-  assert.equal((await dbGet(db, 'PRAGMA user_version')).user_version, 4);
+  assert.equal((await dbGet(db, 'PRAGMA user_version')).user_version, 5);
   for (const [tabla, campos] of Object.entries(CAMPOS_DINERO)) {
     const columnas = await todas(db, `PRAGMA table_info(${tabla})`);
     for (const campo of campos) {
@@ -96,4 +96,11 @@ test('índices y llaves foráneas siguen funcionando', async () => {
 test('hubo respaldo antes de migrar', async () => {
   const respaldos = fs.readdirSync(process.env.BACKUP_DIR).filter((f) => f.startsWith('pos_antes_'));
   assert.equal(respaldos.length, 1);
+});
+
+test('migración 5: las ventas anteriores quedan sin costo (no se toma el costo actual)', async () => {
+  const { n, con } = await dbGet(db, 'SELECT COUNT(*) AS n, COUNT(costo_unitario) AS con FROM sale_details');
+  assert.ok(n > 0);
+  assert.equal(con, 0);
+  assert.equal((await dbGet(db, 'SELECT COUNT(costo) AS con FROM products')).con, 0);
 });

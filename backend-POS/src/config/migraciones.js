@@ -7,7 +7,22 @@
 const fs = require('fs');
 const path = require('path');
 const db = require('./database');
-const { CAMPOS_DINERO } = require('../utils/dinero');
+// Columnas de dinero que existían hasta la migración 4. Las migraciones 1 y 4 usan
+// SIEMPRE esta lista: una migración que ya corrió no cambia, y una base vieja aún
+// no tiene las columnas que agregan las migraciones siguientes (costo, costo_unitario).
+const DINERO_HASTA_V4 = {
+  products: ['precio_menudeo', 'precio_mayoreo', 'precio_especial', 'precio_oferta'],
+  customers: ['current_balance'],
+  sales: ['subtotal', 'tax_total', 'discount_total', 'total', 'paid', 'pending_balance', 'efectivo_recibido', 'cambio'],
+  sale_details: ['base_price', 'price', 'discount_amount', 'subtotal', 'tax_amount'],
+  payments: ['amount'],
+  cuts: [
+    'total_sales', 'ventas_contado', 'ventas_credito', 'ventas_apartado', 'total_iva_gravado',
+    'total_recibido', 'total_anticipos', 'total_abonos',
+    'pago_efectivo', 'pago_tarjeta', 'pago_transferencia', 'pago_otros', 'cash_in_box',
+  ],
+  customer_balance_history: ['previous_balance', 'amount', 'new_balance'],
+};
 const { ahoraNegocio } = require('../utils/fechas');
 
 const dirRespaldos = () =>
@@ -69,7 +84,7 @@ async function recalcularSaldos(tx, descripcion) {
   }
 }
 
-// Migración 4: las columnas de dinero (CAMPOS_DINERO) pasan de REAL a INTEGER.
+// Migración 4: las columnas de dinero (DINERO_HASTA_V4) pasan de REAL a INTEGER.
 // Desde la migración 1 guardan centavos enteros, pero declaradas REAL. SQLite no
 // cambia el tipo de una columna: cada tabla se reconstruye (nueva tabla, copia,
 // borrar la vieja, renombrar), conservando índices y el contador de folios.
@@ -77,7 +92,7 @@ async function recalcularSaldos(tx, descripcion) {
 async function dineroAEntero(tx) {
   // 1. Todos los montos deben ser enteros: si alguno no lo es, no se redondea
   //    en silencio, se detiene la migración
-  for (const [tabla, campos] of Object.entries(CAMPOS_DINERO)) {
+  for (const [tabla, campos] of Object.entries(DINERO_HASTA_V4)) {
     for (const campo of campos) {
       const { n } = await tx.get(
         `SELECT COUNT(*) AS n FROM ${tabla} WHERE ${campo} IS NOT NULL AND ${campo} != CAST(${campo} AS INTEGER)`
@@ -89,7 +104,7 @@ async function dineroAEntero(tx) {
   // Suma y conteo de cada columna de dinero (para comparar después)
   const medir = async () => {
     const r = {};
-    for (const [tabla, campos] of Object.entries(CAMPOS_DINERO)) {
+    for (const [tabla, campos] of Object.entries(DINERO_HASTA_V4)) {
       for (const campo of campos) {
         const fila = await tx.get(`SELECT COUNT(*) AS filas, COUNT(${campo}) AS con_valor, TOTAL(${campo}) AS suma FROM ${tabla}`);
         r[`${tabla}.${campo}`] = fila;
@@ -99,7 +114,7 @@ async function dineroAEntero(tx) {
   };
   const antes = await medir();
 
-  for (const [tabla, campos] of Object.entries(CAMPOS_DINERO)) {
+  for (const [tabla, campos] of Object.entries(DINERO_HASTA_V4)) {
     const { sql } = await tx.get(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?`, [tabla]);
     const indices = await tx.all(`SELECT sql FROM sqlite_master WHERE type IN ('index', 'trigger') AND tbl_name = ? AND sql IS NOT NULL`, [tabla]);
     const secuencia = await tx.get('SELECT seq FROM sqlite_sequence WHERE name = ?', [tabla]);
@@ -137,7 +152,7 @@ async function dineroAEntero(tx) {
       throw new Error(`${clave} cambió: ${JSON.stringify(antes[clave])} → ${JSON.stringify(despues[clave])}`);
     }
   }
-  for (const [tabla, campos] of Object.entries(CAMPOS_DINERO)) {
+  for (const [tabla, campos] of Object.entries(DINERO_HASTA_V4)) {
     for (const campo of campos) {
       const { n } = await tx.get(`SELECT COUNT(*) AS n FROM ${tabla} WHERE typeof(${campo}) = 'real'`);
       if (n > 0) throw new Error(`${tabla}.${campo}: quedaron ${n} valor(es) REAL`);
@@ -151,7 +166,7 @@ const MIGRACIONES = [
     nombre: 'fase1',
     async aplicar(tx) {
       // 1. Dinero a centavos enteros
-      for (const [tabla, campos] of Object.entries(CAMPOS_DINERO)) {
+      for (const [tabla, campos] of Object.entries(DINERO_HASTA_V4)) {
         for (const campo of campos) {
           await tx.run(
             `UPDATE ${tabla} SET ${campo} = CAST(ROUND(${campo} * 100) AS INTEGER) WHERE ${campo} IS NOT NULL`
@@ -228,6 +243,18 @@ const MIGRACIONES = [
     sinLlavesForaneas: true,
     async aplicar(tx) {
       await dineroAEntero(tx);
+    },
+  },
+  {
+    version: 5,
+    nombre: 'costo',
+    async aplicar(tx) {
+      // Costo del producto (centavos, neto con IVA, como lo cobra el proveedor) y
+      // costo unitario guardado en cada renglón vendido: la utilidad de una venta
+      // usa el costo del momento en que se vendió. Solo agrega columnas: las
+      // ventas anteriores quedan sin costo (NULL) y no se toma el costo actual.
+      await tx.run('ALTER TABLE products ADD COLUMN costo INTEGER');
+      await tx.run('ALTER TABLE sale_details ADD COLUMN costo_unitario INTEGER');
     },
   },
 ];
