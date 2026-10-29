@@ -6,6 +6,7 @@ import { useAuthStore } from "@/store/useAuthStore";
 import toast from "react-hot-toast";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/apiFetch"
+import EncabezadoPantalla from "@/components/ui/encabezado-pantalla"
 
 
 export default function ResetDatos() {
@@ -161,16 +162,12 @@ const handleSelectTable = (table) => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-background rounded-2xl border border-border shadow-2xl">
-      <h1 className="text-4xl font-extrabold text-foreground mb-6 text-center flex items-center justify-center gap-4">
-        <Zap className="text-aviso animate-pulse" size={40} /> ¡Zapeador de Datos! ⚡💥
-      </h1>
-      <p className="text-muted-foreground mb-3 text-center text-lg">
-        Selecciona qué zapear. <strong>¡Cuidado! Esto es irreversible</strong> ❌  
-      </p>
-        <p className="text-muted-foreground mb-3 text-center text-lg">
-        Pero haremos backup automático antes del boom.
-      </p>
+    <div className="max-w-4xl mx-auto">
+      <EncabezadoPantalla
+        titulo="Herramientas del SuperDeveloper"
+        subtitulo="Respaldo de la base y vaciado de tablas. El vaciado es irreversible (se hace un respaldo automático antes)."
+        icono={Zap}
+      />
 
       {/* Respaldo manual */}
       <section className="mb-10 bg-card p-6 rounded-xl border border-emerald-700/60 text-center">

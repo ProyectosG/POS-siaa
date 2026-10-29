@@ -18,6 +18,7 @@ import {
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { apiFetch, enviarOperacion } from "@/lib/apiFetch"
+import EncabezadoPantalla from "@/components/ui/encabezado-pantalla"
 
 
 /* ======================================================
@@ -228,23 +229,20 @@ export default function RegistroEntradas() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 p-6">
+    <div>
       <div className="max-w-6xl mx-auto space-y-6">
-
-        {/* HEADER */}
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              <Package className="w-8 h-8 text-blue-600" />
-              Registro de Entradas
-            </h1>
-            <p className="text-slate-600">Captura de inventario</p>
-          </div>
-          <div className="text-right">
-            <p className="text-sm">{fechaHora.fecha}</p>
-            <p className="font-semibold">{fechaHora.hora}</p>
-          </div>
-        </div>
+        <EncabezadoPantalla
+          titulo="Registro de Entradas"
+          subtitulo="Captura de mercancía que entra al inventario"
+          icono={Package}
+          className="mb-0"
+          acciones={
+            <div className="text-right text-sm text-muted-foreground">
+              <p>{fechaHora.fecha}</p>
+              <p className="font-semibold text-foreground">{fechaHora.hora}</p>
+            </div>
+          }
+        />
 
         {/* TIPO + COMENTARIOS */}
         <Card className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">

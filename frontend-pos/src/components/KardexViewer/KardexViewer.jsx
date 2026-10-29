@@ -26,6 +26,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { apiFetch } from "@/lib/apiFetch"
+import EncabezadoPantalla from "@/components/ui/encabezado-pantalla"
+import { History } from "lucide-react"
 
 // Función segura para formatear fecha YYYY-MM-DD sin desfase UTC
 const formatDate = (dateStr) => {
@@ -160,17 +162,12 @@ export default function KardexViewer() {
 
   return (
     <TooltipProvider>
-      <div className="container mx-auto p-6 max-w-7xl">
-
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold text-foreground mb-2">
-            Sistema de Kardex
-          </h1>
-          <p className="text-muted-foreground text-lg">
-            Visualiza y analiza los movimientos de inventario de tus productos
-          </p>
-        </div>
+      <div className="mx-auto max-w-7xl">
+        <EncabezadoPantalla
+          titulo="Kardex"
+          subtitulo="Movimientos de inventario de cada producto: entradas, salidas y ventas"
+          icono={History}
+        />
 
         {/* Search Section */}
         <div className="grid md:grid-cols-2 gap-4 mb-6">

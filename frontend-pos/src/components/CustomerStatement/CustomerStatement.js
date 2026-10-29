@@ -152,19 +152,13 @@ export default function CustomerStatement() {
   }
 
   return (
-    <div className="space-y-6 p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="bg-indigo-100 p-3 rounded-xl shadow-sm">
-            <DollarSign className="h-8 w-8 text-indigo-600" />
-          </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Estado de Cuenta</h1>
-            <p className="text-sm text-gray-600">Historial completo, pagos y saldos pendientes</p>
-          </div>
-        </div>
-      </div>
+    <div className="space-y-6 max-w-7xl mx-auto">
+      <EncabezadoPantalla
+        titulo="Estado de Cuenta"
+        subtitulo="Historial de compras, pagos y saldo pendiente de cada cliente"
+        icono={DollarSign}
+        className="mb-0"
+      />
 
       {/* Panel superior: Selector + Tarjetas resumen */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6">

@@ -137,19 +137,14 @@ export default function ListarTodosProductos() {
 
   /* ================= UI ================= */
   return (
-    <div className="min-h-screen bg-slate-100 p-6">
+    <div>
       <div className="max-w-7xl mx-auto space-y-6">
-
-        {/* HEADER */}
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Package className="w-8 h-8 text-blue-600" />
-            Lista de Productos
-          </h1>
-          <p className="text-slate-600">
-            {productosFiltrados.length} de {productos.length} productos
-          </p>
-        </div>
+        <EncabezadoPantalla
+          titulo="Lista de Productos"
+          icono={Package}
+          className="mb-0"
+          subtitulo={<><b className="text-foreground">{productosFiltrados.length}</b> de {productos.length} productos</>}
+        />
 
         {/* FILTROS */}
         <Card className="p-5 space-y-4">
