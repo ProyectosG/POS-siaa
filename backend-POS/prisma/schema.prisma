@@ -8,6 +8,11 @@ generator client {
 // (String con dbgenerated), no DateTime: así el API las entrega igual que
 // siempre ("AAAA-MM-DD HH:MM:SS", UTC) y no hay conversiones de zona horaria.
 // Un `prisma db pull` las regresa a DateTime: hay que volver a cambiarlas.
+//
+// Las columnas de dinero (centavos enteros) son INTEGER en la base desde la
+// migración 4, pero aquí se quedan como Float: el Int de Prisma es de 32 bits
+// (tope de $21 millones) y Float guarda enteros exactos hasta 2^53. Un
+// `prisma db pull` las cambiaría a Int: hay que volver a dejarlas en Float.
 
 datasource db {
   provider = "sqlite"

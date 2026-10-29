@@ -69,6 +69,82 @@ async function recalcularSaldos(tx, descripcion) {
   }
 }
 
+// Migración 4: las columnas de dinero (CAMPOS_DINERO) pasan de REAL a INTEGER.
+// Desde la migración 1 guardan centavos enteros, pero declaradas REAL. SQLite no
+// cambia el tipo de una columna: cada tabla se reconstruye (nueva tabla, copia,
+// borrar la vieja, renombrar), conservando índices y el contador de folios.
+// Ningún monto cambia: se comprueba suma y conteo de cada columna antes y después.
+async function dineroAEntero(tx) {
+  // 1. Todos los montos deben ser enteros: si alguno no lo es, no se redondea
+  //    en silencio, se detiene la migración
+  for (const [tabla, campos] of Object.entries(CAMPOS_DINERO)) {
+    for (const campo of campos) {
+      const { n } = await tx.get(
+        `SELECT COUNT(*) AS n FROM ${tabla} WHERE ${campo} IS NOT NULL AND ${campo} != CAST(${campo} AS INTEGER)`
+      );
+      if (n > 0) throw new Error(`${tabla}.${campo}: ${n} monto(s) con decimales; no se migra para no cambiar dinero`);
+    }
+  }
+
+  // Suma y conteo de cada columna de dinero (para comparar después)
+  const medir = async () => {
+    const r = {};
+    for (const [tabla, campos] of Object.entries(CAMPOS_DINERO)) {
+      for (const campo of campos) {
+        const fila = await tx.get(`SELECT COUNT(*) AS filas, COUNT(${campo}) AS con_valor, TOTAL(${campo}) AS suma FROM ${tabla}`);
+        r[`${tabla}.${campo}`] = fila;
+      }
+    }
+    return r;
+  };
+  const antes = await medir();
+
+  for (const [tabla, campos] of Object.entries(CAMPOS_DINERO)) {
+    const { sql } = await tx.get(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = ?`, [tabla]);
+    const indices = await tx.all(`SELECT sql FROM sqlite_master WHERE type IN ('index', 'trigger') AND tbl_name = ? AND sql IS NOT NULL`, [tabla]);
+    const secuencia = await tx.get('SELECT seq FROM sqlite_sequence WHERE name = ?', [tabla]);
+
+    // La misma definición con las columnas de dinero en INTEGER
+    let nueva = sql.replace(new RegExp(`^CREATE TABLE (IF NOT EXISTS )?["\`]?${tabla}["\`]?`, 'i'), `CREATE TABLE ${tabla}_nueva`);
+    if (nueva === sql) throw new Error(`No se reconoció la definición de ${tabla}`);
+    for (const campo of campos) {
+      const re = new RegExp(`(\\b${campo}\\s+)(\\w+)`, 'i');
+      const tipo = (nueva.match(re) || [])[2];
+      if (!tipo) throw new Error(`No se encontró la columna ${tabla}.${campo}`);
+      if (tipo.toUpperCase() === 'INTEGER') continue;
+      if (tipo.toUpperCase() !== 'REAL') throw new Error(`${tabla}.${campo} es ${tipo}, se esperaba REAL`);
+      nueva = nueva.replace(re, '$1INTEGER');
+    }
+
+    await tx.run(nueva);
+    await tx.run(`INSERT INTO ${tabla}_nueva SELECT * FROM ${tabla}`);
+    await tx.run(`DROP TABLE ${tabla}`);
+    await tx.run(`ALTER TABLE ${tabla}_nueva RENAME TO ${tabla}`);
+    for (const { sql: s } of indices) await tx.run(s);
+    // El contador de folios sigue donde iba (si no, tras borrar registros se
+    // repetirían folios ya usados)
+    if (secuencia) {
+      await tx.run('UPDATE sqlite_sequence SET seq = MAX(seq, ?) WHERE name = ?', [secuencia.seq, tabla]);
+      const { n } = await tx.get('SELECT COUNT(*) AS n FROM sqlite_sequence WHERE name = ?', [tabla]);
+      if (n === 0) await tx.run('INSERT INTO sqlite_sequence (name, seq) VALUES (?, ?)', [tabla, secuencia.seq]);
+    }
+  }
+
+  // 2. Ningún monto cambió y ya no queda ninguno guardado como REAL
+  const despues = await medir();
+  for (const clave of Object.keys(antes)) {
+    if (JSON.stringify(antes[clave]) !== JSON.stringify(despues[clave])) {
+      throw new Error(`${clave} cambió: ${JSON.stringify(antes[clave])} → ${JSON.stringify(despues[clave])}`);
+    }
+  }
+  for (const [tabla, campos] of Object.entries(CAMPOS_DINERO)) {
+    for (const campo of campos) {
+      const { n } = await tx.get(`SELECT COUNT(*) AS n FROM ${tabla} WHERE typeof(${campo}) = 'real'`);
+      if (n > 0) throw new Error(`${tabla}.${campo}: quedaron ${n} valor(es) REAL`);
+    }
+  }
+}
+
 const MIGRACIONES = [
   {
     version: 1,
@@ -143,6 +219,17 @@ const MIGRACIONES = [
       await tx.run('ALTER TABLE autorizaciones_usadas_nueva RENAME TO autorizaciones_usadas');
     },
   },
+  {
+    version: 4,
+    nombre: 'dinero_entero',
+    // Reconstruir tablas exige las llaves foráneas apagadas (SQLite no deja
+    // cambiarlo dentro de una transacción): el runner las apaga antes y revisa
+    // con foreign_key_check antes de confirmar.
+    sinLlavesForaneas: true,
+    async aplicar(tx) {
+      await dineroAEntero(tx);
+    },
+  },
 ];
 
 async function migrar() {
@@ -157,10 +244,19 @@ async function migrar() {
   if (hay > 0) await respaldar(pendientes[0].nombre);
 
   for (const m of pendientes) {
-    await enTransaccionArranque(async (tx) => {
-      await m.aplicar(tx);
-      await tx.run(`PRAGMA user_version = ${m.version}`);
-    });
+    if (m.sinLlavesForaneas) await runMain('PRAGMA foreign_keys = OFF');
+    try {
+      await enTransaccionArranque(async (tx) => {
+        await m.aplicar(tx);
+        if (m.sinLlavesForaneas) {
+          const rotas = await tx.all('PRAGMA foreign_key_check');
+          if (rotas.length > 0) throw new Error(`Llaves foráneas rotas: ${JSON.stringify(rotas.slice(0, 5))}`);
+        }
+        await tx.run(`PRAGMA user_version = ${m.version}`);
+      });
+    } finally {
+      if (m.sinLlavesForaneas) await runMain('PRAGMA foreign_keys = ON');
+    }
     console.log(`✅ Migración ${m.version} (${m.nombre}) aplicada`);
   }
 }

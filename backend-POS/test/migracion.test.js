@@ -52,7 +52,7 @@ test('el saldo del cliente se recalcula con lo pendiente y deja historial', asyn
 test('se respaldó la base antes de migrar y la versión quedó marcada', async () => {
   const respaldos = fs.readdirSync(process.env.BACKUP_DIR).filter((f) => f.startsWith('pos_antes_fase1_'));
   assert.equal(respaldos.length, 1);
-  assert.equal((await dbGet(db, 'PRAGMA user_version')).user_version, 3);
+  assert.equal((await dbGet(db, 'PRAGMA user_version')).user_version, 4);
 });
 
 test('los cortes viejos quedan con el último pago que cubrieron (migración 2)', async () => {
