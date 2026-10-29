@@ -108,6 +108,24 @@ const MIGRACIONES = [
       )`);
     },
   },
+  {
+    version: 3,
+    nombre: 'autorizaciones',
+    async aplicar(tx) {
+      // En SQLite un "TEXT PRIMARY KEY" admite NULL, y Prisma no puede usar una
+      // tabla así. Se reconstruye igual pero con jti NOT NULL (una autorización
+      // sin jti no sirve para nada: no se puede volver a encontrar).
+      await tx.run(`CREATE TABLE autorizaciones_usadas_nueva (
+        jti TEXT NOT NULL PRIMARY KEY,
+        sale_id INTEGER,
+        usado TEXT NOT NULL
+      )`);
+      await tx.run(`INSERT INTO autorizaciones_usadas_nueva (jti, sale_id, usado)
+        SELECT jti, sale_id, usado FROM autorizaciones_usadas WHERE jti IS NOT NULL`);
+      await tx.run('DROP TABLE autorizaciones_usadas');
+      await tx.run('ALTER TABLE autorizaciones_usadas_nueva RENAME TO autorizaciones_usadas');
+    },
+  },
 ];
 
 async function migrar() {

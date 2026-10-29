@@ -13,13 +13,11 @@ datasource db {
   provider = "sqlite"
 }
 
-/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+// Migración 3: jti NOT NULL (antes Prisma la ignoraba porque admitía NULL)
 model autorizaciones_usadas {
-  jti     String? @id
+  jti     String  @id
   sale_id Int?
   usado   String
-
-  @@ignore
 }
 
 model cash_registers {
