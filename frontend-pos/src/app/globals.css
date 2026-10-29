@@ -152,9 +152,10 @@
     @apply bg-background text-foreground;
   }
   /* Botones de al menos 44 px de alto (se tocan con el dedo) */
-  button,
+  /* (los interruptores [role=switch] conservan su forma) */
+  button:not([role="switch"]),
   [role="button"],
-  [type="button"],
+  [type="button"]:not([role="switch"]),
   [type="submit"] {
     min-height: 2.75rem;
   }
