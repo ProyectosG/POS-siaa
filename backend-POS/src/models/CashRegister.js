@@ -1,82 +1,38 @@
-const db = require('../config/database');
+// src/models/CashRegister.js (con Prisma)
+const { prisma } = require('../config/prisma');
 
 class CashRegister {
-  static create({ numero_caja, tipo_caja = 'Normal', password }) {
-    return new Promise((resolve, reject) => {
-      db.run(
-        `INSERT INTO cash_registers (numero_caja, tipo_caja, password) VALUES (?, ?, ?)`,
-        [numero_caja, tipo_caja, password],
-        function (err) {
-          if (err) reject(err);
-          resolve(this.lastID);
-        }
-      );
-    });
+  static async create({ numero_caja, tipo_caja = 'Normal', password }) {
+    const caja = await prisma.cash_registers.create({ data: { numero_caja, tipo_caja, password } });
+    return caja.id;
   }
 
   static findAll() {
-    return new Promise((resolve, reject) => {
-      db.all(`SELECT * FROM cash_registers`, [], (err, rows) => {
-        if (err) reject(err);
-        resolve(rows);
-      });
-    });
+    return prisma.cash_registers.findMany({ orderBy: { id: 'asc' } });
   }
 
   static findById(id) {
-    return new Promise((resolve, reject) => {
-      db.get(`SELECT * FROM cash_registers WHERE id = ?`, [id], (err, row) => {
-        if (err) reject(err);
-        resolve(row);
-      });
-    });
+    return prisma.cash_registers.findUnique({ where: { id } });
   }
 
-  // models/CashRegister.js
- static findByNumeroCaja(numero_caja) {
-  return new Promise((resolve, reject) => {
-    db.get(
-      `SELECT * FROM cash_registers WHERE numero_caja = ? LIMIT 1`,
-      [numero_caja],
-      (err, row) => {
-        if (err) reject(err);
-        resolve(row); // puede ser undefined si no existe
-      }
-    );
-  });
-}
-
-
-
-
-  // password llega ya con hash; si no viene, la clave no cambia
-  static update(id, { numero_caja, tipo_caja, password }) {
-    const sql = password
-      ? `UPDATE cash_registers SET numero_caja = ?, tipo_caja = ?, password = ? WHERE id = ?`
-      : `UPDATE cash_registers SET numero_caja = ?, tipo_caja = ? WHERE id = ?`;
-    const params = password
-      ? [numero_caja, tipo_caja, password, id]
-      : [numero_caja, tipo_caja, id];
-
-    return new Promise((resolve, reject) => {
-      db.run(
-        sql,
-        params,
-        err => {
-          if (err) reject(err);
-          resolve();
-        }
-      );
-    });
+  // Puede ser null si no existe
+  static findByNumeroCaja(numero_caja) {
+    return prisma.cash_registers.findUnique({ where: { numero_caja: String(numero_caja) } });
   }
 
-  static delete(id) {
-    return new Promise((resolve, reject) => {
-      db.run(`DELETE FROM cash_registers WHERE id = ?`, [id], err => {
-        if (err) reject(err);
-        resolve();
-      });
-    });
+  // password llega ya con hash; si no viene, la clave no cambia.
+  // Devuelve false si no existe.
+  static async update(id, { numero_caja, tipo_caja, password }) {
+    const data = { numero_caja, tipo_caja };
+    if (password) data.password = password;
+    const { count } = await prisma.cash_registers.updateMany({ where: { id }, data });
+    return count > 0;
+  }
+
+  // Devuelve false si no existe
+  static async delete(id) {
+    const { count } = await prisma.cash_registers.deleteMany({ where: { id } });
+    return count > 0;
   }
 }
 

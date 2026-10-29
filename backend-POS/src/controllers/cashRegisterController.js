@@ -1,5 +1,8 @@
 const CashRegister = require('../models/CashRegister');
 const { hashear, comparar } = require('../utils/seguridad');
+const { leerId, esDuplicado } = require('../utils/peticion');
+
+const CAJA_REPETIDA = 'Ya existe una caja con ese número';
 
 // Nunca se devuelve la clave de la caja
 const sinPassword = (register) => {
@@ -19,7 +22,8 @@ exports.getAll = async (req, res) => {
 
 exports.getById = async (req, res) => {
   try {
-    const register = await CashRegister.findById(req.params.id);
+    const id = leerId(req);
+    const register = id && (await CashRegister.findById(id));
     if (!register) {
       return res.status(404).json({ error: 'Caja no encontrada' });
     }
@@ -108,7 +112,7 @@ exports.create = async (req, res) => {
     }
 
     const id = await CashRegister.create({
-      numero_caja,
+      numero_caja: String(numero_caja),
       tipo_caja,
       password: await hashear(password),
     });
@@ -120,28 +124,44 @@ exports.create = async (req, res) => {
       message: 'Caja creada',
     });
   } catch (err) {
+    if (esDuplicado(err)) return res.status(409).json({ error: CAJA_REPETIDA });
     res.status(500).json({ error: err.message });
   }
 };
 
 exports.update = async (req, res) => {
   try {
+    const id = leerId(req);
+    if (!id) return res.status(400).json({ error: 'id inválido' });
+
     const { numero_caja, tipo_caja, password } = req.body;
-    await CashRegister.update(req.params.id, {
-      numero_caja,
+    if (numero_caja !== undefined && !String(numero_caja).trim()) {
+      return res.status(400).json({ error: 'numero_caja no puede quedar vacío' });
+    }
+
+    const existe = await CashRegister.update(id, {
+      numero_caja: numero_caja === undefined ? undefined : String(numero_caja),
       tipo_caja,
       // Clave vacía = no se cambia
       password: password ? await hashear(password) : undefined,
     });
+    if (!existe) return res.status(404).json({ error: 'Caja no encontrada' });
+
     res.json({ message: 'Caja actualizada' });
   } catch (err) {
+    if (esDuplicado(err)) return res.status(409).json({ error: CAJA_REPETIDA });
     res.status(500).json({ error: err.message });
   }
 };
 
 exports.delete = async (req, res) => {
   try {
-    await CashRegister.delete(req.params.id);
+    const id = leerId(req);
+    if (!id) return res.status(400).json({ error: 'id inválido' });
+
+    const existe = await CashRegister.delete(id);
+    if (!existe) return res.status(404).json({ error: 'Caja no encontrada' });
+
     res.json({ message: 'Caja eliminada' });
   } catch (err) {
     res.status(500).json({ error: err.message });
