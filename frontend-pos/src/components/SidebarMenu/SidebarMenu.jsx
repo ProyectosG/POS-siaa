@@ -83,6 +83,7 @@ const menuItems = [
          { label: "Reporte de Cortes", href: "/dashboard/reportes/reportecortes" },   
          {label: "Reporte de Entradas", href: "/dashboard/reportes/reporteentradas"  },
          {label: "Reporte de Salidas", href: "/dashboard/reportes/reportesalidas"  }, 
+         { label: "Reporte de Utilidad", href: "/dashboard/reportes/utilidad" },
     ],
   },
   {

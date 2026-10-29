@@ -90,6 +90,11 @@ app.use('/api/customers', require('./src/routes/customerRoutes'));
 app.use('/api/cuts', require('./src/routes/cutRoutes'));
 
 // =========================
+// 🔥 REPORTES (utilidad)
+// =========================
+app.use('/api/reportes', require('./src/routes/reportes.routes'));
+
+// =========================
 // 🔥 SUPERDEVELOPER (entrada) y RESET DE DATOS (solo SuperDeveloper)
 // =========================
 app.use('/api/superdev', require('./src/routes/superdev.routes'));

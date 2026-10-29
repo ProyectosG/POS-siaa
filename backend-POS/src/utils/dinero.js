@@ -5,10 +5,10 @@
 
 // Columnas de dinero por tabla. Si se agrega una columna de dinero, va aquí.
 const CAMPOS_DINERO = {
-  products: ['precio_menudeo', 'precio_mayoreo', 'precio_especial', 'precio_oferta'],
+  products: ['precio_menudeo', 'precio_mayoreo', 'precio_especial', 'precio_oferta', 'costo'],
   customers: ['current_balance'],
   sales: ['subtotal', 'tax_total', 'discount_total', 'total', 'paid', 'pending_balance', 'efectivo_recibido', 'cambio'],
-  sale_details: ['base_price', 'price', 'discount_amount', 'subtotal', 'tax_amount'],
+  sale_details: ['base_price', 'price', 'discount_amount', 'subtotal', 'tax_amount', 'costo_unitario'],
   payments: ['amount'],
   cuts: [
     'total_sales', 'ventas_contado', 'ventas_credito', 'ventas_apartado', 'total_iva_gravado',

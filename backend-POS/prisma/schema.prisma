@@ -211,6 +211,7 @@ model products {
   category_id             Int
   photo_url               String?
   activo                  Int?                      @default(1)
+  costo                   Float?
   codigo_barras_historial codigo_barras_historial[]
   entry_details           entry_details[]
   kardex                  kardex[]
@@ -234,6 +235,7 @@ model sale_details {
   tax_rate        Float?
   tax_amount      Float?
   precio_libre    Int?     @default(0)
+  costo_unitario  Float?
   products        products @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   sales           sales    @relation(fields: [sale_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
