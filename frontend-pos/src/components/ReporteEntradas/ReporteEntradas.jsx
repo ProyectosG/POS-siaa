@@ -302,7 +302,7 @@ const ReporteEntradas = () => {
             No se encontraron entradas con los filtros aplicados 😔
           </div>
         ) : (
-          <div className="rounded-xl border overflow-hidden shadow-sm">
+          <div className="tabla-desplazable rounded-tarjeta border overflow-x-auto shadow-suave">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gradient-to-r from-emerald-50 to-teal-50">
                 {tabla.getHeaderGroups().map((headerGroup) => (
@@ -406,7 +406,7 @@ const ReporteEntradas = () => {
                     Productos Entrados
                   </h3>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="area-impresion overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
@@ -451,8 +451,8 @@ const ReporteEntradas = () => {
         <style jsx global>{`
           @media print {
             body * { visibility: hidden; }
-            .overflow-x-auto, .overflow-x-auto * { visibility: visible; }
-            .overflow-x-auto { position: absolute; left: 0; top: 0; width: 100%; }
+            .area-impresion, .area-impresion * { visibility: visible; }
+            .area-impresion { position: absolute; left: 0; top: 0; width: 100%; }
             button, .no-print { display: none !important; }
           }
         `}</style>

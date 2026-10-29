@@ -8,7 +8,7 @@ export default function TablaPagos({ pagos }) {
   };
 
   return (
-    <div className="bg-card rounded-lg border border-border p-4 mt-4">
+    <div className="tabla-desplazable bg-card rounded-lg border border-border p-4 mt-4 overflow-x-auto">
       <table className="w-full text-left text-muted-foreground">
         <tbody>
           {Object.entries(pagosNormalizados).map(([method, amount]) => (

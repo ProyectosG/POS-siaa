@@ -15,7 +15,7 @@ export default function DashboardHome() {
         <img 
           src="/imgPortadaPos.png" 
           alt="SIAA Logo Background" 
-          className="w-[120%] md:w-full max-w-[1100px] h-auto object-contain opacity-[0.50] mix-blend-multiply transition-all duration-1000"
+          className="w-full max-w-[1100px] h-auto object-contain opacity-[0.50] mix-blend-multiply transition-all duration-1000"
         />
       </div>
 

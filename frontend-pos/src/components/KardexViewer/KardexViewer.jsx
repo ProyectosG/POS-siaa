@@ -263,129 +263,131 @@ export default function KardexViewer() {
               {loading ? (
                 <p>Cargando...</p>
               ) : (
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-border bg-muted/50">
-                      <th className="text-left p-3 text-sm font-semibold text-foreground">Fecha</th>
-                      <th className="text-left p-3 text-sm font-semibold text-foreground">Hora</th>
-                      <th className="text-left p-3 text-sm font-semibold text-foreground">Tipo</th>
-                      <th className="text-center p-3 text-sm font-semibold text-foreground">Stock Anterior</th>
-                      <th className="text-center p-3 text-sm font-semibold text-foreground">Cantidad Movida</th>
-                      <th className="text-center p-3 text-sm font-semibold text-foreground">Stock Nuevo</th>
-                      <th className="text-left p-3 text-sm font-semibold text-foreground">Folio</th>
-                      <th className="text-left p-3 text-sm font-semibold text-foreground">Usuario</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {kardexMovements.map((movement) => (
-                      <tr
-                        key={movement.id}
-                        className="border-b border-border hover:bg-muted/30 transition-colors"
-                      >
-                        {/* FECHA - Formato seguro sin desfase UTC */}
-                        <td className="p-3">
-                          <div className="flex items-center gap-2 text-sm text-foreground">
-                            <Calendar className="w-4 h-4 text-muted-foreground" />
-                            {formatDate(movement.date)}
-                          </div>
-                        </td>
-
-                        {/* HORA */}
-                        <td className="p-3">
-                          <div className="flex items-center gap-2 text-sm text-foreground">
-                            <Clock className="w-4 h-4 text-muted-foreground" />
-                            {movement.time || "—"}
-                          </div>
-                        </td>
-
-                        {/* TIPO MOVIMIENTO + RAZÓN */}
-                        <td className="p-3">
-                          <div className="flex flex-col gap-1">
-                            <Badge
-                              className={`${getMovementTypeColor(
-                                movement.movement_type
-                              )} flex items-center gap-1 w-fit`}
-                            >
-                              {getMovementIcon(movement.movement_type)}
-                              <span className="font-semibold">
-                                {movement.movement_type}
-                              </span>
-                            </Badge>
-
-                            {movement.movement_reason && (
-                              <span className="text-[10px] leading-tight text-muted-foreground">
-                                {movement.movement_reason}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-
-                        {/* STOCK ANTERIOR */}
-                        <td className="p-3 text-center">
-                          <span className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-muted text-foreground font-semibold">
-                            {movement.previous_stock}
-                          </span>
-                        </td>
-
-                        {/* CANTIDAD MOVIDA */}
-                        <td className="p-3 text-center">
-                          {(() => {
-                            const type = movement.movement_type?.toUpperCase()
-
-                            const noSignTypes = ["ALTA", "INVENTARIO"]
-                            const positiveTypes = ["ENTRADA"]
-                            const negativeTypes = ["SALIDA", "BAJA"]
-
-                            const isNoSign = noSignTypes.includes(type)
-                            const isPositive = positiveTypes.includes(type)
-                            const isNegative = negativeTypes.includes(type)
-
-                            return (
-                              <span
-                                className={`inline-flex items-center justify-center w-12 h-12 rounded-lg font-bold ${
-                                  isPositive
-                                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
-                                    : isNoSign
-                                    ? "bg-muted text-muted-foreground"
-                                    : "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300"
-                                }`}
-                              >
-                                {!isNoSign && (isPositive ? "+" : isNegative ? "-" : "")}
-                                {movement.moved_quantity}
-                              </span>
-                            )
-                          })()}
-                        </td>
-
-                        {/* STOCK NUEVO */}
-                        <td className="p-3 text-center">
-                          <span className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-primary/10 text-primary font-bold">
-                            {movement.new_stock}
-                          </span>
-                        </td>
-
-                        {/* FOLIO */}
-                        <td className="p-3">
-                          {movement.related_folio ? (
-                            <div className="flex items-center gap-2 text-sm font-mono text-foreground bg-muted px-2 py-1 rounded w-fit">
-                              <FileText className="w-4 h-4 text-muted-foreground" />
-                              {movement.related_folio}
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground text-sm">N/A</span>
-                          )}
-                        </td>
-
-                        {/* USUARIO */}
-                        <td className="p-3">
-                          <span className="text-sm text-foreground font-medium">
-                            {movement.nickname_user || "—"}
-                          </span>
-                        </td>
+                <div className="tabla-desplazable overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/50">
+                        <th className="text-left p-3 text-sm font-semibold text-foreground">Fecha</th>
+                        <th className="text-left p-3 text-sm font-semibold text-foreground">Hora</th>
+                        <th className="text-left p-3 text-sm font-semibold text-foreground">Tipo</th>
+                        <th className="text-center p-3 text-sm font-semibold text-foreground">Stock Anterior</th>
+                        <th className="text-center p-3 text-sm font-semibold text-foreground">Cantidad Movida</th>
+                        <th className="text-center p-3 text-sm font-semibold text-foreground">Stock Nuevo</th>
+                        <th className="text-left p-3 text-sm font-semibold text-foreground">Folio</th>
+                        <th className="text-left p-3 text-sm font-semibold text-foreground">Usuario</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {kardexMovements.map((movement) => (
+                        <tr
+                          key={movement.id}
+                          className="border-b border-border hover:bg-muted/30 transition-colors"
+                        >
+                          {/* FECHA - Formato seguro sin desfase UTC */}
+                          <td className="p-3">
+                            <div className="flex items-center gap-2 text-sm text-foreground">
+                              <Calendar className="w-4 h-4 text-muted-foreground" />
+                              {formatDate(movement.date)}
+                            </div>
+                          </td>
+  
+                          {/* HORA */}
+                          <td className="p-3">
+                            <div className="flex items-center gap-2 text-sm text-foreground">
+                              <Clock className="w-4 h-4 text-muted-foreground" />
+                              {movement.time || "—"}
+                            </div>
+                          </td>
+  
+                          {/* TIPO MOVIMIENTO + RAZÓN */}
+                          <td className="p-3">
+                            <div className="flex flex-col gap-1">
+                              <Badge
+                                className={`${getMovementTypeColor(
+                                  movement.movement_type
+                                )} flex items-center gap-1 w-fit`}
+                              >
+                                {getMovementIcon(movement.movement_type)}
+                                <span className="font-semibold">
+                                  {movement.movement_type}
+                                </span>
+                              </Badge>
+  
+                              {movement.movement_reason && (
+                                <span className="text-[10px] leading-tight text-muted-foreground">
+                                  {movement.movement_reason}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+  
+                          {/* STOCK ANTERIOR */}
+                          <td className="p-3 text-center">
+                            <span className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-muted text-foreground font-semibold">
+                              {movement.previous_stock}
+                            </span>
+                          </td>
+  
+                          {/* CANTIDAD MOVIDA */}
+                          <td className="p-3 text-center">
+                            {(() => {
+                              const type = movement.movement_type?.toUpperCase()
+  
+                              const noSignTypes = ["ALTA", "INVENTARIO"]
+                              const positiveTypes = ["ENTRADA"]
+                              const negativeTypes = ["SALIDA", "BAJA"]
+  
+                              const isNoSign = noSignTypes.includes(type)
+                              const isPositive = positiveTypes.includes(type)
+                              const isNegative = negativeTypes.includes(type)
+  
+                              return (
+                                <span
+                                  className={`inline-flex items-center justify-center w-12 h-12 rounded-lg font-bold ${
+                                    isPositive
+                                      ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300"
+                                      : isNoSign
+                                      ? "bg-muted text-muted-foreground"
+                                      : "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300"
+                                  }`}
+                                >
+                                  {!isNoSign && (isPositive ? "+" : isNegative ? "-" : "")}
+                                  {movement.moved_quantity}
+                                </span>
+                              )
+                            })()}
+                          </td>
+  
+                          {/* STOCK NUEVO */}
+                          <td className="p-3 text-center">
+                            <span className="inline-flex items-center justify-center w-12 h-12 rounded-lg bg-primary/10 text-primary font-bold">
+                              {movement.new_stock}
+                            </span>
+                          </td>
+  
+                          {/* FOLIO */}
+                          <td className="p-3">
+                            {movement.related_folio ? (
+                              <div className="flex items-center gap-2 text-sm font-mono text-foreground bg-muted px-2 py-1 rounded w-fit">
+                                <FileText className="w-4 h-4 text-muted-foreground" />
+                                {movement.related_folio}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground text-sm">N/A</span>
+                            )}
+                          </td>
+  
+                          {/* USUARIO */}
+                          <td className="p-3">
+                            <span className="text-sm text-foreground font-medium">
+                              {movement.nickname_user || "—"}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               )}
             </CardContent>
           </Card>

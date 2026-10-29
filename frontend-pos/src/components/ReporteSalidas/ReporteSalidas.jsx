@@ -303,7 +303,7 @@ const ReporteSalidas = () => {
             No se encontraron salidas con los filtros aplicados 😔
           </div>
         ) : (
-          <div className="rounded-xl border overflow-hidden shadow-sm">
+          <div className="tabla-desplazable rounded-tarjeta border overflow-x-auto shadow-suave">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gradient-to-r from-gray-400 to-gray-300">
                 {tabla.getHeaderGroups().map((headerGroup) => (
@@ -408,7 +408,7 @@ const ReporteSalidas = () => {
                     Productos Salidos
                   </h3>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="area-impresion overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
@@ -473,11 +473,11 @@ const ReporteSalidas = () => {
           body * {
             visibility: hidden;
           }
-          .overflow-x-auto,
-          .overflow-x-auto * {
+          .area-impresion,
+          .area-impresion * {
             visibility: visible;
           }
-          .overflow-x-auto {
+          .area-impresion {
             position: absolute;
             left: 0;
             top: 0;

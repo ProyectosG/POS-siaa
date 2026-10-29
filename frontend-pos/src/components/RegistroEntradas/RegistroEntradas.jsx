@@ -350,39 +350,41 @@ export default function RegistroEntradas() {
               No hay productos agregados
             </p>
           ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th>Código</th>
-                  <th>Producto</th>
-                  <th>Presentación</th>
-                  <th className="text-right">Cantidad</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {productos.map((p) => (
-                  <tr key={p._rowId} className="border-b">
-                    <td>{p.codigo_barras}</td>
-                    <td>{p.articulo}</td>
-                    <td>{p.presentacion}</td>
-                    <td className="text-right font-semibold">
-                      {p.cantidad_entrada}
-                    </td>
-                    <td className="text-center">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => eliminar(p._rowId)}
-                        className="text-red-600"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </td>
+            <div className="tabla-desplazable overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th>Código</th>
+                    <th>Producto</th>
+                    <th>Presentación</th>
+                    <th className="text-right">Cantidad</th>
+                    <th></th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {productos.map((p) => (
+                    <tr key={p._rowId} className="border-b">
+                      <td>{p.codigo_barras}</td>
+                      <td>{p.articulo}</td>
+                      <td>{p.presentacion}</td>
+                      <td className="text-right font-semibold">
+                        {p.cantidad_entrada}
+                      </td>
+                      <td className="text-center">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => eliminar(p._rowId)}
+                          className="text-red-600"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </Card>
 

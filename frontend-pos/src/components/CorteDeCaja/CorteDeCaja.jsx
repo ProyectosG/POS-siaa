@@ -217,7 +217,7 @@ export default function CorteDeCaja() {
             <div className="border-b border-border pb-2 w-full text-center">
               <p className="text-muted-foreground text-sm mb-0.5">Formas de Pago</p>
             </div>
-            <div className="w-full">
+            <div className="tabla-desplazable w-full overflow-x-auto">
               <table className="w-full text-left text-muted-foreground">
                 <tbody>
                   {Object.entries(pagosConTarjeta).map(([method, amount]) => (

@@ -413,7 +413,7 @@ Efectivo en Caja: $${Number(detalle.cash_in_box || 0).toFixed(2)}
             No se encontraron cortes con los filtros aplicados 😔
           </div>
         ) : (
-          <div className="rounded-xl border overflow-hidden shadow-sm">
+          <div className="tabla-desplazable rounded-tarjeta border overflow-x-auto shadow-suave">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gradient-to-r from-emerald-50 to-teal-50">
                 {tabla.getHeaderGroups().map((headerGroup) => (
