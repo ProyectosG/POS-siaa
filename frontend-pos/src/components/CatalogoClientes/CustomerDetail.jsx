@@ -17,8 +17,13 @@ export default function CustomerDetail({ customer, onEdit, onDelete }) {
 
   const handleDelete = async () => {
     if (!confirm("¿Eliminar cliente?")) return
-    await onDelete(customer.id)
-    toast.success("Cliente eliminado")
+    try {
+      await onDelete(customer.id)
+      toast.success("Cliente eliminado")
+    } catch (err) {
+      // El servidor dice por qué (p. ej. el cliente tiene ventas)
+      toast.error(err.message || "No se pudo eliminar el cliente")
+    }
   }
 
   return (

@@ -51,11 +51,13 @@ if (isFormOpen) {
           <CustomerForm
             initialData={editingCustomer || {}}
             isEditing={!!editingCustomer}
-            onSubmit={
-              editingCustomer
-                ? (data) => updateCustomer(editingCustomer.id, data)
-                : createCustomer
-            }
+            onSubmit={async (data) => {
+              // El detalle muestra lo que quedó guardado
+              const guardado = editingCustomer
+                ? await updateCustomer(editingCustomer.id, data)
+                : await createCustomer(data)
+              setSelectedCustomer(guardado)
+            }}
             onCancel={() => {
               setIsFormOpen(false)
               setEditingCustomer(null)
@@ -119,7 +121,10 @@ if (isFormOpen) {
               setEditingCustomer(c)
               setIsFormOpen(true)
             }}
-            onDelete={deleteCustomer}
+            onDelete={async (id) => {
+              await deleteCustomer(id)
+              setSelectedCustomer(null)
+            }}
           />
         </div>
       </div>

@@ -1,10 +1,8 @@
 // controllers/userController.js
-const db = require('../config/database');
+const User = require('../models/User');
 const { firmarToken, NIVELES } = require('../middleware/auth');
 const { hashear, comparar, esHash } = require('../utils/seguridad');
-
-// Columnas que se pueden devolver (nunca password)
-const COLUMNAS_PUBLICAS = 'id, nickname, full_name, phone, email, access_level, photo_url';
+const { leerId, esDuplicado } = require('../utils/peticion');
 
 // Campos que se pueden modificar en PUT /api/users/:id (el resto se ignora)
 const CAMPOS_EDITABLES = ['nickname', 'full_name', 'phone', 'email', 'password', 'access_level', 'photo_url'];
@@ -15,33 +13,14 @@ const NIVELES_VALIDOS = Object.values(NIVELES);
 // Hash de relleno para que un usuario inexistente tarde lo mismo en el login
 const HASH_RELLENO = require('bcrypt').hashSync('usuario-inexistente', 10);
 
-const dbGet = (sql, params = []) =>
-  new Promise((resolve, reject) =>
-    db.get(sql, params, (err, row) => (err ? reject(err) : resolve(row)))
-  );
+const USUARIO_REPETIDO = 'Ya existe un usuario con ese nickname o email';
 
-const dbAll = (sql, params = []) =>
-  new Promise((resolve, reject) =>
-    db.all(sql, params, (err, rows) => (err ? reject(err) : resolve(rows)))
-  );
-
-const dbRun = (sql, params = []) =>
-  new Promise((resolve, reject) =>
-    db.run(sql, params, function (err) {
-      if (err) reject(err);
-      else resolve(this);
-    })
-  );
-
-const contarAdministradores = async () => {
-  const row = await dbGet('SELECT COUNT(*) AS total FROM users WHERE access_level >= ?', [NIVELES.ADMIN]);
-  return row.total;
-};
+const contarAdministradores = () => User.contarConNivelMinimo(NIVELES.ADMIN);
 
 // GET /api/users - Listar todos los usuarios
 exports.getAll = async (req, res) => {
   try {
-    const users = await dbAll(`SELECT ${COLUMNAS_PUBLICAS} FROM users`);
+    const users = await User.findAllPublic();
     res.json(users);
   } catch (err) {
     console.error('Error al obtener usuarios:', err);
@@ -52,7 +31,8 @@ exports.getAll = async (req, res) => {
 // GET /api/users/:id
 exports.getById = async (req, res) => {
   try {
-    const user = await dbGet(`SELECT ${COLUMNAS_PUBLICAS} FROM users WHERE id = ?`, [req.params.id]);
+    const id = leerId(req);
+    const user = id && (await User.findByIdPublic(id));
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
     res.json(user);
   } catch (err) {
@@ -63,7 +43,7 @@ exports.getById = async (req, res) => {
 // GET /api/users/nickname/:nickname
 exports.getByNickname = async (req, res) => {
   try {
-    const user = await dbGet(`SELECT ${COLUMNAS_PUBLICAS} FROM users WHERE nickname = ?`, [req.params.nickname]);
+    const user = await User.findByNicknamePublic(req.params.nickname);
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
     res.json(user);
   } catch (err) {
@@ -84,16 +64,19 @@ exports.create = async (req, res) => {
       return res.status(400).json({ error: `access_level inválido. Permitidos: ${NIVELES_VALIDOS.join(', ')}` });
     }
 
-    const passwordHash = await hashear(password);
+    const id = await User.create({
+      nickname: String(nickname),
+      full_name,
+      phone,
+      email,
+      password: await hashear(password),
+      access_level,
+      photo_url,
+    });
 
-    const result = await dbRun(
-      `INSERT INTO users (nickname, full_name, phone, email, password, access_level, photo_url)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [nickname, full_name || null, phone || null, email || null, passwordHash, access_level, photo_url || null]
-    );
-
-    res.status(201).json({ id: result.lastID, message: 'Usuario creado exitosamente' });
+    res.status(201).json({ id, message: 'Usuario creado exitosamente' });
   } catch (err) {
+    if (esDuplicado(err)) return res.status(409).json({ error: USUARIO_REPETIDO });
     res.status(500).json({ error: err.message });
   }
 };
@@ -101,7 +84,8 @@ exports.create = async (req, res) => {
 // PUT /api/users/:id - Actualizar usuario
 exports.update = async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = leerId(req);
+    if (!id) return res.status(404).json({ error: 'Usuario no encontrado' });
 
     // Solo campos de la lista fija; lo demás se ignora
     const data = {};
@@ -116,7 +100,7 @@ exports.update = async (req, res) => {
       return res.status(400).json({ error: 'No hay campos para actualizar' });
     }
 
-    const actual = await dbGet('SELECT id, access_level FROM users WHERE id = ?', [id]);
+    const actual = await User.findNivel(id);
     if (!actual) return res.status(404).json({ error: 'Usuario no encontrado' });
 
     if (data.access_level !== undefined) {
@@ -145,16 +129,13 @@ exports.update = async (req, res) => {
     if (data.password !== undefined) {
       data.password = esHash(data.password) ? data.password : await hashear(data.password);
     }
+    if (data.nickname !== undefined) data.nickname = String(data.nickname);
 
-    const campos = Object.keys(data);
-    const setClause = campos.map((campo) => `${campo} = ?`).join(', ');
-    const values = campos.map((campo) => data[campo]);
-    values.push(id);
-
-    await dbRun(`UPDATE users SET ${setClause} WHERE id = ?`, values);
+    await User.update(id, data);
 
     res.json({ message: 'Usuario actualizado exitosamente' });
   } catch (err) {
+    if (esDuplicado(err)) return res.status(409).json({ error: USUARIO_REPETIDO });
     res.status(500).json({ error: err.message });
   }
 };
@@ -162,14 +143,15 @@ exports.update = async (req, res) => {
 // DELETE /api/users/:id
 exports.delete = async (req, res) => {
   try {
-    const actual = await dbGet('SELECT id, access_level FROM users WHERE id = ?', [req.params.id]);
+    const id = leerId(req);
+    const actual = id && (await User.findNivel(id));
     if (!actual) return res.status(404).json({ error: 'Usuario no encontrado' });
 
     if (actual.access_level >= NIVELES.ADMIN && (await contarAdministradores()) <= 1) {
       return res.status(409).json({ error: 'No se puede eliminar al último Administrador' });
     }
 
-    await dbRun('DELETE FROM users WHERE id = ?', [req.params.id]);
+    await User.delete(id);
     res.json({ message: 'Usuario eliminado exitosamente' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -185,7 +167,10 @@ exports.updatePhoto = async (req, res) => {
       return res.status(400).json({ error: 'photo_url es requerido' });
     }
 
-    await dbRun('UPDATE users SET photo_url = ? WHERE id = ?', [photo_url, req.params.id]);
+    const id = leerId(req);
+    const existe = id && (await User.update(id, { photo_url }));
+    if (!existe) return res.status(404).json({ error: 'Usuario no encontrado' });
+
     res.json({ message: 'Foto actualizada exitosamente' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -200,7 +185,7 @@ exports.login = async (req, res) => {
       return res.status(400).json({ error: 'nickname y password requeridos' });
     }
 
-    const user = await dbGet('SELECT * FROM users WHERE nickname = ?', [nickname]);
+    const user = await User.findByNickname(String(nickname));
 
     // Si el usuario no existe se compara igual contra un hash de relleno (mismo tiempo de respuesta)
     const valido = await comparar(password, user ? user.password : HASH_RELLENO);
