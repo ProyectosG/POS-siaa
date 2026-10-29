@@ -278,8 +278,8 @@ export default function AbonosApartados() {
             ticketId={ticketId}                 // ← Agrega esto
             venta={venta}                       // ← Agrega esto (para customer_id y otros datos)
             onAbonoRegistrado={() => {
-              toast.success("Abono registrado correctamente")
-              buscarTicket() // ← Recarga la venta actualizada
+              // El aviso de éxito lo muestra PagoMixto; aquí solo se recarga la venta
+              buscarTicket()
             }}
           />
 
