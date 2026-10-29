@@ -385,14 +385,20 @@ db.serialize(() => {
   console.log('Inicialización de tablas y migraciones completada ✅');
 });
 
-// Cierre limpio al apagar el servidor
-process.on('SIGINT', () => {
-  db.close((err) => {
-    if (err) console.error('Error al cerrar la DB:', err.message);
-    console.log('Conexión a la base de datos cerrada');
-    process.exit(0);
+// Esta conexión es solo del arranque (tablas, migraciones y contraseñas). Se
+// cierra antes de atender la primera petición: desde ahí la única conexión es
+// la de Prisma (config/prisma.js), y nunca chocan.
+let cerradaArranque = false;
+db.cerrarArranque = () =>
+  new Promise((resolve, reject) => {
+    if (cerradaArranque) return resolve();
+    db.close((err) => {
+      if (err) return reject(err);
+      cerradaArranque = true;
+      resolve();
+    });
   });
-});
+db.cerradaArranque = () => cerradaArranque;
 // ==========================================
 // ESTRUCTURA LIMPIA DE SETTINGS (RECREACIÓN)
 // ==========================================

@@ -3,7 +3,8 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
-const db = require('./src/config/database'); // Conexión y tablas centralizadas
+const db = require('./src/config/database'); // Conexión del arranque: tablas y migraciones
+const { cerrarPrisma } = require('./src/config/prisma');
 const { requireAuth } = require('./src/middleware/auth');
 const { convertirSecretosPlanos } = require('./src/utils/seguridad');
 const { migrar } = require('./src/config/migraciones');
@@ -110,12 +111,14 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Se cumple cuando las tablas existen, las migraciones corrieron y las
-// contraseñas viejas ya tienen hash
+// Se cumple cuando las tablas existen, las migraciones corrieron, las
+// contraseñas viejas ya tienen hash y la conexión del arranque se cerró (desde
+// ahí la única conexión es la de Prisma)
 app.ready = db.ready
   .then(() => zonaNegocio())
   .then(() => migrar())
-  .then(() => convertirSecretosPlanos(db));
+  .then(() => convertirSecretosPlanos(db))
+  .then(() => db.cerrarArranque());
 
 module.exports = app;
 
@@ -138,4 +141,14 @@ if (require.main === module) {
       console.error('❌ Error al preparar la base de datos:', err);
       process.exit(1);
     });
+
+  // Cierre limpio al apagar el servidor
+  process.on('SIGINT', () => {
+    cerrarPrisma()
+      .catch((err) => console.error('Error al cerrar la base:', err.message))
+      .finally(() => {
+        console.log('Conexión a la base de datos cerrada');
+        process.exit(0);
+      });
+  });
 }

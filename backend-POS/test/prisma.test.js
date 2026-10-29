@@ -77,3 +77,15 @@ test('una consulta espera a que termine la transacción abierta, sin congelar el
   assert.ok(latidos >= 8, `el servidor siguió respondiendo mientras tanto (${latidos} latidos)`);
   assert.ok(await dbGet(db, `SELECT id FROM categories WHERE family = 'Dentro de transacción'`));
 });
+
+test('la conexión sqlite3 del arranque está cerrada mientras se atiende', async () => {
+  const arranque = require('../src/config/database');
+  assert.equal(arranque.cerradaArranque(), true);
+  // Cualquier uso de esa conexión falla: nada del servidor la puede usar ya
+  await assert.rejects(
+    new Promise((res, rej) => arranque.get('SELECT 1', (e, r) => (e ? rej(e) : res(r)))),
+    /closed|MISUSE/i
+  );
+  // Y el servidor sigue atendiendo con Prisma
+  assert.equal((await api('GET', '/api/categories', { token: tokens.cajero })).status, 200);
+});

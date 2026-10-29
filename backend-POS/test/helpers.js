@@ -58,6 +58,17 @@ function sembrarBaseVieja() {
 let server;
 let baseUrl;
 let app;
+let dbPrueba;
+
+function abrirConexionPrueba() {
+  return new Promise((resolve, reject) => {
+    const c = new sqlite3.Database(process.env.DB_PATH, (err) => {
+      if (err) return reject(err);
+      c.configure('busyTimeout', 5000);
+      resolve(c);
+    });
+  });
+}
 
 // antesDeMigrar(db): opcional; corre con las tablas ya creadas pero ANTES de las
 // migraciones, para sembrar datos como los dejaba una versión vieja (pesos).
@@ -71,18 +82,20 @@ async function iniciar({ antesDeMigrar } = {}) {
   }
   app = require('../server');
   await app.ready;
+  // El servidor ya cerró su conexión del arranque: las pruebas revisan la base
+  // con una conexión propia
+  dbPrueba = await abrirConexionPrueba();
   await new Promise((resolve) => {
     server = app.listen(0, '127.0.0.1', resolve);
   });
   baseUrl = `http://127.0.0.1:${server.address().port}`;
-  return { baseUrl, db: require('../src/config/database') };
+  return { baseUrl, db: dbPrueba };
 }
 
 async function detener() {
   if (server) await new Promise((resolve) => server.close(resolve));
   await require('../src/config/prisma').cerrarPrisma();
-  const db = require('../src/config/database');
-  await new Promise((resolve) => db.close(() => resolve()));
+  if (dbPrueba) await new Promise((resolve) => dbPrueba.close(() => resolve()));
   borrarCarpeta(tmpDir);
 }
 
