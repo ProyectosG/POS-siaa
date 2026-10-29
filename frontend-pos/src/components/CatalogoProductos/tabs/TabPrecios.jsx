@@ -187,7 +187,7 @@ export default function TabPrecios({ formData, onChange, mostrarCosto = false })
             <div className="flex flex-col items-center gap-3">
               <div className="space-y-2 text-center">
                 <Label htmlFor="producto-costo">Costo (neto, con IVA)</Label>
-                <div className="relative">
+                <div className="relative mx-auto w-fit">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2">$</span>
                   <Input
                     id="producto-costo"

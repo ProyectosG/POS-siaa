@@ -28,9 +28,9 @@ const PERIODOS = [
 const porcentaje = (m) => (m === null || m === undefined ? "—" : `${m.toFixed(1)} %`)
 const colorUtilidad = (u) => (u < 0 ? "text-error" : "text-exito")
 
-function Dato({ titulo, children, className }) {
+function Dato({ titulo, children, className, claseTarjeta }) {
   return (
-    <Card className="gap-1 p-4">
+    <Card className={cn("gap-1 p-4", claseTarjeta)}>
       <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{titulo}</p>
       <p className={cn("text-2xl font-bold tabular", className)}>{children}</p>
     </Card>
@@ -229,7 +229,7 @@ export default function ReporteUtilidad() {
             <Dato titulo="Costo sin IVA">{pesos(t.costo)}</Dato>
             <Dato titulo="Utilidad" className={colorUtilidad(t.utilidad)}>{pesos(t.utilidad)}</Dato>
             <Dato titulo="Margen" className={colorUtilidad(t.utilidad)}>{porcentaje(t.margen)}</Dato>
-            <Dato titulo="Ventas con costo" className="col-span-2 lg:col-span-1">{t.ventas}</Dato>
+            <Dato titulo="Ventas con costo" claseTarjeta="col-span-2 lg:col-span-1">{t.ventas}</Dato>
           </div>
 
           {/* Avisos: ventas sin costo y pendiente por cobrar */}
@@ -238,7 +238,8 @@ export default function ReporteUtilidad() {
               <AlertTriangle className="size-5 shrink-0 text-aviso" aria-hidden />
               <p>
                 <b>{datos.sin_costo.ventas} {datos.sin_costo.ventas === 1 ? "venta" : "ventas"} por {pesos(datos.sin_costo.importe)}</b>{" "}
-                ({datos.sin_costo.renglones} {datos.sin_costo.renglones === 1 ? "producto" : "productos"}) no tienen costo y no entran en el cálculo.
+                ({datos.sin_costo.renglones} {datos.sin_costo.renglones === 1 ? "producto" : "productos"}){" "}
+                {datos.sin_costo.ventas === 1 ? "no tiene costo y no entra" : "no tienen costo y no entran"} en el cálculo.
                 Son ventas anteriores al campo Costo o de productos sin costo capturado.
               </p>
             </div>
