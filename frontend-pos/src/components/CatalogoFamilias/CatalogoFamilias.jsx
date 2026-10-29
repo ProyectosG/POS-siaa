@@ -70,7 +70,14 @@ export default function CatalogoFamilias() {
 
   const handleEliminar = async (id) => {
     if (!confirm("¿Estás seguro de eliminar esta categoría?")) return;
-    await apiFetch(`/categories/${id}`, { method: "DELETE" });
+    const res = await apiFetch(`/categories/${id}`, { method: "DELETE" });
+    // Antes un borrado fallido se ignoraba; ahora se muestra el motivo (p. ej. tiene productos)
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error || "No se pudo eliminar la categoría");
+    } else {
+      setError("");
+    }
     fetchCategories();
   };
 
