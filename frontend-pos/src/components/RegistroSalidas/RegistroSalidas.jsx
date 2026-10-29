@@ -11,6 +11,7 @@ import { Card } from "@/components/ui/card"
 import ConfirmDialog from "@/components/ui/ConfirmDialog"
 import { Search, Plus, Trash2, PackageMinus, Barcode } from "lucide-react"
 import { apiFetch, enviarOperacion } from "@/lib/apiFetch"
+import EncabezadoPantalla from "@/components/ui/encabezado-pantalla"
 
 
 export default function RegistroSalidas() {
@@ -192,22 +193,20 @@ export default function RegistroSalidas() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 p-6">
+    <div>
       <div className="max-w-6xl mx-auto space-y-6">
-        {/* HEADER */}
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold flex items-center gap-2">
-              <PackageMinus className="w-8 h-8 text-red-600" />
-              Registro de Salidas
-            </h1>
-            <p className="text-slate-600">Descargos de inventario</p>
-          </div>
-          <div className="text-right">
-            <p className="text-sm">{fechaHora.fecha}</p>
-            <p className="font-semibold">{fechaHora.hora}</p>
-          </div>
-        </div>
+        <EncabezadoPantalla
+          titulo="Registro de Salidas"
+          subtitulo="Mercancía que sale del inventario sin venta (mermas, traspasos, ajustes)"
+          icono={PackageMinus}
+          className="mb-0"
+          acciones={
+            <div className="text-right text-sm text-muted-foreground">
+              <p>{fechaHora.fecha}</p>
+              <p className="font-semibold text-foreground">{fechaHora.hora}</p>
+            </div>
+          }
+        />
 
         {/* TIPO + COMENTARIOS */}
         <Card className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -283,24 +282,26 @@ export default function RegistroSalidas() {
           {productos.length === 0 ? (
             <p className="text-center text-slate-500">No hay productos agregados</p>
           ) : (
-            <table className="w-full text-sm">
-              <thead><tr className="border-b"><th>Código</th><th>Producto</th><th>Presentación</th><th className="text-right">Cantidad</th><th></th></tr></thead>
-              <tbody>
-                {productos.map(p => (
-                  <tr key={p._rowId} className="border-b">
-                    <td>{p.codigo_barras}</td>
-                    <td>{p.articulo}</td>
-                    <td>{p.presentacion}</td>
-                    <td className="text-right font-semibold">{p.cantidad_salida}</td>
-                    <td className="text-center">
-                      <Button variant="ghost" size="sm" onClick={() => eliminar(p._rowId)} className="text-red-600">
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="tabla-desplazable overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead><tr className="border-b"><th>Código</th><th>Producto</th><th>Presentación</th><th className="text-right">Cantidad</th><th></th></tr></thead>
+                <tbody>
+                  {productos.map(p => (
+                    <tr key={p._rowId} className="border-b">
+                      <td>{p.codigo_barras}</td>
+                      <td>{p.articulo}</td>
+                      <td>{p.presentacion}</td>
+                      <td className="text-right font-semibold">{p.cantidad_salida}</td>
+                      <td className="text-center">
+                        <Button variant="ghost" size="sm" onClick={() => eliminar(p._rowId)} className="text-red-600">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </Card>
 

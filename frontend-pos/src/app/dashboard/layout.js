@@ -57,11 +57,14 @@ export default function DashboardLayout({ children }) {
   }
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="min-h-screen bg-background">
       <SidebarMenu />
-      <main className="flex-1 p-6 overflow-auto">
-        {/* Si escribió a mano la dirección de una pantalla que no le toca, no se carga la pantalla */}
-        {puedeVer(user, pathname) ? children : <SinPermiso />}
+      {/* Debajo de 1024 px: espacio para la barra superior; desde 1024 px: para el menú fijo */}
+      <main className="min-w-0 pt-14 lg:pt-0 lg:pl-64">
+        <div className="mx-auto w-full max-w-[1600px] p-4 sm:p-6">
+          {/* Si escribió a mano la dirección de una pantalla que no le toca, no se carga la pantalla */}
+          {puedeVer(user, pathname) ? children : <SinPermiso />}
+        </div>
       </main>
     </div>
   )
@@ -75,7 +78,7 @@ function SinPermiso() {
       <p className="text-muted-foreground">Esta pantalla no está disponible para tu usuario.</p>
       <Link
         href="/dashboard"
-        className="mt-2 px-5 py-2.5 rounded-md bg-emerald-600 text-white font-semibold hover:bg-emerald-700"
+        className="mt-2 inline-flex min-h-11 items-center px-5 rounded-md bg-primario text-white font-semibold hover:opacity-90"
       >
         Volver al inicio
       </Link>

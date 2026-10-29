@@ -18,6 +18,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { apiFetch } from "@/lib/apiFetch"
+import { pesos } from "@/lib/formato"
 
 
 export default function CustomerStatement() {
@@ -151,19 +152,13 @@ export default function CustomerStatement() {
   }
 
   return (
-    <div className="space-y-6 p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="bg-indigo-100 p-3 rounded-xl shadow-sm">
-            <DollarSign className="h-8 w-8 text-indigo-600" />
-          </div>
-          <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Estado de Cuenta</h1>
-            <p className="text-sm text-gray-600">Historial completo, pagos y saldos pendientes</p>
-          </div>
-        </div>
-      </div>
+    <div className="space-y-6 max-w-7xl mx-auto">
+      <EncabezadoPantalla
+        titulo="Estado de Cuenta"
+        subtitulo="Historial de compras, pagos y saldo pendiente de cada cliente"
+        icono={DollarSign}
+        className="mb-0"
+      />
 
       {/* Panel superior: Selector + Tarjetas resumen */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 lg:gap-6">
@@ -208,7 +203,7 @@ export default function CustomerStatement() {
                   <div>
                     <p className="text-xs font-medium text-blue-700">Total Vendido</p>
                     <p className="text-xl font-bold text-blue-900 mt-1">
-                      ${totalVendido.toFixed(2)}
+                      {pesos(totalVendido)}
                     </p>
                   </div>
                   <div className="bg-blue-100 p-2.5 rounded-full">
@@ -224,7 +219,7 @@ export default function CustomerStatement() {
                   <div>
                     <p className="text-xs font-medium text-green-700">Total Pagado</p>
                     <p className="text-xl font-bold text-green-900 mt-1">
-                      ${totalPagado.toFixed(2)}
+                      {pesos(totalPagado)}
                     </p>
                   </div>
                   <div className="bg-green-100 p-2.5 rounded-full">
@@ -240,7 +235,7 @@ export default function CustomerStatement() {
                   <div>
                     <p className="text-xs font-medium text-red-700">Saldo Pendiente</p>
                     <p className="text-xl font-bold text-red-900 mt-1">
-                      ${saldoPendienteTotal.toFixed(2)}
+                      {pesos(saldoPendienteTotal)}
                     </p>
                   </div>
                   <div className="bg-red-100 p-2.5 rounded-full">
@@ -332,9 +327,9 @@ export default function CustomerStatement() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-sm text-gray-600">{v.movement_reason || "—"}</TableCell>
-                          <TableCell className="text-right font-medium">${Number(v.total || 0).toFixed(2)}</TableCell>
-                          <TableCell className="text-right text-green-700">${Number(v.paid || 0).toFixed(2)}</TableCell>
-                          <TableCell className="text-right font-bold text-red-700">${Number(v.pending_balance || 0).toFixed(2)}</TableCell>
+                          <TableCell className="text-right font-medium">{pesos(Number(v.total || 0))}</TableCell>
+                          <TableCell className="text-right text-green-700">{pesos(Number(v.paid || 0))}</TableCell>
+                          <TableCell className="text-right font-bold text-red-700">{pesos(Number(v.pending_balance || 0))}</TableCell>
                           <TableCell>
                             <Badge 
                               variant={v.status === "completed" ? "default" : "secondary"}
@@ -423,15 +418,15 @@ export default function CustomerStatement() {
                           </TableCell>
                           <TableCell className="font-medium">{m.sale_id || "—"}</TableCell>
                           <TableCell className="text-right font-medium">
-                            ${Number(m.previous_balance || 0).toFixed(2)}
+                            {pesos(Number(m.previous_balance || 0))}
                           </TableCell>
                           <TableCell className="text-right font-bold" style={{
                             color: m.amount < 0 ? '#16a34a' : '#dc2626'
                           }}>
-                            {m.amount < 0 ? '' : '+'}${Math.abs(Number(m.amount)).toFixed(2)}
+                            {m.amount < 0 ? '' : '+'}{pesos(Math.abs(Number(m.amount)))}
                           </TableCell>
                           <TableCell className="text-right font-bold">
-                            ${Number(m.new_balance || 0).toFixed(2)}
+                            {pesos(Number(m.new_balance || 0))}
                           </TableCell>
                           <TableCell className="text-sm text-gray-700">
                             {m.description || "—"}
@@ -485,11 +480,11 @@ export default function CustomerStatement() {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Total</p>
-                <p className="font-medium text-green-700">${Number(selectedSale?.total || 0).toFixed(2)}</p>
+                <p className="font-medium text-green-700">{pesos(Number(selectedSale?.total || 0))}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Pendiente</p>
-                <p className="font-bold text-red-700 text-lg">${Number(selectedSale?.pending_balance || 0).toFixed(2)}</p>
+                <p className="font-bold text-red-700 text-lg">{pesos(Number(selectedSale?.pending_balance || 0))}</p>
               </div>
             </div>
 
@@ -515,8 +510,8 @@ export default function CustomerStatement() {
                         <TableRow key={d.id}>
                           <TableCell className="font-medium">{d.quantity}</TableCell>
                           <TableCell>{d.articulo || `Producto #${d.product_id}`}</TableCell>
-                          <TableCell className="text-right">${Number(d.price || 0).toFixed(2)}</TableCell>
-                          <TableCell className="text-right font-medium">${Number(d.subtotal || 0).toFixed(2)}</TableCell>
+                          <TableCell className="text-right">{pesos(Number(d.price || 0))}</TableCell>
+                          <TableCell className="text-right font-medium">{pesos(Number(d.subtotal || 0))}</TableCell>
                         </TableRow>
                       ))
                     ) : (
@@ -557,7 +552,7 @@ export default function CustomerStatement() {
                               {p.method === "efectivo" ? "Efectivo" : "Tarjeta"}
                             </Badge>
                           </TableCell>
-                          <TableCell className="font-medium">${Number(p.amount || 0).toFixed(2)}</TableCell>
+                          <TableCell className="font-medium">{pesos(Number(p.amount || 0))}</TableCell>
                           <TableCell>{p.bank || "—"}</TableCell>
                           <TableCell>{p.reference || "—"}</TableCell>
                           <TableCell>{p.date}</TableCell>

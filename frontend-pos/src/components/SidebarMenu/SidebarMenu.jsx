@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import {
   ChevronDown,
   Menu,
@@ -96,8 +96,20 @@ const menuItems = [
   },
 ]
 
+// Nombre del rol para mostrar (el usuario trae el nivel numérico)
+function nombreRol(user) {
+  if (user?.isSuperDev) return "SuperDeveloper"
+  const nivel = Number(user?.access_level ?? user?.role)
+  if (nivel >= 99) return "Administrador"
+  if (nivel >= 90) return "Gerente"
+  if (nivel >= 50) return "Supervisor"
+  if (nivel >= 1) return "Cajero"
+  return ""
+}
+
 export default function SidebarMenu() {
   const router = useRouter()
+  const pathname = usePathname()
 
   const user = useAuthStore((s) => s.user)
   const logout = useAuthStore((s) => s.logout)
@@ -108,7 +120,10 @@ export default function SidebarMenu() {
     .map((item) => ({ ...item, subItems: item.subItems.filter((s) => puedeVer(user, s.href)) }))
     .filter((item) => item.subItems.length > 0)
 
-  const [openItems, setOpenItems] = React.useState([])
+  // Pantalla actual: su grupo empieza abierto y su nombre va en la barra del celular
+  const actual = menuVisible.flatMap((i) => i.subItems.map((s) => ({ ...s, grupo: i.label }))).find((s) => s.href === pathname)
+
+  const [openItems, setOpenItems] = React.useState(actual ? [actual.grupo] : [])
   const [isMobileOpen, setIsMobileOpen] = React.useState(false)
 
   const toggleItem = (label) => {
@@ -120,6 +135,14 @@ export default function SidebarMenu() {
   }
 
   const closeMobile = () => setIsMobileOpen(false)
+
+  // Esc cierra el menú en el celular
+  React.useEffect(() => {
+    if (!isMobileOpen) return
+    const alPresionar = (e) => e.key === "Escape" && closeMobile()
+    window.addEventListener("keydown", alPresionar)
+    return () => window.removeEventListener("keydown", alPresionar)
+  }, [isMobileOpen])
 
   const handleLogout = () => {
     clearCaja()
@@ -133,60 +156,55 @@ export default function SidebarMenu() {
 
   return (
     <>
-      {/* BOTÓN HAMBURGUESA (SIEMPRE VISIBLE) */}
-      <button
-        onClick={() => setIsMobileOpen(!isMobileOpen)}
-        className="fixed top-4 left-4 z-50 bg-sidebar text-sidebar-foreground p-2 rounded-md shadow-lg"
-      >
-        {isMobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-      </button>
+      {/* BARRA SUPERIOR (solo debajo de 1024 px): botón del menú y pantalla actual */}
+      <header className="fixed inset-x-0 top-0 z-30 flex h-14 items-center gap-3 border-b border-sidebar-border bg-sidebar px-2 text-sidebar-foreground lg:hidden">
+        <button
+          onClick={() => setIsMobileOpen(!isMobileOpen)}
+          className="flex size-11 items-center justify-center rounded-md hover:bg-sidebar-hover"
+          aria-label={isMobileOpen ? "Cerrar menú" : "Abrir menú"}
+          aria-expanded={isMobileOpen}
+        >
+          {isMobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+        </button>
+        <span className="font-black tracking-tight">
+          POS<span className="text-emerald-500 mx-0.5">.</span>SIAA
+        </span>
+        {actual && <span className="min-w-0 truncate text-sm text-sidebar-foreground/70">· {actual.label}</span>}
+      </header>
 
-      {/* OVERLAY */}
+      {/* FONDO OSCURO DETRÁS DEL MENÚ ABIERTO (solo debajo de 1024 px) */}
       {isMobileOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-30"
+          className="fixed inset-0 bg-black/50 z-30 lg:hidden"
           onClick={closeMobile}
         />
       )}
 
-      {/* SIDEBAR */}
+      {/* MENÚ: fijo desde 1024 px; cajón que entra desde la izquierda debajo de 1024 px */}
       <aside
         className={cn(
-          "fixed left-0 top-0 h-screen bg-sidebar border-r border-sidebar-border z-40 flex flex-col transition-all duration-500",
-          "w-72 md:w-80",
-          isMobileOpen
-            ? "translate-x-0 opacity-100"
-            : "-translate-x-full opacity-0"
+          "fixed left-0 top-0 h-screen bg-sidebar border-r border-sidebar-border z-40 flex flex-col transition-transform duration-300",
+          "w-72 lg:w-64 lg:translate-x-0",
+          isMobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-{/* HEADER DEL SIDEBAR - VERSIÓN ULTRA ELEGANTE */}
-<div className="relative p-8 border-b border-sidebar-border/40 overflow-hidden group">
-  {/* Efecto de luz ambiental en el fondo */}
-  <div className="absolute -top-10 -right-10 w-32 h-32 bg-emerald-500/10 rounded-full blur-3xl group-hover:bg-emerald-500/20 transition-colors duration-700" />
-  
-  <div className="relative z-10 flex flex-col gap-1">
-
-
-    {/* Título con contraste de pesos */}
-    <h2 className="mx-3 mt-7 text-2xl tracking-tighter text-sidebar-foreground leading-none flex flex-col">
- 
-      <span className="font-black">
-        POS<span className="text-emerald-500 mx-0.5">.</span>SIAA
-      </span>
-    </h2>
-
-    {/* Indicador de estado dinámico */}
-    <div className="flex items-center gap-2 mt-4 px-3 py-1 rounded-full bg-sidebar-accent/30 border border-sidebar-border/50 w-fit backdrop-blur-sm">
-      <span className="relative flex h-1.5 w-1.5">
-        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
-      </span>
-      <p className="text-[10px] uppercase tracking-[0.15em] font-semibold text-sidebar-foreground/50">
-        Panel de Control
-      </p>
-    </div>
-  </div>
-</div>
+        <div className="flex items-center justify-between gap-2 border-b border-sidebar-border/40 px-5 py-5">
+          <div>
+            <p className="text-2xl font-black tracking-tighter text-sidebar-foreground leading-none">
+              POS<span className="text-emerald-500 mx-0.5">.</span>SIAA
+            </p>
+            <p className="mt-1 text-[11px] uppercase tracking-[0.15em] font-semibold text-sidebar-foreground/50">
+              Panel de control
+            </p>
+          </div>
+          <button
+            onClick={closeMobile}
+            className="flex size-11 items-center justify-center rounded-md text-sidebar-foreground/70 hover:bg-sidebar-hover lg:hidden"
+            aria-label="Cerrar menú"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
 
         {/* MENU */}
         <nav className="flex-1 overflow-y-auto py-4 px-3">
@@ -198,6 +216,7 @@ export default function SidebarMenu() {
                     item.subItems.length > 0 && toggleItem(item.label)
                   }
                   className="w-full flex items-center justify-between px-4 py-3 rounded-lg text-sidebar-foreground hover:bg-sidebar-hover"
+                  aria-expanded={openItems.includes(item.label)}
                 >
                   <div className="flex items-center gap-3">
                     <div className={item.iconColor}>{item.icon}</div>
@@ -221,7 +240,13 @@ export default function SidebarMenu() {
                           key={subItem.label}
                           href={subItem.href}
                           onClick={closeMobile}
-                          className="block px-4 py-2.5 pl-12 rounded-md text-sm transition-all text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                          aria-current={subItem.href === pathname ? "page" : undefined}
+                          className={cn(
+                            "flex min-h-11 items-center px-4 pl-12 rounded-md text-sm transition-colors",
+                            subItem.href === pathname
+                              ? "bg-sidebar-primary text-sidebar-primary-foreground font-semibold"
+                              : "text-sidebar-foreground/80 hover:text-sidebar-foreground hover:bg-sidebar-accent"
+                          )}
                         >
                           {subItem.label}
                         </Link>
@@ -240,10 +265,10 @@ export default function SidebarMenu() {
               <img
                 src={user.photoUrl}
                 alt="Avatar de usuario"
-                className="w-12 h-12 rounded-full object-cover"
+                className="w-11 h-11 rounded-full object-cover"
               />
             ) : (
-              <div className="w-12 h-12 rounded-full bg-sidebar-accent flex items-center justify-center">
+              <div className="w-11 h-11 rounded-full bg-sidebar-accent flex items-center justify-center">
                 <span className="text-sm font-semibold text-sidebar-foreground/80">
                   {user?.nickname?.[0]?.toUpperCase() ?? "U"}
                 </span>
@@ -255,14 +280,15 @@ export default function SidebarMenu() {
                 {user?.nickname ?? "Usuario"}
               </p>
               <p className="text-xs text-sidebar-foreground/60 truncate">
-                {user?.role ?? ""}
+                {nombreRol(user)}
               </p>
             </div>
 
             <button
               onClick={handleLogout}
-              className="p-2 rounded-md text-sidebar-foreground/70 hover:text-red-400 hover:bg-sidebar-accent transition-colors"
+              className="flex size-11 items-center justify-center rounded-md text-sidebar-foreground/70 hover:text-red-400 hover:bg-sidebar-accent transition-colors"
               title="Cerrar sesión"
+              aria-label="Cerrar sesión"
             >
               <LogOut className="w-5 h-5" />
             </button>

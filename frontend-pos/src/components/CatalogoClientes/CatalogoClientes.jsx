@@ -1,7 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Plus, Search } from "lucide-react"
+import { Plus, Search, Users } from "lucide-react"
+import EncabezadoPantalla from "@/components/ui/encabezado-pantalla"
+
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import CustomerForm from "./CustomerForm"
@@ -71,35 +73,30 @@ if (isFormOpen) {
 
 
   return (
-    <div className="min-h-screen bg-slate-900 p-6">
+    <div>
       <div className="max-w-7xl mx-auto space-y-6">
 
-        {/* Header */}
-        <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
-          <div className="text-center lg:text-left">
-            <h1 className="text-3xl font-bold text-white">
-              Catálogo de Clientes
-            </h1>
-            <p className="text-slate-400">
-              Gestión de clientes
-            </p>
-          </div>
+        <EncabezadoPantalla
+          titulo="Catálogo de Clientes"
+          subtitulo="Alta, consulta y edición de clientes"
+          icono={Users}
+          className="mb-0"
+          acciones={
+            <Button onClick={() => setIsFormOpen(true)}>
+              <Plus className="h-4 w-4" />
+              Nuevo Cliente
+            </Button>
+          }
+        />
 
-          <Button
-            onClick={() => setIsFormOpen(true)}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Nuevo Cliente
-          </Button>
-
-          <div className="w-80 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+        <div>
+          <div className="w-full sm:w-80 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Buscar cliente..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 bg-slate-800 border-slate-700 text-white"
+              className="pl-10 bg-card border-border text-foreground"
             />
           </div>
         </div>

@@ -10,6 +10,10 @@ import { Switch } from "@/components/ui/switch"
 
 import PagoMixto from "@/components/PagoMixto/PagoMixto"
 import { apiFetch } from "@/lib/apiFetch"
+import { HandCoins } from "lucide-react"
+import EncabezadoPantalla from "@/components/ui/encabezado-pantalla"
+import { pesos } from "@/lib/formato"
+
 
 // Ventas que se pagan con abonos: apartados y créditos
 const TIPOS_CON_ABONO = {
@@ -67,7 +71,13 @@ export default function AbonosApartados() {
   }, [liquidar, venta])
 
   return (
-    <div className="mt-[60px] space-y-10">
+    <div className="space-y-8">
+      <EncabezadoPantalla
+        titulo="Registro de abonos"
+        subtitulo="Cobra abonos de apartados y créditos: escribe el número de ticket y presiona Enter"
+        icono={HandCoins}
+        className="mb-0"
+      />
 
       {/* =====================================================
          FILA SUPERIOR – KPIs
@@ -116,7 +126,7 @@ export default function AbonosApartados() {
                 <CardContent className="p-4 text-center flex flex-col justify-center h-full">
                   <p className="text-sm text-muted-foreground mb-2">Total venta</p>
                   <p className="text-3xl font-bold">
-                    ${venta.total.toFixed(2)}
+                    {pesos(venta.total)}
                   </p>
                 </CardContent>
               </Card>
@@ -125,7 +135,7 @@ export default function AbonosApartados() {
                 <CardContent className="p-4 text-center flex flex-col justify-center h-full">
                   <p className="text-sm text-muted-foreground mb-2">Total abonado</p>
                   <p className="text-3xl font-bold text-green-600">
-                    ${venta.paid.toFixed(2)}
+                    {pesos(venta.paid)}
                   </p>
                 </CardContent>
               </Card>
@@ -134,7 +144,7 @@ export default function AbonosApartados() {
                 <CardContent className="p-4 text-center flex flex-col justify-center h-full">
                   <p className="text-sm text-muted-foreground mb-2">Saldo pendiente</p>
                   <p className="text-3xl font-bold text-red-600">
-                    ${venta.pending_balance.toFixed(2)}
+                    {pesos(venta.pending_balance)}
                   </p>
                 </CardContent>
               </Card>
@@ -203,7 +213,7 @@ export default function AbonosApartados() {
                       {d.articulo || `Producto #${d.product_id}`}
                     </span>
                     <span className="col-span-3 text-right font-medium">
-                      ${d.subtotal.toFixed(2)}
+                      {pesos(d.subtotal)}
                     </span>
                   </div>
                 ))}
@@ -214,17 +224,17 @@ export default function AbonosApartados() {
 
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span>${(venta.total / 1.16).toFixed(2)}</span>
+                  <span>{pesos((venta.total / 1.16))}</span>
                 </div>
 
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">IVA 16%</span>
-                  <span>${(venta.total - venta.total / 1.16).toFixed(2)}</span>
+                  <span>{pesos((venta.total - venta.total / 1.16))}</span>
                 </div>
 
                 <div className="flex justify-between font-semibold text-lg border-t border-gray-200 pt-3">
                   <span>Total</span>
-                  <span>${venta.total.toFixed(2)}</span>
+                  <span>{pesos(venta.total)}</span>
                 </div>
 
                 {/* PAGADO Y PENDIENTE */}
@@ -234,7 +244,7 @@ export default function AbonosApartados() {
                       <span className="text-xl">●</span> Pagado
                     </span>
                     <span className="text-emerald-600">
-                      ${venta.paid.toFixed(2)}
+                      {pesos(venta.paid)}
                     </span>
                   </div>
 
@@ -243,7 +253,7 @@ export default function AbonosApartados() {
                       <span className="text-xl">●</span> Pendiente
                     </span>
                     <span className="text-red-600">
-                      ${venta.pending_balance.toFixed(2)}
+                      {pesos(venta.pending_balance)}
                     </span>
                   </div>
                 </div>

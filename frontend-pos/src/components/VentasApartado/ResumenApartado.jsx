@@ -29,7 +29,7 @@ export default function ResumenApartado({
   const esMontoPositivo = montoRequerido > 0
 
   return (
-    <div className="border rounded-xl p-6 space-y-8 bg-white shadow-sm">
+    <div className="border rounded-tarjeta p-4 sm:p-6 space-y-8 bg-card shadow-suave">
       {/* Sección Resumen de totales */}
       <div>
         <h3 className="flex items-center gap-2 font-semibold text-lg mb-4">
@@ -64,17 +64,17 @@ export default function ResumenApartado({
 
       {/* Sección Anticipo requerido – con mayor separación */}
   <div className="space-y-4 pt-6 border-t-2 border-gray-200">
-  <div className="flex items-center justify-between">
+  <div className="flex flex-wrap items-center justify-between gap-3">
     <h4 className="flex items-center gap-2 font-semibold text-lg text-gray-800">
       <DollarSign className="w-5 h-5 text-emerald-600" />
       Anticipo requerido
     </h4>
 
     {/* Toggle compacto con palomitas */}
-    <div className="flex items-center gap-3 bg-gray-100 rounded-full p-1">
+    <div className="flex items-center gap-1 bg-muted rounded-full p-1">
       <button
         onClick={() => setTipoRequisito("porcentaje")}
-        className={`px-4 py-1.5 text-sm font-medium rounded-full transition-all ${
+        className={`px-4 py-1.5 text-sm font-medium whitespace-nowrap rounded-full transition-all ${
           tipoRequisito === "porcentaje"
             ? "bg-white shadow-sm text-emerald-700"
             : "text-gray-600 hover:text-gray-800"
@@ -84,7 +84,7 @@ export default function ResumenApartado({
       </button>
       <button
         onClick={() => setTipoRequisito("fijo")}
-        className={`px-4 py-1.5 text-sm font-medium rounded-full transition-all ${
+        className={`px-4 py-1.5 text-sm font-medium whitespace-nowrap rounded-full transition-all ${
           tipoRequisito === "fijo"
             ? "bg-white shadow-sm text-emerald-700"
             : "text-gray-600 hover:text-gray-800"

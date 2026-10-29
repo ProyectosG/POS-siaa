@@ -14,13 +14,13 @@ export default function ToastProvider() {
     },
     success: {
       style: {
-        background: "#16a34a", // verde POS
+        background: "var(--exito)",
         color: "#fff",
       },
     },
     error: {
       style: {
-        background: "#dc2626", // rojo
+        background: "var(--error)",
         color: "#fff",
       },
     },

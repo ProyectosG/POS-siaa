@@ -1,4 +1,5 @@
 "use client";
+import { pesos } from "@/lib/formato"
 
 export default function TablaPagos({ pagos }) {
   const pagosNormalizados = {
@@ -7,14 +8,14 @@ export default function TablaPagos({ pagos }) {
   };
 
   return (
-    <div className="bg-slate-800/40 rounded-lg border border-slate-600 p-4 mt-4">
-      <table className="w-full text-left text-slate-300">
+    <div className="tabla-desplazable bg-card rounded-lg border border-border p-4 mt-4 overflow-x-auto">
+      <table className="w-full text-left text-muted-foreground">
         <tbody>
           {Object.entries(pagosNormalizados).map(([method, amount]) => (
-            <tr key={method} className="border-b border-slate-600">
+            <tr key={method} className="border-b border-border">
               <td className="py-2 px-3 capitalize">{method}</td>
-              <td className="py-2 px-3 text-right font-bold text-green-300">
-                ${Number(amount || 0).toFixed(2)}
+              <td className="py-2 px-3 text-right font-bold text-exito">
+                {pesos(Number(amount || 0))}
               </td>
             </tr>
           ))}

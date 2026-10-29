@@ -114,48 +114,48 @@ const handleImageSelect = (e) => {
   onClose()
 }
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
+    <div className="min-h-screen p-6">
       <div className="max-w-2xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-3xl font-bold text-white">{editingUser ? "Editar Usuario" : "Nuevo Usuario"}</h2>
-            <p className="text-slate-400 mt-1">Completa el formulario</p>
+            <h2 className="text-3xl font-bold text-foreground">{editingUser ? "Editar Usuario" : "Nuevo Usuario"}</h2>
+            <p className="text-muted-foreground mt-1">Completa el formulario</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="h-5 w-5 text-slate-400" />
+            <X className="h-5 w-5 text-muted-foreground" />
           </Button>
         </div>
 
-        <Card className="bg-slate-800/50 border-slate-700">
+        <Card className="bg-card border-border">
           <CardContent className="p-6">
           <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label className="text-slate-200">Nickname *</Label>
-                    <Input name="nickname" value={formData.nickname} onChange={handleInputChange} required className="text-white" />
+                    <Label className="text-foreground">Nickname *</Label>
+                    <Input name="nickname" value={formData.nickname} onChange={handleInputChange} required className="text-foreground" />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-slate-200">Nombre Completo *</Label>
-                    <Input name="full_name" value={formData.full_name} onChange={handleInputChange} required className="text-white" />
+                    <Label className="text-foreground">Nombre Completo *</Label>
+                    <Input name="full_name" value={formData.full_name} onChange={handleInputChange} required className="text-foreground" />
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-slate-200">Teléfono *</Label>
+                    <Label className="text-foreground">Teléfono *</Label>
                     <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                      <Input name="phone" value={formData.phone} onChange={handleInputChange} required className="pl-10 text-white" />
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input name="phone" value={formData.phone} onChange={handleInputChange} required className="pl-10 text-foreground" />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-slate-200">Email *</Label>
+                    <Label className="text-foreground">Email *</Label>
                     <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                      <Input name="email" type="email" value={formData.email} onChange={handleInputChange} required className="pl-10 text-white" />
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input name="email" type="email" value={formData.email} onChange={handleInputChange} required className="pl-10 text-foreground" />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-slate-200">Contraseña {editingUser ? "" : "*"}</Label>
+                    <Label className="text-foreground">Contraseña {editingUser ? "" : "*"}</Label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
                         name="password"
                         type={showPassword ? "text" : "password"}
@@ -163,23 +163,23 @@ const handleImageSelect = (e) => {
                         onChange={handleInputChange}
                         required={!editingUser}
                         placeholder={editingUser ? "Vacío para no cambiar" : "********"}
-                        className="pl-10 pr-10 text-white"
+                        className="pl-10 pr-10 text-foreground"
                       />
                       <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2">
-                        {showPassword ? <EyeOff className="h-4 w-4 text-slate-400" /> : <Eye className="h-4 w-4 text-slate-400" />}
+                        {showPassword ? <EyeOff className="h-4 w-4 text-muted-foreground" /> : <Eye className="h-4 w-4 text-muted-foreground" />}
                       </button>
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label className="text-slate-200">Nivel de Acceso *</Label>
+                    <Label className="text-foreground">Nivel de Acceso *</Label>
                     <div className="relative">
-                      <Shield className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Shield className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <select
                         name="access_level"
                         value={formData.access_level}
                         onChange={handleInputChange}
                         required
-                        className="w-full bg-slate-700/50 border border-slate-600 text-white rounded-md py-2 pl-10 pr-4"
+                        className="w-full bg-muted border border-border text-foreground rounded-md py-2 pl-10 pr-4"
                       >
                         <option value="1">Cajero (1)</option>
                         <option value="50">Supervisor (50)</option>
@@ -190,23 +190,23 @@ const handleImageSelect = (e) => {
                   </div>
                 </div>
 
-                <div className="space-y-4 pt-6 border-t border-slate-700">
-                  <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                    <Upload className="h-5 w-5 text-purple-400" />
+                <div className="space-y-4 pt-6 border-t border-border">
+                  <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                    <Upload className="h-5 w-5 text-violet-700" />
                     Foto del Usuario
                   </h3>
                   <div className="flex flex-col items-center gap-4">
                     {imagePreview || formData.photo_url ? (
                       <div className="relative">
-                        <img src={imagePreview || formData.photo_url} alt="Preview" className="w-32 h-32 rounded-full object-cover border-4 border-slate-600" />
+                        <img src={imagePreview || formData.photo_url} alt="Preview" className="w-32 h-32 rounded-full object-cover border-4 border-border" />
                         <button type="button" onClick={removeImage} className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1 hover:bg-red-600">
                           <X className="h-4 w-4 text-white" />
                         </button>
                       </div>
                     ) : (
                       <Label htmlFor="photo" className="cursor-pointer">
-                        <div className="w-32 h-32 rounded-full bg-slate-700 flex items-center justify-center border-2 border-dashed border-slate-600 hover:border-purple-500 transition-colors">
-                          <Upload className="h-8 w-8 text-slate-500 hover:text-purple-400" />
+                        <div className="w-32 h-32 rounded-full bg-muted flex items-center justify-center border-2 border-dashed border-border hover:border-purple-500 transition-colors">
+                          <Upload className="h-8 w-8 text-muted-foreground hover:text-violet-700" />
                         </div>
                         <Input id="photo" type="file" accept="image/*" onChange={handleImageSelect} className="hidden" />
                       </Label>

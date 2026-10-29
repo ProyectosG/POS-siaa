@@ -11,6 +11,7 @@ import ResumenTotales from "./ResumenTotales";
 import TablaPagos from "./TablaPagos";
 import AccionesCorteZ from "./AccionesCorteZ";
 import { apiFetch } from "@/lib/apiFetch"
+import { pesos } from "@/lib/formato"
 
 
 export default function CorteZ() {
@@ -41,7 +42,7 @@ export default function CorteZ() {
     return (
       <div className="flex justify-center items-center h-32">
         <div className="animate-spin rounded-full h-8 w-8 border-t-4 border-green-500"></div>
-        <p className="ml-2 text-sm text-slate-300">
+        <p className="ml-2 text-sm text-muted-foreground">
           Calculando el Corte Z... 💰
         </p>
       </div>
@@ -50,7 +51,7 @@ export default function CorteZ() {
 
   if (!data) {
     return (
-      <div className="text-center text-red-400 text-lg">
+      <div className="text-center text-error text-lg">
         No hay datos para mostrar 😔
       </div>
     );
@@ -79,7 +80,7 @@ export default function CorteZ() {
       );
 
   return (
-    <div className="max-w-2xl mx-auto p-4 bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl border border-slate-700 shadow-xl overflow-auto max-h-screen">
+    <div className="max-w-2xl mx-auto p-4 rounded-xl border border-border shadow-xl overflow-auto max-h-screen">
       <HeaderCorteZ
         caja={caja}
         first={first}
@@ -94,14 +95,14 @@ export default function CorteZ() {
 
 <section className="mb-6">
   {/* Total Recibido centrado y limpio arriba */}
-    <div className="text-center bg-gradient-to-r from-green-900/30 to-green-800/30 p-4 rounded-xl border border-green-500/40 shadow-xl max-w-md mx-auto mb-3 animate-glow">
-    <h3 className="text-lg font-semibold text-green-400 uppercase">
+    <div className="text-center bg-gradient-to-r from-exito-suave to-exito-suave p-4 rounded-xl border border-green-500/40 shadow-xl max-w-md mx-auto mb-3 animate-glow">
+    <h3 className="text-lg font-semibold text-exito uppercase">
       Total Recibido en Corte
     </h3>
-    <p className="text-3xl font-extrabold text-green-300">
-      ${totalRecibido.toFixed(2)}
+    <p className="text-3xl font-extrabold text-exito">
+      {pesos(totalRecibido)}
     </p>
-    <p className="text-xs text-slate-400">(Efectivo + Tarjeta + Otros)</p>
+    <p className="text-xs text-muted-foreground">(Efectivo + Tarjeta + Otros)</p>
   </div>
 
   {/* Dos columnas debajo: Izquierda los 3 totales, derecha la tabla de pagos */}

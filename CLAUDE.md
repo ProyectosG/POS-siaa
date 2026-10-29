@@ -42,6 +42,17 @@ Punto de venta independiente. Backend en `backend-POS/` (Express 5 + sqlite3, si
 - **Pruebas y la base real**: cada prueba carga `test/helpers.js` primero (prepara la base temporal al cargarse) y nunca carga un módulo del servidor antes. `config/database.js` lo protege: en las pruebas (`NODE_TEST_CONTEXT` o `POS_PRUEBAS`) falla de inmediato si la base no está en la carpeta temporal (`test/proteccion.test.js`).
 - **Git y la base local**: el `pos_backup_*.db` sigue versionado en commits viejos de `main`. Cambiar a uno de esos commits y regresar BORRA la copia local (git la trata como archivo ignorado). Respaldarla antes de cualquier checkout a historia vieja.
 
+## Diseño del frontend: cómo funciona hoy (rama `responsive-estetica`)
+
+- **Colores en un solo lugar**: `frontend-pos/src/app/globals.css` define `--primario` (azul, acciones), `--exito` (verde, cobros y pagado), `--aviso` (ámbar, pendientes) y `--error` (rojo, SOLO errores y borrar), cada uno con su `-suave` para fondos. Se usan como clases de Tailwind (`bg-primario`, `text-exito`, `bg-aviso-suave`, `border-error`…), además de `shadow-suave` y `rounded-tarjeta`. No poner colores a mano (`emerald-600`, `#16a34a`…) en pantallas nuevas.
+- **Tema claro**; el menú lateral sigue oscuro.
+- **Anchos**: menú lateral fijo desde 1024 px (`lg`); abajo de eso, barra superior con botón ☰ y menú deslizable. Contado y apartado: apiladas en celular con la barra fija del total (`BarraTotalMovil`), productos a la izquierda y ticket a la derecha en tableta (`md`) y en pantallas ≥1536 px (`2xl`); entre 1024 y 1535 se apilan (con el menú fijo no caben las dos columnas).
+- **Nunca desplazamiento lateral de la página**: las tablas anchas van dentro de un recuadro `tabla-desplazable overflow-x-auto` (el `Table` de `components/ui/table.jsx` ya lo trae) o en tarjetas en celular (`md:hidden` / `hidden md:block`). En una cuadrícula, la columna lleva `min-w-0`.
+- **Botones de al menos 44 px** (regla global en `globals.css`; los interruptores conservan su forma y tienen un área de toque invisible).
+- **Montos**: `pesos(v)` de `src/lib/formato.js` ($1,234.50) y la clase `monto` (derecha, números tabulares). Las exportaciones (Excel, PDF, TXT) siguen con números sin formato.
+- **Piezas comunes** (`components/ui`): `EncabezadoPantalla` (título, subtítulo, icono y acciones; toda pantalla nueva lo usa), `EtiquetaTipoVenta` / `EtiquetaEstadoVenta`, `ListaVacia`, `Esqueleto` / `EsqueletoFilas` (mientras carga).
+- **Auditoría**: en la revisión con Edge se miden las pantallas de `/dashboard` en 360, 768 y 1280 px: sin desplazamiento lateral, nada cortado y ningún botón de menos de 44 px.
+
 ## Fase 0 — Seguridad (hecha, rama `fase0-seguridad`)
 
 1. Base de datos fuera del repo (`git rm --cached`, `*.db` y `backups/` en `.gitignore`; la historia no se reescribió, el archivo viejo sigue en commits anteriores).

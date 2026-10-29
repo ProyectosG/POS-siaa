@@ -93,84 +93,96 @@ const handleCajaSubmit = async (e) => {
   }
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950">
+    <div className="min-h-screen w-full flex items-center justify-center bg-background px-4 py-10">
       <div
         className={cn(
-          "w-full max-w-md mx-4 transition-all",
+          "w-full max-w-sm transition-opacity",
           loading && "opacity-60 pointer-events-none"
         )}
       >
-        <div className="bg-slate-900/80 backdrop-blur-xl rounded-2xl border border-slate-800 p-8">
-          {/* HEADER */}
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-full mb-4">
-              <CreditCard className="w-8 h-8 text-white" />
+        {/* MARCA */}
+        <div className="mb-8 text-center">
+          <p className="text-2xl font-black tracking-tight text-foreground">
+            POS<span className="text-primario">.</span>SIAA
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {user?.nickname ? <>Hola, <b className="text-foreground">{user.nickname}</b></> : "Punto de venta"}
+          </p>
+        </div>
+
+        <div className="rounded-tarjeta border border-border bg-card p-6 sm:p-8 shadow-suave">
+          {/* ENCABEZADO */}
+          <div className="mb-6 flex items-start gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primario-suave">
+              <CreditCard className="w-5 h-5 text-primario" />
             </div>
-            <h1 className="text-3xl font-bold text-white mb-2">
-              Seleccionar Caja
-            </h1>
-            <p className="text-slate-400">
-              Ingresa el número de caja asignado
-            </p>
+            <div>
+              <h1 className="text-xl font-bold text-foreground">Abrir caja</h1>
+              <p className="mt-1 text-sm text-muted-foreground">Número de caja asignado y su clave</p>
+            </div>
           </div>
 
           {error && (
-            <div className="mb-6 p-3 bg-red-500/10 border border-red-500/40 rounded-lg text-red-400 text-sm text-center">
+            <div role="alert" className="mb-5 rounded-lg border border-error/30 bg-error-suave p-3 text-sm text-error">
               {error}
             </div>
           )}
 
-          <form onSubmit={handleCajaSubmit} className="space-y-6">
-            {/* NUMERO CAJA */}
+          <form onSubmit={handleCajaSubmit} className="space-y-5">
+            {/* NÚMERO DE CAJA */}
             <div>
-              <label className="block text-sm text-slate-300 mb-2">
-                Número de Caja
+              <label htmlFor="caja-numero" className="mb-1.5 block text-sm font-medium text-foreground">
+                Número de caja
               </label>
               <div className="relative">
-                <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <input
+                  id="caja-numero"
                   value={numeroCaja}
                   onChange={(e) => setNumeroCaja(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white"
+                  className="h-11 w-full rounded-lg border border-input bg-card pl-11 pr-4 text-foreground focus:outline-none focus:ring-2 focus:ring-primario/40 focus:border-primario"
                   placeholder="Ej: 001"
+                  autoFocus
                 />
               </div>
             </div>
 
             {/* CLAVE */}
             <div>
-              <label className="block text-sm text-slate-300 mb-2">
-                Clave de Caja
+              <label htmlFor="caja-clave" className="mb-1.5 block text-sm font-medium text-foreground">
+                Clave de caja
               </label>
               <div className="relative">
-                <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                <Key className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <input
+                  id="caja-clave"
                   type={showCajaKey ? "text" : "password"}
                   value={claveCaja}
                   onChange={(e) => setClaveCaja(e.target.value)}
-                  className="w-full pl-11 pr-12 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white"
+                  className="h-11 w-full rounded-lg border border-input bg-card pl-11 pr-12 text-foreground focus:outline-none focus:ring-2 focus:ring-primario/40 focus:border-primario"
                   placeholder="••••••••"
                 />
                 <button
                   type="button"
                   onClick={() => setShowCajaKey(!showCajaKey)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400"
+                  aria-label={showCajaKey ? "Ocultar clave" : "Mostrar clave"}
+                  className="absolute right-0 top-0 flex h-11 w-11 items-center justify-center text-muted-foreground hover:text-foreground"
                 >
-                  {showCajaKey ? <EyeOff /> : <Eye />}
+                  {showCajaKey ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
             </div>
 
             <button
               type="submit"
-              className="w-full py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white font-semibold rounded-lg"
+              className="h-11 w-full rounded-lg bg-primario font-semibold text-white shadow-suave transition hover:opacity-90 disabled:opacity-50"
             >
-              {loading ? "Validando caja..." : "Iniciar Sistema"}
+              {loading ? "Validando caja..." : "Iniciar sistema"}
             </button>
           </form>
         </div>
 
-        <p className="text-center mt-6 text-slate-500 text-sm">
+        <p className="mt-6 text-center text-xs text-muted-foreground">
           Sistema POS v1.0
         </p>
       </div>

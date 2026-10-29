@@ -21,6 +21,7 @@ import {
 import { Badge } from "@/components/ui/badge"
 import { Package, Search, Filter } from "lucide-react"
 import { apiFetch } from "@/lib/apiFetch"
+import { pesos } from "@/lib/formato"
 
 
 export default function ListarTodosProductos() {
@@ -136,19 +137,14 @@ export default function ListarTodosProductos() {
 
   /* ================= UI ================= */
   return (
-    <div className="min-h-screen bg-slate-100 p-6">
+    <div>
       <div className="max-w-7xl mx-auto space-y-6">
-
-        {/* HEADER */}
-        <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2">
-            <Package className="w-8 h-8 text-blue-600" />
-            Lista de Productos
-          </h1>
-          <p className="text-slate-600">
-            {productosFiltrados.length} de {productos.length} productos
-          </p>
-        </div>
+        <EncabezadoPantalla
+          titulo="Lista de Productos"
+          icono={Package}
+          className="mb-0"
+          subtitulo={<><b className="text-foreground">{productosFiltrados.length}</b> de {productos.length} productos</>}
+        />
 
         {/* FILTROS */}
         <Card className="p-5 space-y-4">
@@ -281,7 +277,7 @@ export default function ListarTodosProductos() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right font-semibold text-slate-800">
-                      ${Number(p.precio_menudeo || 0).toFixed(2)}
+                      {pesos(Number(p.precio_menudeo || 0))}
                     </TableCell>
                     <TableCell className="text-right">
                       <Badge

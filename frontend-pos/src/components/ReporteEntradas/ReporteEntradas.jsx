@@ -32,6 +32,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { apiFetch } from "@/lib/apiFetch"
+import ListaVacia from "@/components/ui/lista-vacia"
+import { EsqueletoFilas } from "@/components/ui/esqueleto"
 
 
 const ReporteEntradas = () => {
@@ -211,14 +213,16 @@ const ReporteEntradas = () => {
   };
 
   return (
-    <Card className="border-none shadow-xl rounded-xl overflow-hidden bg-white">
-      <CardHeader className="bg-gradient-to-r from-emerald-50 to-teal-50 pb-4">
-        <CardTitle className="text-2xl font-bold text-emerald-800 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Package className="h-6 w-6 text-emerald-600" />
-            Reporte de Entradas
+    <Card className="overflow-hidden">
+      <CardHeader className="border-b pb-4">
+        <CardTitle className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+              <Package className="size-7 shrink-0 text-primario" /> Reporte de Entradas
+            </h1>
+            <p className="mt-1 text-sm font-normal text-muted-foreground">Mercancía que entró al inventario</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={exportarExcel} className="gap-1">
               <FileSpreadsheet className="h-4 w-4" />
               Excel
@@ -288,19 +292,15 @@ const ReporteEntradas = () => {
 
         {/* Tabla principal */}
         {cargando ? (
-          <div className="flex justify-center items-center h-64">
-            <p className="text-lg text-muted-foreground animate-pulse">Cargando entradas... 📦</p>
-          </div>
+          <EsqueletoFilas filas={6} />
         ) : error ? (
-          <div className="text-center py-12 text-red-600 font-medium bg-red-50 rounded-lg border border-red-200">
+          <div role="alert" className="text-center py-12 text-error font-medium bg-error-suave rounded-tarjeta border border-error/30">
             {error}
           </div>
         ) : entradasFiltradas.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground bg-slate-50 rounded-lg border border-slate-200">
-            No se encontraron entradas con los filtros aplicados 😔
-          </div>
+          <ListaVacia titulo="No hay entradas" mensaje="No se encontraron entradas con los filtros aplicados." />
         ) : (
-          <div className="rounded-xl border overflow-hidden shadow-sm">
+          <div className="tabla-desplazable rounded-tarjeta border overflow-x-auto shadow-suave">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gradient-to-r from-emerald-50 to-teal-50">
                 {tabla.getHeaderGroups().map((headerGroup) => (
@@ -404,7 +404,7 @@ const ReporteEntradas = () => {
                     Productos Entrados
                   </h3>
                 </div>
-                <div className="overflow-x-auto">
+                <div className="area-impresion overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
@@ -449,8 +449,8 @@ const ReporteEntradas = () => {
         <style jsx global>{`
           @media print {
             body * { visibility: hidden; }
-            .overflow-x-auto, .overflow-x-auto * { visibility: visible; }
-            .overflow-x-auto { position: absolute; left: 0; top: 0; width: 100%; }
+            .area-impresion, .area-impresion * { visibility: visible; }
+            .area-impresion { position: absolute; left: 0; top: 0; width: 100%; }
             button, .no-print { display: none !important; }
           }
         `}</style>

@@ -114,79 +114,89 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950">
-      <div className="w-full max-w-md mx-4">
+    <div className="min-h-screen w-full flex items-center justify-center bg-background px-4 py-10">
+      <div className="w-full max-w-sm">
+        {/* MARCA */}
+        <div className="mb-8 text-center">
+          <p className="text-2xl font-black tracking-tight text-foreground">
+            POS<span className="text-primario">.</span>SIAA
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">Punto de venta</p>
+        </div>
+
         <div
           className={cn(
-            "bg-slate-900/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-800 p-8 transition-all",
+            "rounded-tarjeta border border-border bg-card p-6 sm:p-8 shadow-suave transition-opacity",
             isLoading && "opacity-70 pointer-events-none"
           )}
         >
-          {/* HEADER */}
-          <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-purple-500 to-blue-500 rounded-full mb-4">
-              <User className="w-8 h-8 text-white" />
-            </div>
-            <h1 className="text-3xl font-bold text-white mb-2">
-              Iniciar Sesión
+          {/* ENCABEZADO */}
+          <div className="mb-6">
+            <h1 className="text-xl font-bold text-foreground">
+              {modoSuperDev ? "Acceso SuperDeveloper" : "Iniciar sesión"}
             </h1>
-            <p className="text-slate-400">
-              Accede al sistema POS
+            <p className="mt-1 text-sm text-muted-foreground">
+              {modoSuperDev ? "Credenciales de mantenimiento" : "Escribe tu usuario y contraseña"}
             </p>
           </div>
 
           {/* ERROR */}
           {error && (
-            <div className="mb-6 p-3 bg-red-500/10 border border-red-500/50 rounded-lg text-red-400 text-sm text-center">
+            <div role="alert" className="mb-5 rounded-lg border border-error/30 bg-error-suave p-3 text-sm text-error">
               {error}
             </div>
           )}
 
-          {/* FORM */}
-          <form onSubmit={handleLoginSubmit} className="space-y-6">
+          {/* FORMULARIO */}
+          <form onSubmit={handleLoginSubmit} className="space-y-5">
             {/* USUARIO */}
             <div>
-              <label className="block text-sm text-slate-300 mb-2">
+              <label htmlFor="login-usuario" className="mb-1.5 block text-sm font-medium text-foreground">
                 Usuario
               </label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <input
+                  id="login-usuario"
+                  autoComplete="username"
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="h-11 w-full rounded-lg border border-input bg-card pl-11 pr-4 text-foreground focus:outline-none focus:ring-2 focus:ring-primario/40 focus:border-primario"
                   autoFocus
                 />
               </div>
             </div>
 
-            {/* PASSWORD */}
+            {/* CONTRASEÑA */}
             <div>
-              <label className="block text-sm text-slate-300 mb-2">
+              <label htmlFor="login-clave" className="mb-1.5 block text-sm font-medium text-foreground">
                 Contraseña
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
                 <input
+                  id="login-clave"
+                  autoComplete="current-password"
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-11 pr-12 py-3 bg-slate-800 border border-slate-700 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="h-11 w-full rounded-lg border border-input bg-card pl-11 pr-12 text-foreground focus:outline-none focus:ring-2 focus:ring-primario/40 focus:border-primario"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500"
+                  aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                  className="absolute right-0 top-0 flex h-11 w-11 items-center justify-center text-muted-foreground hover:text-foreground"
                 >
-                  {showPassword ? <EyeOff /> : <Eye />}
+                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
             </div>
 
-            {/* SUBMIT */}
+            {/* ENTRAR */}
             <button
               type="submit"
-              className="w-full py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white font-semibold rounded-lg hover:opacity-90 transition disabled:opacity-50"
+              className="h-11 w-full rounded-lg bg-primario font-semibold text-white shadow-suave transition hover:opacity-90 disabled:opacity-50"
               disabled={isLoading}
             >
               {isLoading ? "Ingresando..." : modoSuperDev ? "Entrar como SuperDeveloper" : "Continuar"}
@@ -196,14 +206,14 @@ export default function Login() {
             <button
               type="button"
               onClick={() => { setModoSuperDev(!modoSuperDev); setError("") }}
-              className="w-full text-xs text-slate-500 hover:text-slate-300 transition"
+              className="w-full text-xs text-muted-foreground hover:text-foreground transition"
             >
               {modoSuperDev ? "Volver al inicio de sesión normal" : "Acceso SuperDeveloper"}
             </button>
           </form>
         </div>
 
-        <p className="text-center mt-6 text-slate-500 text-sm">
+        <p className="mt-6 text-center text-xs text-muted-foreground">
           Sistema POS v1.0
         </p>
       </div>

@@ -6,7 +6,10 @@ import { useAuthStore } from "@/store/useAuthStore"
 import { useSettingsStore } from "@/store/useSettingsStore"
 import toast from "react-hot-toast"
 
-import { Plus } from "lucide-react"
+import { Plus, ShoppingCart } from "lucide-react"
+import EncabezadoPantalla from "@/components/ui/encabezado-pantalla"
+import BarraTotalMovil from "@/components/siaa-ui/BarraTotalMovil"
+
 
 import { useVentasContado } from "./hooks/useVentasContado"
 import { useGridNavigation } from "./hooks/useGridNavigation"
@@ -382,24 +385,19 @@ const handleSeleccionProducto = (producto) => {
 
   /* ===== RENDER ===== */
   return (
-    <div className="space-y-5">
-      {/* HEADER */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-3xl font-bold text-emerald-600">
-            Ventas de Contado
-          </h2>
-          <div className="text-sm text-muted-foreground">
-            Caja: <span className="font-semibold">{caja?.numero}</span>{" "}
-            <span className="opacity-60">({caja?.tipo})</span>
-          </div>
-        </div>
-
-        <Button onClick={agregarItem} className="bg-emerald-600 gap-2">
-          <Plus className="w-4 h-4" />
-          Agregar
-        </Button>
-      </div>
+    <div className="space-y-5 pb-20 md:pb-0">
+      <EncabezadoPantalla
+        titulo="Venta de contado"
+        icono={ShoppingCart}
+        className="mb-0"
+        subtitulo={<>Caja <b className="text-foreground">{caja?.numero}</b> <span className="opacity-70">({caja?.tipo})</span></>}
+        acciones={
+          <Button onClick={agregarItem} className="gap-2">
+            <Plus className="w-4 h-4" />
+            Agregar
+          </Button>
+        }
+      />
 
  {/* TOGGLE CONDICIONADO */}
 {Number(settings?.allow_discounts) !== 0 && (
@@ -409,13 +407,15 @@ const handleSeleccionProducto = (producto) => {
       onCheckedChange={setMostrarDescuento}
     />
     <div className="flex flex-col">
-       <span className="text-sm font-medium text-slate-700">Mostrar descuentos</span>
+       <span className="text-sm font-medium text-foreground">Mostrar descuentos</span>
        <p className="text-[10px] text-muted-foreground">[F11] cambia foco</p>
     </div>
   </div>
 )}
 
+      <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_320px] md:items-start lg:grid-cols-1 2xl:grid-cols-[minmax(0,1fr)_400px]">
       {/* GRILLA */}
+      <div className="min-w-0">
       <VentaGrid
         focusArea={focusArea}
         items={items}
@@ -440,8 +440,10 @@ const handleSeleccionProducto = (producto) => {
         }}
       />
 
-      {/* RESUMEN + PAGO */}
-      <div className="grid lg:grid-cols-2 gap-5">
+      </div>
+
+      {/* TICKET: RESUMEN + PAGO */}
+      <div className="min-w-0 space-y-5 [&>*]:min-w-0 md:sticky md:top-20 lg:static lg:grid lg:grid-cols-2 lg:gap-5 lg:space-y-0 2xl:sticky 2xl:top-6 2xl:block 2xl:space-y-5">
         <Resumen
           subtotal={subtotal}
           ivaTotal={ivaTotal}
@@ -450,6 +452,7 @@ const handleSeleccionProducto = (producto) => {
           mostrarDescuento={mostrarDescuento}
         />
 
+      <div id="pago-venta" className="scroll-mt-20">
       <PagoVenta
         mode="contado"  // Ahora es "contado" en lugar de "apartado"
         total={granTotal}
@@ -470,8 +473,12 @@ const handleSeleccionProducto = (producto) => {
 
         onProcesar={handleProcesarVenta} // Función de procesamiento de ventas de contado
       />
+      </div>
 
       </div>
+      </div>
+
+      <BarraTotalMovil total={granTotal} />
 
       {/* OVERLAYS */}
      {mostrarLista && (
