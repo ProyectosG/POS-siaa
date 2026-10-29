@@ -6,7 +6,10 @@ import { useAuthStore } from "@/store/useAuthStore"
 import { useSettingsStore } from "@/store/useSettingsStore"
 import toast from "react-hot-toast"
 
-import { Plus, User, DollarSign, CreditCard } from "lucide-react"
+import { Plus, User, DollarSign, CreditCard, ShoppingBag } from "lucide-react"
+import EncabezadoPantalla from "@/components/ui/encabezado-pantalla"
+import BarraTotalMovil from "@/components/siaa-ui/BarraTotalMovil"
+
 
 import { useVentasApartado } from "./hooks/useVentasApartado"
 import { useGridNavigationApartado } from "./hooks/useGridNavigationApartado"
@@ -398,21 +401,22 @@ const handleClienteCreado = (clienteNuevo) => {
 }
 
   return (
-    <div className="space-y-8 pb-12">
-      {/* Header superior */}
-      <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between lg:gap-8">
-        {/* Izquierda: Título + caja + toggle */}
-        <div className="flex flex-col items-center gap-5 text-center lg:items-start lg:text-left">
-          <h2 className="text-3xl font-bold bg-gradient-to-r from-purple-600 via-pink-500 to-purple-600 bg-clip-text text-transparent">
-            Ventas de APARTADO
-          </h2>
-
-          <div className="text-sm text-muted-foreground">
-            Caja: <span className="font-semibold">{caja?.numero || "—"}</span>{" "}
-            <span className="opacity-60">({caja?.tipo || "N/A"})</span>
-          </div>
-
-          <div className="flex flex-col items-center gap-2 lg:flex-row lg:gap-4">
+    <div className="space-y-5 pb-20 md:pb-12">
+      <EncabezadoPantalla
+        titulo="Venta de apartado"
+        icono={ShoppingBag}
+        className="mb-0"
+        subtitulo={<>Caja <b className="text-foreground">{caja?.numero || "—"}</b> <span className="opacity-70">({caja?.tipo || "N/A"})</span></>}
+        acciones={
+          <Button onClick={agregarItem} className="gap-2">
+            <Plus className="w-4 h-4" />
+            Agregar producto
+          </Button>
+        }
+      />
+      <div>
+        <div>
+          <div className="flex flex-wrap items-center gap-2 lg:gap-4">
             <div className="flex items-center gap-3">
               <Switch
                 checked={mostrarDescuento}
@@ -424,16 +428,10 @@ const handleClienteCreado = (clienteNuevo) => {
           </div>
         </div>
 
-        {/* Derecha: Botón Agregar */}
-        <Button
-          onClick={agregarItem}
-          className="bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 shadow-md h-11 px-8 self-center lg:self-start"
-        >
-          <Plus className="w-5 h-5 mr-2" />
-          Agregar producto
-        </Button>
       </div>
 
+      <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_320px] md:items-start lg:grid-cols-1 2xl:grid-cols-[minmax(0,1fr)_400px]">
+      <div className="min-w-0 space-y-5">
       {/* Grilla principal */}
       <VentaApartadoGrid
         focusArea={focusArea}
@@ -459,8 +457,6 @@ const handleClienteCreado = (clienteNuevo) => {
         }}
       />
 
-      {/* Sección inferior: 3 cards grandes */}
-      <div className="grid gap-6 lg:grid-cols-3">
         {/* Card 1: ¿Quién? - Datos del cliente */}
         <Card className="border-emerald-100 shadow-sm">
           <CardHeader className="pb-3">
@@ -552,6 +548,10 @@ const handleClienteCreado = (clienteNuevo) => {
         </Card>
         
 
+      </div>
+
+      {/* TICKET: resumen con anticipo y pago */}
+      <div className="space-y-5 md:sticky md:top-20 lg:static lg:grid lg:grid-cols-2 lg:gap-5 lg:space-y-0 2xl:sticky 2xl:top-6 2xl:block 2xl:space-y-5">
         {/* Card 2: Resumen + Anticipo */}
         <ResumenApartado
           subtotal={subtotal}
@@ -569,6 +569,7 @@ const handleClienteCreado = (clienteNuevo) => {
         />
 
         {/* Card 3: Pago */}
+        <div id="pago-venta" className="scroll-mt-20">
         <PagoVenta
           mode="apartado"
           total={granTotal}
@@ -589,11 +590,11 @@ const handleClienteCreado = (clienteNuevo) => {
 
           onProcesar={handleProcesarVenta} // Cambié el nombre del prop a `onProcesar` que es lo que espera el componente hijo
         />
-
-
-
-
+        </div>
       </div>
+      </div>
+
+      <BarraTotalMovil total={granTotal} textoBoton="Ir al anticipo" />
 
       {/* Overlays */}
       {mostrarLista && (

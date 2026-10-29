@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { apiFetch } from "@/lib/apiFetch"
+import EncabezadoPantalla from "@/components/ui/encabezado-pantalla"
+
 
 
 export default function CatalogoCajas() {
@@ -108,18 +110,12 @@ export default function CatalogoCajas() {
   }
 
   return (
-    <div className="min-h-screen p-6">
+    <div>
       <div className="max-w-6xl mx-auto">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-foreground flex items-center justify-center gap-3">
-            <BoxIcon className="h-8 w-8 text-primario" />
-            Catálogo de Cajas
-          </h1>
-          <p className="text-muted-foreground mt-2">Gestiona las cajas del punto de venta</p>
-        </div>
+        <EncabezadoPantalla titulo="Catálogo de Cajas" subtitulo="Gestiona las cajas del punto de venta" icono={BoxIcon} />
 
         {error && (
-          <div className="mb-6 p-4 bg-error-suave border border-red-500/50 rounded-lg text-error text-center">
+          <div className="mb-6 p-4 bg-error-suave border border-error/40 rounded-lg text-error text-center">
             {error}
           </div>
         )}

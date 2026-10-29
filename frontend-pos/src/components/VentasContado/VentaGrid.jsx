@@ -39,7 +39,7 @@ export default function VentaGrid({
   return (
     <div
       className={`
-        rounded-md transition-all duration-300
+        tabla-desplazable overflow-x-auto rounded-md transition-all duration-300
         ${
           grillaActiva
             ? `border-2 border-emerald-500 ring-4 ring-emerald-400/30 shadow-[0_0_0_3px_rgba(16,185,129,0.25)]`
@@ -47,7 +47,7 @@ export default function VentaGrid({
         }
       `}
     >
-      <table className="w-full text-sm">
+      <table className="w-full min-w-[760px] text-sm">
         <colgroup>
           <col style={{ width: "7ch" }} />
           <col style={{ width: "18ch" }} />

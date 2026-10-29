@@ -44,7 +44,7 @@ export default function VentaApartadoGrid({
   return (
     <div
       className={`
-        rounded-md transition-all duration-300
+        tabla-desplazable overflow-x-auto rounded-md transition-all duration-300
         ${
           grillaActiva
             ? `
@@ -60,7 +60,7 @@ export default function VentaApartadoGrid({
         }
       `}
     >
-   <table className="w-full text-sm">
+   <table className="w-full min-w-[760px] text-sm">
   <colgroup>
     <col style={{ width: "7ch" }} />
     <col style={{ width: "18ch" }} />

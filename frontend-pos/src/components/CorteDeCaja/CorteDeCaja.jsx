@@ -5,6 +5,8 @@ import { Printer, DollarSign, CheckCircle } from "lucide-react";
 import { useCajaStore } from "@/store/useCajaStore";
 import toast from "react-hot-toast";
 import { apiFetch } from "@/lib/apiFetch"
+import EncabezadoPantalla from "@/components/ui/encabezado-pantalla"
+
 
 
 export default function CorteDeCaja() {
@@ -132,23 +134,18 @@ export default function CorteDeCaja() {
     first <= last;
     
   return (
-    <div className="max-w-2xl mx-auto p-4 rounded-xl border border-border shadow-xl overflow-auto max-h-screen">
-      {/* Header */}
-      <div className="text-center mb-4">
-        <h1 className="text-2xl font-extrabold text-foreground mb-1 flex items-center justify-center gap-2">
-          <DollarSign size={24} className="text-exito" /> Corte X del Turno 💸
-        </h1>
-        <p className="text-muted-foreground text-sm font-medium">
-          Caja: <span className="font-bold text-primario">{caja?.numero || "Sin caja"}</span> |{" "}
-          {hasTickets ? (
-            <>
-              TICKETS: Desde: <span className="text-exito font-bold">{first}</span> | Hasta: <span className="text-exito font-bold">{last}</span>
-            </>
-          ) : (
-            <>Sin tickets nuevos en este período</>
-          )}
-        </p>
-      </div>
+    <div className="max-w-3xl mx-auto">
+      <EncabezadoPantalla
+        titulo="Corte X del turno"
+        icono={DollarSign}
+        subtitulo={
+          <>
+            Caja <b className="text-foreground">{caja?.numero || "sin caja"}</b> ·{" "}
+            {hasTickets ? <>tickets del <b className="tabular text-foreground">{first}</b> al <b className="tabular text-foreground">{last}</b></> : "sin tickets nuevos en este período"}
+          </>
+        }
+      />
+      <div className="rounded-tarjeta border bg-card p-4 shadow-suave sm:p-6">
 
 
       {/* SECCIÓN VENTAS TOTALES + IVA */}
@@ -249,7 +246,7 @@ export default function CorteDeCaja() {
         <button
           onClick={handleConfirmarCorte}
           disabled={confirming || loading}
-          className={`px-6 py-3 bg-gradient-to-r from-green-600 to-green-500 text-white font-bold text-base rounded-lg hover:from-green-700 hover:to-green-600 transition flex items-center justify-center gap-2 shadow-md ${
+          className={`px-6 py-3 bg-exito text-white font-bold text-base rounded-lg hover:opacity-90 transition flex items-center justify-center gap-2 shadow-suave ${
             confirming || loading ? 'opacity-50 cursor-not-allowed' : ''
           }`}
         >
@@ -259,10 +256,11 @@ export default function CorteDeCaja() {
 
         <button
           onClick={handlePrint}
-          className="px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-bold text-base rounded-lg hover:from-blue-700 hover:to-cyan-600 transition flex items-center justify-center gap-2 shadow-md"
+          className="px-6 py-3 bg-primario text-white font-bold text-base rounded-lg hover:opacity-90 transition flex items-center justify-center gap-2 shadow-suave"
         >
           <Printer size={20} /> Imprimir Corte (Térmica)
         </button>
+      </div>
       </div>
     </div>
   );

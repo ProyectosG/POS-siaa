@@ -1,7 +1,9 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, Plus } from "lucide-react"
+import { Search, Plus, Users } from "lucide-react"
+import EncabezadoPantalla from "@/components/ui/encabezado-pantalla"
+
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import UserForm from "./UserForm"
@@ -92,23 +94,21 @@ export default function CatalogoUsuarios() {
   }
 
   return (
-    <div className="min-h-screen p-6">
+    <div>
       <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col items-center gap-4 mb-8">
-          <div className="text-center">
-            <h1 className="text-3xl font-bold text-foreground">Catálogo de Usuarios</h1>
-            <p className="text-muted-foreground mt-1">Gestiona los usuarios del sistema</p>
-          </div>
-
-          <Button
-            onClick={() => setIsFormOpen(true)}
-            className="bg-gradient-to-r from-blue-600 to-purple-600"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Nuevo Usuario
-          </Button>
-
-          <div className="w-64 relative">
+        <EncabezadoPantalla
+          titulo="Catálogo de Usuarios"
+          subtitulo="Gestiona los usuarios del sistema y sus permisos"
+          icono={Users}
+          acciones={
+            <Button onClick={() => setIsFormOpen(true)}>
+              <Plus className="h-4 w-4" />
+              Nuevo Usuario
+            </Button>
+          }
+        />
+        <div className="flex flex-col gap-4 mb-6">
+          <div className="w-full sm:w-64 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Buscar..."
