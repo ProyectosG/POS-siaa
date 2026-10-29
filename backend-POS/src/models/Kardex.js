@@ -1,7 +1,13 @@
-const db = require('../config/database');
+// src/models/Kardex.js
+// Los movimientos se registran SOLO dentro de una transacción (ventas,
+// entradas, salidas y altas de producto), junto con el cambio de stock; la
+// consulta es con Prisma.
+const { prisma } = require('../config/prisma');
 
 class Kardex {
-  static logMovement({
+  // tx: la transacción de config/transaccion.js. Sin ella no se registra: un
+  // movimiento suelto dejaría el kardex sin cuadrar con el stock.
+  static async logMovement({
     product_id,
     id_user,
     nickname_user,
@@ -14,79 +20,47 @@ class Kardex {
     time,
     related_folio
   }, tx) {
-    // Con tx (config/transaccion.js) el movimiento queda dentro de esa transacción
-    const conexion = tx
-      ? { run: (sql, params, cb) => tx.run(sql, params).then((r) => cb.call(r, null), (e) => cb(e)) }
-      : db;
+    if (!tx) throw new Error('El kardex solo se registra dentro de una transacción');
 
-    return new Promise((resolve, reject) => {
-      conexion.run(
-        `INSERT INTO kardex
-         (
-          product_id,
-          id_user,
-          nickname_user,
-          movement_type,
-          movement_reason,
-          previous_stock,
-          moved_quantity,
-          new_stock,
-          date,
-          time,
-          related_folio
-         )
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          product_id,
-          id_user,
-          nickname_user,
-          movement_type,
-          movement_reason || null,
-          previous_stock,
-          moved_quantity,
-          new_stock,
-          date,
-          time,
-          related_folio || null
-        ],
-        function (err) {
-          if (err) reject(err)
-          else resolve(this.lastID)
-        }
-      )
-    })
+    const { lastID } = await tx.run(
+      `INSERT INTO kardex
+       (
+        product_id,
+        id_user,
+        nickname_user,
+        movement_type,
+        movement_reason,
+        previous_stock,
+        moved_quantity,
+        new_stock,
+        date,
+        time,
+        related_folio
+       )
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        product_id,
+        id_user,
+        nickname_user,
+        movement_type,
+        movement_reason || null,
+        previous_stock,
+        moved_quantity,
+        new_stock,
+        date,
+        time,
+        related_folio || null
+      ]
+    );
+    return lastID;
   }
 
-  static validateReason(movement_type, movement_reason) {
-    return new Promise((resolve, reject) => {
-      db.get(
-        `SELECT 1
-         FROM kardex_reasons
-         WHERE code = ?
-           AND movement_type = ?
-           AND active = 1`,
-        [movement_reason, movement_type],
-        (err, row) => {
-          if (err) reject(err)
-          resolve(!!row)
-        }
-      )
-    })
-  }
-
+  // En orden cronológico (id desempata los del mismo segundo)
   static findByProductId(product_id) {
-    return new Promise((resolve, reject) => {
-      db.all(
-        `SELECT * FROM kardex
-         WHERE product_id = ?
-         ORDER BY date ASC, time ASC`,
-        [product_id],
-        (err, rows) => {
-          if (err) reject(err)
-          resolve(rows)
-        }
-      )
-    })
+    return prisma.kardex.findMany({
+      where: { product_id },
+      orderBy: [{ date: 'asc' }, { time: 'asc' }, { id: 'asc' }],
+    });
   }
 }
 
