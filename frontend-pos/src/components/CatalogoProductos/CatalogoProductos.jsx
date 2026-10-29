@@ -21,7 +21,15 @@ import {
 import CatalogoProductosForm from "@/components/CatalogoProductos/CatalogoProductosForm"
 import { apiFetch } from "@/lib/apiFetch"
 import { pesos } from "@/lib/formato"
+import ListaVacia from "@/components/ui/lista-vacia"
+import { EsqueletoFilas } from "@/components/ui/esqueleto"
 
+
+function EtiquetaExistencia({ stock }) {
+  const n = Number(stock || 0)
+  const [texto, clase] = n > 50 ? ["Disponible", "bg-exito-suave text-exito"] : n > 10 ? ["Bajo", "bg-aviso-suave text-aviso"] : ["Crítico", "bg-aviso text-white"]
+  return <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold whitespace-nowrap ${clase}`}>{texto}</span>
+}
 
 export default function CatalogoProductos() {
   const [products, setProducts] = useState([])
@@ -151,82 +159,97 @@ export default function CatalogoProductos() {
         {/* Tabla */}
 
 
-<div className="border rounded-lg bg-card overflow-hidden shadow-sm">
-  {loading ? (
-    <div className="p-12 text-center text-muted-foreground">Cargando...</div>
-  ) : (
-    <Table>
-      <TableHeader>
-        <TableRow className="bg-muted/80 border-b border-border">
-          <TableHead className="text-foreground font-semibold">Artículo</TableHead>
-          <TableHead className="text-foreground font-semibold">Presentación</TableHead>
-          <TableHead className="text-foreground font-semibold">Código</TableHead>
-          <TableHead className="text-right text-foreground font-semibold">P. Menudeo</TableHead>
-          <TableHead className="text-right text-foreground font-semibold">P. Mayoreo</TableHead>
-          <TableHead className="text-right text-foreground font-semibold">Stock</TableHead>
-          <TableHead className="text-foreground font-semibold">Estado</TableHead>
-          <TableHead className="text-right text-foreground font-semibold">Acciones</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {filteredProducts.length === 0 ? (
-          <TableRow>
-            <TableCell colSpan={8} className="text-center py-12 text-muted-foreground">
-              No se encontraron productos
-            </TableCell>
+{loading ? (
+  <EsqueletoFilas filas={6} />
+) : filteredProducts.length === 0 ? (
+  <ListaVacia titulo="No hay productos" mensaje={searchTerm ? "Ningún producto coincide con la búsqueda." : "Agrega el primero con Nuevo Producto."} />
+) : (
+  <>
+    {/* Celular: una tarjeta por producto */}
+    <ul className="space-y-3 md:hidden">
+      {filteredProducts.map((p) => (
+        <li key={p.id} className="rounded-tarjeta border bg-card p-4 shadow-suave">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="font-semibold break-words">{p.articulo}</p>
+              <p className="text-xs text-muted-foreground">{p.presentacion || "—"} · <span className="font-mono">{p.codigo_barras || "sin código"}</span></p>
+            </div>
+            <EtiquetaExistencia stock={p.stock} />
+          </div>
+          <dl className="mt-3 grid grid-cols-3 gap-2 text-sm">
+            <div><dt className="text-xs text-muted-foreground">Menudeo</dt><dd className="font-semibold">{pesos(p.precio_menudeo)}</dd></div>
+            <div><dt className="text-xs text-muted-foreground">Mayoreo</dt><dd className="font-semibold">{pesos(p.precio_mayoreo)}</dd></div>
+            <div><dt className="text-xs text-muted-foreground">Stock</dt><dd className="font-semibold">{p.stock || 0}</dd></div>
+          </dl>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <Button variant="outline" size="sm" onClick={() => { setCurrentProduct(p); setShowForm(true) }}>
+              <Pencil className="w-4 h-4" /> Editar
+            </Button>
+            <Button variant="outline" size="sm" className="text-error" onClick={() => { setProductToDelete(p); setIsDeleteDialogOpen(true) }}>
+              <Trash2 className="w-4 h-4" /> Eliminar
+            </Button>
+          </div>
+        </li>
+      ))}
+    </ul>
+
+    {/* Tablet y escritorio: tabla */}
+    <div className="hidden md:block border rounded-tarjeta bg-card overflow-hidden shadow-suave">
+      <Table>
+        <TableHeader>
+          <TableRow className="bg-muted/60 border-b border-border">
+            <TableHead className="text-foreground font-semibold">Artículo</TableHead>
+            <TableHead className="text-foreground font-semibold">Presentación</TableHead>
+            <TableHead className="text-foreground font-semibold">Código</TableHead>
+            <TableHead className="text-right text-foreground font-semibold">P. Menudeo</TableHead>
+            <TableHead className="text-right text-foreground font-semibold">P. Mayoreo</TableHead>
+            <TableHead className="text-right text-foreground font-semibold">Stock</TableHead>
+            <TableHead className="text-foreground font-semibold">Estado</TableHead>
+            <TableHead className="text-right text-foreground font-semibold">Acciones</TableHead>
           </TableRow>
-        ) : (
-          filteredProducts.map((p) => (
+        </TableHeader>
+        <TableBody>
+          {filteredProducts.map((p) => (
             <TableRow
               key={p.id}
-              className="hover:bg-primario-suave transition-colors border-b border-border/50 last:border-b-0 focus-within:bg-primario-suave"
+              className="hover:bg-primario-suave/60 transition-colors border-b border-border/50 last:border-b-0 focus-within:bg-primario-suave"
             >
               <TableCell className="font-medium text-foreground">{p.articulo}</TableCell>
               <TableCell className="text-foreground">{p.presentacion || "—"}</TableCell>
               <TableCell className="font-mono text-foreground">{p.codigo_barras || "—"}</TableCell>
-              <TableCell className="text-right text-foreground">
-                {pesos(Number(p.precio_menudeo || 0))}
-              </TableCell>
-              <TableCell className="text-right text-foreground">
-                {pesos(Number(p.precio_mayoreo || 0))}
-              </TableCell>
-              <TableCell className="text-right text-foreground">{p.stock || 0}</TableCell>
-              <TableCell>
-                <Badge
-                  variant={p.stock > 50 ? "default" : p.stock > 10 ? "secondary" : "destructive"}
-                  className="font-medium"
-                >
-                  {p.stock > 50 ? "Disponible" : p.stock > 10 ? "Bajo" : "Crítico"}
-                </Badge>
-              </TableCell>
-              <TableCell className="text-right flex items-center justify-end gap-1">
-                {/* Botón Editar - más visible */}
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() => { setCurrentProduct(p); setShowForm(true) }}
-                  className="text-primario hover:text-primario hover:bg-primario-suave transition-colors"
-                >
-                  <Pencil className="w-4 h-4" />
-                </Button>
-
-                {/* Botón Eliminar - más visible */}
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() => { setProductToDelete(p); setIsDeleteDialogOpen(true) }}
-                  className="text-error hover:text-error hover:bg-error-suave transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
+              <TableCell className="monto">{pesos(p.precio_menudeo)}</TableCell>
+              <TableCell className="monto">{pesos(p.precio_mayoreo)}</TableCell>
+              <TableCell className="monto">{p.stock || 0}</TableCell>
+              <TableCell><EtiquetaExistencia stock={p.stock} /></TableCell>
+              <TableCell className="text-right">
+                <div className="flex items-center justify-end gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => { setCurrentProduct(p); setShowForm(true) }}
+                    className="text-primario hover:text-primario hover:bg-primario-suave transition-colors"
+                    aria-label={`Editar ${p.articulo}`}
+                  >
+                    <Pencil className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={() => { setProductToDelete(p); setIsDeleteDialogOpen(true) }}
+                    className="text-error hover:text-error hover:bg-error-suave transition-colors"
+                    aria-label={`Eliminar ${p.articulo}`}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </div>
               </TableCell>
             </TableRow>
-          ))
-        )}
-      </TableBody>
-    </Table>
-  )}
-</div>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
+  </>
+)}
 
         {/* Diálogo eliminar */}
         <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>

@@ -20,6 +20,10 @@ import {
 } from "@/components/ui/dialog";
 import { apiFetch } from "@/lib/apiFetch"
 import { pesos } from "@/lib/formato"
+import { fechaCorta } from "@/lib/formato"
+import { EtiquetaTipoVenta, EtiquetaEstadoVenta } from "@/components/ui/etiqueta-venta"
+import ListaVacia from "@/components/ui/lista-vacia"
+import { Esqueleto, EsqueletoFilas } from "@/components/ui/esqueleto"
 
 
 export default function ListaVentas() {
@@ -274,9 +278,11 @@ const handleConfirmPrint = async () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <p className="text-lg text-muted-foreground animate-pulse">Cargando ventas... 📊</p>
-      </div>
+      <Card className="p-6">
+        <Esqueleto className="h-8 w-64" />
+        <Esqueleto className="mt-2 h-4 w-80 max-w-full" />
+        <EsqueletoFilas filas={6} className="mt-6" />
+      </Card>
     )
   }
 
@@ -337,10 +343,45 @@ const handleConfirmPrint = async () => {
           </Select>
         </div>
 
-        {/* Tabla */}
-        <div className="rounded-xl border overflow-hidden shadow-sm">
+        {ventasFiltradas.length === 0 && (
+          <ListaVacia titulo="No hay ventas" mensaje="No se encontraron ventas con los filtros aplicados." />
+        )}
+
+        {/* Celular: una tarjeta por venta */}
+        {ventasFiltradas.length > 0 && (
+          <ul className="space-y-3 md:hidden">
+            {ventasFiltradas.map((v) => (
+              <li key={v.id} className="rounded-tarjeta border bg-card p-4 shadow-suave">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold">Ticket #{v.id}</p>
+                    <p className="text-xs text-muted-foreground">{fechaCorta(v.date)} · {v.time} · {v.nickname_user}</p>
+                  </div>
+                  <p className="monto text-xl font-bold">{pesos(v.total)}</p>
+                </div>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <EtiquetaTipoVenta tipo={v.type} />
+                  <EtiquetaEstadoVenta estado={v.status} />
+                  {v.pending_balance > 0 && (
+                    <span className="text-xs text-muted-foreground">Pendiente <b className="text-aviso">{pesos(v.pending_balance)}</b></span>
+                  )}
+                </div>
+                <div className="mt-3 grid grid-cols-3 gap-2">
+                  <Button variant="outline" size="sm" onClick={() => handleVerDetalle(v)}>Detalle</Button>
+                  <Button variant="outline" size="sm" onClick={() => handleVerPagos(v)}>Pagos</Button>
+                  <Button variant="outline" size="sm" onClick={(e) => handleReimprimirTicket(v, e)} aria-label={`Reimprimir ticket ${v.id}`}>
+                    <Printer className="h-4 w-4" /> Ticket
+                  </Button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {/* Tablet y escritorio: tabla (se desplaza de lado dentro de su recuadro) */}
+        <div className={ventasFiltradas.length > 0 ? "hidden md:block rounded-xl border overflow-hidden shadow-suave" : "hidden"}>
           <Table>
-            <TableHeader className="bg-gradient-to-r from-emerald-50 to-teal-50">
+            <TableHeader className="bg-muted/60">
               <TableRow>
                 <TableHead onClick={() => handleOrdenar("id")} className="cursor-pointer font-semibold">
                   ID <ArrowUpDown className="ml-1 h-4 w-4 inline" />
@@ -391,33 +432,27 @@ const handleConfirmPrint = async () => {
               {ventasFiltradas.map((v) => (
                 <TableRow 
                   key={v.id}
-                  className="hover:bg-emerald-100/70 transition-colors even:bg-slate-50/70"
+                  className="hover:bg-primario-suave/60 transition-colors even:bg-muted/30"
                 >
                   <TableCell className="font-medium">{v.id}</TableCell>
                   <TableCell>{v.date}</TableCell>
                   <TableCell>{v.time}</TableCell>
                   <TableCell className="cursor-pointer" onClick={() => handleVerDetalle(v)}>
-                    <Badge variant="outline" className="rounded-full px-4 py-1.5 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 transition-colors">
-                      {v.type}
-                    </Badge>
+                    <EtiquetaTipoVenta tipo={v.type} />
                   </TableCell>
                   <TableCell>{v.movement_reason}</TableCell>
                   <TableCell className="text-right">{pesos(v.subtotal)}</TableCell>
                   <TableCell className="text-right">{pesos(v.tax_total)}</TableCell>
                   <TableCell className="text-right cursor-pointer" onClick={() => handleVerPagos(v)}>
-                    <Badge variant="outline" className="rounded-full px-4 py-1.5 bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 transition-colors font-medium">
-                      {pesos(v.total)}
-                    </Badge>
+                    <span className="monto font-semibold text-primario underline-offset-2 hover:underline">{pesos(v.total)}</span>
                   </TableCell>
                   <TableCell className="text-right">{pesos(v.pending_balance)}</TableCell>
                   <TableCell className="text-right font-medium">{pesos(v.paid)}</TableCell>
                   <TableCell>
-                    <Badge variant={v.status === "completed" ? "default" : "secondary"} className={v.status === "completed" ? "bg-green-100 text-green-800 border-green-200" : "bg-yellow-100 text-yellow-800 border-yellow-200"}>
-                      {v.status === "completed" ? "✅ Completada" : "⏳ Pendiente"}
-                    </Badge>
+                    <EtiquetaEstadoVenta estado={v.status} />
                   </TableCell>
                   <TableCell className="text-right">{pesos(v.efectivo_recibido)}</TableCell>
-                  <TableCell className="text-right font-medium text-slate-700">{pesos(v.cambio)}</TableCell>
+                  <TableCell className="text-right font-medium">{pesos(v.cambio)}</TableCell>
                   <TableCell>{v.nickname_user}</TableCell>
                   <TableCell className="text-center">
                     <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleReimprimirTicket(v, e); }}>
@@ -426,13 +461,6 @@ const handleConfirmPrint = async () => {
                   </TableCell>
                 </TableRow>
               ))}
-              {ventasFiltradas.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={16} className="text-center py-10 text-muted-foreground text-lg">
-                    No se encontraron ventas con los filtros aplicados 😔
-                  </TableCell>
-                </TableRow>
-              )}
             </TableBody>
           </Table>
         </div>
@@ -464,9 +492,7 @@ const handleConfirmPrint = async () => {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Status</p>
-                  <Badge variant={ventaDetalle?.status === "completed" ? "default" : "secondary"} className={ventaDetalle?.status === "completed" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}>
-                    {ventaDetalle?.status === "completed" ? "✅ Completada" : "⏳ Pendiente"}
-                  </Badge>
+                  <EtiquetaEstadoVenta estado={ventaDetalle?.status} />
                 </div>
               </div>
 
