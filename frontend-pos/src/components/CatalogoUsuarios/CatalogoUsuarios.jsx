@@ -10,6 +10,8 @@ import UserForm from "./UserForm"
 import UserCard from "./UserCard"
 import UserStats from "./UserStats.jsx"
 import { apiFetch } from "@/lib/apiFetch"
+import ListaVacia from "@/components/ui/lista-vacia"
+import { EsqueletoFilas } from "@/components/ui/esqueleto"
 
 
 export default function CatalogoUsuarios() {
@@ -129,15 +131,11 @@ export default function CatalogoUsuarios() {
         )}
 
         {loading ? (
-          <div className="text-center py-12 text-muted-foreground">
-            Cargando usuarios…
-          </div>
+          <EsqueletoFilas filas={4} className="max-w-md mx-auto" />
         ) : (
           <div className="max-w-md mx-auto space-y-4">
             {filteredUsers.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground">
-                No se encontraron usuarios
-              </div>
+              <ListaVacia titulo="No hay usuarios" mensaje="Ningún usuario coincide con la búsqueda." />
             ) : (
               filteredUsers.map((user) => (
                 <UserCard

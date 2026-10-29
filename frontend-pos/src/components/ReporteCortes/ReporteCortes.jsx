@@ -33,6 +33,8 @@ import {
 } from "@/components/ui/dialog";
 import { apiFetch } from "@/lib/apiFetch"
 import { pesos } from "@/lib/formato"
+import ListaVacia from "@/components/ui/lista-vacia"
+import { EsqueletoFilas } from "@/components/ui/esqueleto"
 
 
 const ReporteCortes = () => {
@@ -401,17 +403,13 @@ Efectivo en Caja: $${Number(detalle.cash_in_box || 0).toFixed(2)}
 
         {/* Tabla */}
         {cargando ? (
-          <div className="flex justify-center items-center h-64">
-            <p className="text-lg text-muted-foreground animate-pulse">Cargando cortes... 📊</p>
-          </div>
+          <EsqueletoFilas filas={6} />
         ) : error ? (
-          <div className="text-center py-12 text-red-600 font-medium bg-red-50 rounded-lg border border-red-200">
+          <div role="alert" className="text-center py-12 text-error font-medium bg-error-suave rounded-tarjeta border border-error/30">
             {error}
           </div>
         ) : cortesFiltrados.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground bg-slate-50 rounded-lg border border-slate-200">
-            No se encontraron cortes con los filtros aplicados 😔
-          </div>
+          <ListaVacia titulo="No hay cortes" mensaje="No se encontraron cortes con los filtros aplicados." />
         ) : (
           <div className="tabla-desplazable rounded-tarjeta border overflow-x-auto shadow-suave">
             <table className="min-w-full divide-y divide-gray-200">

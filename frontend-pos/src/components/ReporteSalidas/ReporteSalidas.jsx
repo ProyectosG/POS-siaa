@@ -35,6 +35,8 @@ import {
 } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { apiFetch } from "@/lib/apiFetch"
+import ListaVacia from "@/components/ui/lista-vacia"
+import { EsqueletoFilas } from "@/components/ui/esqueleto"
 
 
 const ReporteSalidas = () => {
@@ -291,17 +293,13 @@ const ReporteSalidas = () => {
 
         {/* Tabla */}
         {cargando ? (
-          <div className="flex justify-center items-center h-64">
-            <p className="text-lg text-muted-foreground animate-pulse">Cargando salidas... 📦</p>
-          </div>
+          <EsqueletoFilas filas={6} />
         ) : error ? (
-          <div className="text-center py-12 text-red-600 font-medium bg-red-50 rounded-lg border border-red-200">
+          <div role="alert" className="text-center py-12 text-error font-medium bg-error-suave rounded-tarjeta border border-error/30">
             {error}
           </div>
         ) : salidasFiltradas.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground bg-slate-50 rounded-lg border border-slate-200">
-            No se encontraron salidas con los filtros aplicados 😔
-          </div>
+          <ListaVacia titulo="No hay salidas" mensaje="No se encontraron salidas con los filtros aplicados." />
         ) : (
           <div className="tabla-desplazable rounded-tarjeta border overflow-x-auto shadow-suave">
             <table className="min-w-full divide-y divide-gray-200">
