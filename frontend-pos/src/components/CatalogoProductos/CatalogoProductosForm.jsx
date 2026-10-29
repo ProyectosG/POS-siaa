@@ -12,6 +12,7 @@ import TabPrecios from "./tabs/TabPrecios";
 import TabInventario from "./tabs/TabInventario";
 import TabImagen from "./tabs/TabImagen";
 import { apiFetch } from "@/lib/apiFetch"
+import { veCosto } from "@/lib/permisos"
 
 
 
@@ -24,6 +25,7 @@ export default function CatalogoProductosForm({ product, onSave, onCancel }) {
     precio_mayoreo: product?.precio_mayoreo?.toString() || "",
     precio_especial: product?.precio_especial?.toString() || "",
     precio_oferta: product?.precio_oferta?.toString() || "",
+    costo: product?.costo?.toString() || "",
     iva: product?.iva?.toString() || "16",
     ieps: product?.ieps?.toString() || "0",
     stock: product?.stock || 0,
@@ -37,6 +39,7 @@ export default function CatalogoProductosForm({ product, onSave, onCancel }) {
   })
 
   const { user } = useAuthStore()
+  const mostrarCosto = veCosto(user)
 
   const [imagePreview, setImagePreview] = useState(product?.photo_url || "")
   const [categories, setCategories] = useState([])
@@ -61,6 +64,7 @@ export default function CatalogoProductosForm({ product, onSave, onCancel }) {
         precio_mayoreo: "",
         precio_especial: "",
         precio_oferta: "",
+        costo: "",
         iva: "16",
         ieps: "0",
         stock: 0,
@@ -82,6 +86,7 @@ export default function CatalogoProductosForm({ product, onSave, onCancel }) {
         precio_mayoreo: product.precio_mayoreo?.toString() || "",
         precio_especial: product.precio_especial?.toString() || "",
         precio_oferta: product.precio_oferta?.toString() || "",
+        costo: product.costo?.toString() || "",
         iva: product.iva?.toString() || "16",
         ieps: product.ieps?.toString() || "0",
         stock: product.stock || 0,
@@ -163,8 +168,11 @@ export default function CatalogoProductosForm({ product, onSave, onCancel }) {
       ? `/products/${product.id}`
       : `/products`
 
+    // El costo solo lo manda el Administrador (a los demás el servidor les responde 403)
+    const { costo, ...datos } = formData
     const body = {
-      ...formData,
+      ...datos,
+      ...(mostrarCosto ? { costo: costo === "" ? null : parseFloat(costo) } : {}),
       precio_menudeo: parseFloat(formData.precio_menudeo) || null,
       precio_mayoreo: parseFloat(formData.precio_mayoreo) || null,
       precio_especial: parseFloat(formData.precio_especial) || null,
@@ -246,6 +254,7 @@ export default function CatalogoProductosForm({ product, onSave, onCancel }) {
         <TabPrecios
           formData={formData}
           onChange={update}
+          mostrarCosto={mostrarCosto}
         />
       </TabsContent>
 

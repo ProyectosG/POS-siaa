@@ -43,6 +43,12 @@ export function nivelRequerido(ruta) {
   return limpia.startsWith("/dashboard") ? NIVELES.ADMIN : NIVELES.CAJERO
 }
 
+// El costo de los productos solo lo ve y lo captura el Administrador (el
+// servidor lo quita de las respuestas y rechaza el cambio a los demás)
+export function veCosto(user) {
+  return Boolean(user && (user.isSuperDev || Number(user.accessLevel) >= NIVELES.ADMIN))
+}
+
 export function puedeVer(user, ruta) {
   if (!user) return false
   if (user.isSuperDev) return true
