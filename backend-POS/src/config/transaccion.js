@@ -44,10 +44,18 @@ function envolver(c) {
   };
 }
 
+// Forma fn() en la cola: corre cuando terminó lo anterior
+function formar(fn) {
+  const tarea = cola.then(fn);
+  // La cola sigue aunque esta tarea falle
+  cola = tarea.catch(() => {});
+  return tarea;
+}
+
 // Corre fn(tx) dentro de BEGIN IMMEDIATE ... COMMIT. Si fn lanza un error, ROLLBACK.
 // Las llamadas se forman en cola: nunca hay dos transacciones mezcladas.
 function enTransaccion(fn) {
-  const tarea = cola.then(async () => {
+  return formar(async () => {
     const tx = envolver(await abrirConexion());
     await tx.run('BEGIN IMMEDIATE');
     try {
@@ -59,9 +67,14 @@ function enTransaccion(fn) {
       throw err;
     }
   });
-  // La cola sigue aunque esta transacción falle
-  cola = tarea.catch(() => {});
-  return tarea;
+}
+
+// Corre fn() en la misma cola, sin abrir transacción. Lo usa Prisma
+// (config/prisma.js): mientras espera el candado de SQLite, Prisma detiene todo
+// Node, y si eso pasa con una transacción a medias, esa transacción ya no puede
+// terminar. En la cola nunca coinciden.
+function enCola(fn) {
+  return formar(fn);
 }
 
 // Error con código HTTP: el controlador responde ese status con el mensaje
@@ -81,4 +94,4 @@ async function cerrarTransacciones() {
   if (c) await new Promise((resolve) => c.close(() => resolve()));
 }
 
-module.exports = { enTransaccion, ErrorNegocio, cerrarTransacciones };
+module.exports = { enTransaccion, enCola, ErrorNegocio, cerrarTransacciones };
