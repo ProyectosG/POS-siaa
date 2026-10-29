@@ -1,6 +1,7 @@
 const Customer = require('../models/Customer');
 const db = require('../config/database');
 const { filaAPesos, filasAPesos } = require('../utils/dinero');
+const { leerId, tieneRelacionados } = require('../utils/peticion');
 
 exports.getAll = async (req, res) => {
   try {
@@ -13,7 +14,8 @@ exports.getAll = async (req, res) => {
 
 exports.getById = async (req, res) => {
   try {
-    const customer = await Customer.findById(req.params.id);
+    const id = leerId(req);
+    const customer = id && (await Customer.findById(id));
     if (!customer) return res.status(404).json({ error: 'Cliente no encontrado' });
     res.json(customer);
   } catch (err) {
@@ -35,7 +37,10 @@ exports.create = async (req, res) => {
 
 exports.update = async (req, res) => {
   try {
-    await Customer.update(req.params.id, req.body);
+    const id = leerId(req);
+    // El saldo (current_balance) se ignora aquí: solo lo mueve moverSaldo
+    const existe = id && (await Customer.update(id, req.body));
+    if (!existe) return res.status(404).json({ error: 'Cliente no encontrado' });
     res.json({ message: 'Cliente actualizado' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -44,17 +49,22 @@ exports.update = async (req, res) => {
 
 exports.delete = async (req, res) => {
   try {
-    await Customer.delete(req.params.id);
+    const id = leerId(req);
+    const existe = id && (await Customer.delete(id));
+    if (!existe) return res.status(404).json({ error: 'Cliente no encontrado' });
     res.json({ message: 'Cliente eliminado' });
   } catch (err) {
+    if (tieneRelacionados(err)) {
+      return res.status(409).json({ error: 'No se puede eliminar: el cliente tiene ventas o movimientos de saldo' });
+    }
     res.status(500).json({ error: err.message });
   }
 };
 
 exports.search = async (req, res) => {
   try {
-    const q = req.params.q;
-    if (!q || q.length < 2) return res.json([]);
+    const q = String(req.params.q || '').trim();
+    if (q.length < 2) return res.json([]);
 
     const customers = await Customer.search(q);
     res.json(customers);

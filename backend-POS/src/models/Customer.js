@@ -1,74 +1,49 @@
-const db = require('../config/database');
+// src/models/Customer.js
+// Alta, consulta, edición, baja y búsqueda con Prisma. moverSaldo sigue con la
+// conexión de transacciones (va dentro de ventas y abonos).
+const { prisma } = require('../config/prisma');
 const { filaAPesos, filasAPesos } = require('../utils/dinero');
 const { ahoraNegocio } = require('../utils/fechas');
 
-// Campos que se pueden modificar con update()
+// Campos que se pueden modificar con update(). current_balance NO está: el
+// saldo solo cambia con moverSaldo, que deja historial.
 const CAMPOS_EDITABLES = [
   'first_name', 'last_name_paternal', 'last_name_maternal',
   'phone', 'email', 'address', 'rfc', 'postal_code', 'city',
 ];
 
+// Texto o null (SQLite guardaba lo que llegara; Prisma exige texto)
+const texto = (v) => (v === undefined || v === null || v === '' ? null : String(v));
+
 class Customer {
   // Un cliente nuevo empieza sin saldo: el saldo solo cambia con moverSaldo
-  static create(data) {
-    return new Promise((resolve, reject) => {
-      db.run(
-        `INSERT INTO customers
-         (first_name, last_name_paternal, last_name_maternal, phone, email, address, rfc, postal_code, city, current_balance)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)`,
-        [
-          data.first_name || null,
-          data.last_name_paternal || null,
-          data.last_name_maternal || null,
-          data.phone || null,
-          data.email || null,
-          data.address || null,
-          data.rfc || null,
-          data.postal_code || null,
-          data.city || null,
-        ],
-        function (err) {
-          if (err) reject(err);
-          else resolve(this.lastID);
-        }
-      );
-    });
+  static async create(data) {
+    const datos = {};
+    for (const campo of CAMPOS_EDITABLES) datos[campo] = texto(data[campo]);
+    const cliente = await prisma.customers.create({ data: { ...datos, current_balance: 0 } });
+    return cliente.id;
   }
 
-  static findAll() {
-    return new Promise((resolve, reject) => {
-      db.all(`SELECT * FROM customers`, [], (err, rows) => {
-        if (err) reject(err);
-        else resolve(filasAPesos(rows, 'customers'));
-      });
-    });
+  static async findAll() {
+    return filasAPesos(await prisma.customers.findMany({ orderBy: { id: 'asc' } }), 'customers');
   }
 
-  static findById(id) {
-    return new Promise((resolve, reject) => {
-      db.get(`SELECT * FROM customers WHERE id = ?`, [id], (err, row) => {
-        if (err) reject(err);
-        else resolve(filaAPesos(row, 'customers'));
-      });
-    });
+  static async findById(id) {
+    return filaAPesos(await prisma.customers.findUnique({ where: { id } }), 'customers');
   }
 
   // Solo campos de la lista fija; lo demás (incluido current_balance) se ignora.
-  // El saldo solo cambia con moverSaldo, que deja historial.
-  static update(id, data) {
-    return new Promise((resolve, reject) => {
-      const campos = CAMPOS_EDITABLES.filter(key => data[key] !== undefined);
-      if (campos.length === 0) return resolve();
-
-      const fields = campos.map(key => `${key} = ?`).join(', ');
-      const values = campos.map(key => data[key]);
-      values.push(id);
-
-      db.run(`UPDATE customers SET ${fields} WHERE id = ?`, values, err => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
+  // Devuelve false si no existe.
+  static async update(id, data) {
+    const cambios = {};
+    for (const campo of CAMPOS_EDITABLES) {
+      if (data[campo] !== undefined) cambios[campo] = data[campo] === null ? null : String(data[campo]);
+    }
+    if (Object.keys(cambios).length === 0) {
+      return (await prisma.customers.count({ where: { id } })) > 0;
+    }
+    const { count } = await prisma.customers.updateMany({ where: { id }, data: cambios });
+    return count > 0;
   }
 
   // Mueve el saldo (lo que el cliente debe) y deja historial. Va DENTRO de una
@@ -92,42 +67,31 @@ class Customer {
     return newBalance;
   }
 
-  static delete(id) {
-    return new Promise((resolve, reject) => {
-      db.run(`DELETE FROM customers WHERE id = ?`, [id], err => {
-        if (err) reject(err);
-        else resolve();
-      });
-    });
+  // Devuelve false si no existe. Si tiene ventas o historial de saldo, SQLite
+  // rechaza el borrado (llave foránea) y Prisma lanza el error P2003.
+  static async delete(id) {
+    const { count } = await prisma.customers.deleteMany({ where: { id } });
+    return count > 0;
   }
 
-  static search(q) {
-    return new Promise((resolve, reject) => {
-      const like = `%${q}%`;
-      db.all(
-        `
-        SELECT
-          id,
-          first_name,
-          last_name_paternal,
-          last_name_maternal,
-          phone,
-          current_balance
-        FROM customers
-        WHERE
-          first_name LIKE ?
-          OR last_name_paternal LIKE ?
-          OR last_name_maternal LIKE ?
-          OR phone LIKE ?
-        LIMIT 20
-        `,
-        [like, like, like, like],
-        (err, rows) => {
-          if (err) reject(err);
-          else resolve(filasAPesos(rows, 'customers'));
-        }
-      );
+  // Busca por nombre, apellidos o teléfono (máximo 20)
+  static async search(q) {
+    const filas = await prisma.customers.findMany({
+      where: {
+        OR: [
+          { first_name: { contains: q } },
+          { last_name_paternal: { contains: q } },
+          { last_name_maternal: { contains: q } },
+          { phone: { contains: q } },
+        ],
+      },
+      select: {
+        id: true, first_name: true, last_name_paternal: true, last_name_maternal: true,
+        phone: true, current_balance: true,
+      },
+      take: 20,
     });
+    return filasAPesos(filas, 'customers');
   }
 }
 
