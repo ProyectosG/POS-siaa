@@ -1,5 +1,12 @@
-const db = require('../config/database');
 const Category = require('../models/Category');
+
+// El id de la ruta debe ser un entero positivo
+const leerId = (req) => {
+  const id = Number(req.params.id);
+  return Number.isInteger(id) && id > 0 ? id : null;
+};
+
+const familiaValida = (family) => family && typeof family === 'string' && family.trim() !== '';
 
 exports.getAll = async (req, res) => {
   try {
@@ -14,7 +21,7 @@ exports.create = async (req, res) => {
   try {
     const { family, subfamily } = req.body;
 
-    if (!family || typeof family !== 'string' || family.trim() === '') {
+    if (!familiaValida(family)) {
       return res.status(400).json({ error: 'family es requerido y debe ser texto' });
     }
 
@@ -27,17 +34,16 @@ exports.create = async (req, res) => {
 
 exports.update = async (req, res) => {
   try {
-    const { id } = req.params;
-    const { family, subfamily } = req.body;
+    const id = leerId(req);
+    if (!id) return res.status(400).json({ error: 'id inválido' });
 
-    if (!family || typeof family !== 'string' || family.trim() === '') {
+    const { family, subfamily } = req.body;
+    if (!familiaValida(family)) {
       return res.status(400).json({ error: 'family es requerido y debe ser texto' });
     }
 
-    await db.run(
-      `UPDATE categories SET family = ?, subfamily = ? WHERE id = ?`,
-      [family.trim(), subfamily || null, id]
-    );
+    const existe = await Category.update(id, { family: family.trim(), subfamily: subfamily || null });
+    if (!existe) return res.status(404).json({ error: 'Categoría no encontrada' });
 
     res.json({ message: 'Categoría actualizada' });
   } catch (err) {
@@ -47,12 +53,18 @@ exports.update = async (req, res) => {
 
 exports.delete = async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = leerId(req);
+    if (!id) return res.status(400).json({ error: 'id inválido' });
 
-    await db.run(`DELETE FROM categories WHERE id = ?`, [id]);
+    const existe = await Category.delete(id);
+    if (!existe) return res.status(404).json({ error: 'Categoría no encontrada' });
 
     res.json({ message: 'Categoría eliminada' });
   } catch (err) {
+    // P2003: la categoría tiene productos (llave foránea)
+    if (err.code === 'P2003') {
+      return res.status(409).json({ error: 'No se puede eliminar: la categoría tiene productos' });
+    }
     res.status(500).json({ error: err.message });
   }
 };

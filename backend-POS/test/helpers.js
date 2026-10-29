@@ -12,6 +12,7 @@ let tmpDir;
 
 // Variables de entorno de prueba (antes de cargar server.js / dotenv)
 function configurarEntorno() {
+  limpiarCorridasViejas();
   tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pos-test-'));
   process.env.DB_PATH = path.join(tmpDir, 'pos_test.db');
   process.env.BACKUP_DIR = path.join(tmpDir, 'backups');
@@ -80,9 +81,32 @@ async function iniciar({ antesDeMigrar } = {}) {
 async function detener() {
   if (server) await new Promise((resolve) => server.close(resolve));
   await require('../src/config/transaccion').cerrarTransacciones();
+  await require('../src/config/prisma').cerrarPrisma();
   const db = require('../src/config/database');
   await new Promise((resolve) => db.close(() => resolve()));
-  fs.rmSync(tmpDir, { recursive: true, force: true });
+  borrarCarpeta(tmpDir);
+}
+
+// En Windows, libsql (Prisma) a veces no suelta el archivo de la base hasta que
+// termina el proceso. Si no se puede borrar ahora, la borra la siguiente corrida.
+function borrarCarpeta(dir) {
+  try {
+    fs.rmSync(dir, { recursive: true, force: true });
+  } catch (err) {
+    if (err.code !== 'EPERM' && err.code !== 'EBUSY') throw err;
+  }
+}
+
+// Carpetas pos-test-* de corridas anteriores con más de 10 minutos
+function limpiarCorridasViejas() {
+  const limite = Date.now() - 10 * 60 * 1000;
+  for (const nombre of fs.readdirSync(os.tmpdir())) {
+    if (!nombre.startsWith('pos-test-')) continue;
+    const dir = path.join(os.tmpdir(), nombre);
+    try {
+      if (fs.statSync(dir).mtimeMs < limite) borrarCarpeta(dir);
+    } catch { /* otra corrida la borró */ }
+  }
 }
 
 // Petición al API; token opcional. Los POST llevan un Idempotency-Key nuevo,

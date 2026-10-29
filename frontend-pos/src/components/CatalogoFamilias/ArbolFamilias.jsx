@@ -57,13 +57,9 @@ export default function ArbolFamilias({
                     size="sm"
                     variant="ghost"
                     onClick={() => {
-                      const ids = familia.subfamilias.map(s => s.id)
-                      ids.forEach(id => handleEliminar(id))
-
-                      const mainCat = categories.find(
-                        c => c.family === familia.family && !c.subfamily
-                      )
-                      if (mainCat) handleEliminar(mainCat.id)
+                      // subfamilias ya incluye la categoría principal (sin subfamilia):
+                      // cada id se borra una sola vez, con una sola confirmación
+                      handleEliminar(familia.subfamilias.map(s => s.id))
                     }}
                     className="text-red-400 hover:text-red-300 hover:bg-red-900/20 h-8 w-8 p-0"
                   >

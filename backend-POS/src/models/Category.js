@@ -1,36 +1,32 @@
 // src/models/Category.js
-const db = require('../config/database');
+// Primer modelo con Prisma (prueba de concepto de la Fase 3)
+const { prisma } = require('../config/prisma');
 
 class Category {
-  static create({ family, subfamily }) {
-    return new Promise((resolve, reject) => {
-      db.run(
-        `INSERT INTO categories (family, subfamily) VALUES (?, ?)`,
-        [family, subfamily],
-        function (err) {
-          if (err) reject(err);
-          resolve(this.lastID);
-        }
-      );
-    });
+  static async create({ family, subfamily }) {
+    const categoria = await prisma.categories.create({ data: { family, subfamily } });
+    return categoria.id;
   }
 
   static findAll() {
-    return new Promise((resolve, reject) => {
-      db.all(`SELECT * FROM categories`, [], (err, rows) => {
-        if (err) reject(err);
-        resolve(rows);
-      });
-    });
+    return prisma.categories.findMany({ orderBy: { id: 'asc' } });
   }
 
   static findById(id) {
-    return new Promise((resolve, reject) => {
-      db.get(`SELECT * FROM categories WHERE id = ?`, [id], (err, row) => {
-        if (err) reject(err);
-        resolve(row);
-      });
-    });
+    return prisma.categories.findUnique({ where: { id } });
+  }
+
+  // Devuelve false si no existe
+  static async update(id, { family, subfamily }) {
+    const { count } = await prisma.categories.updateMany({ where: { id }, data: { family, subfamily } });
+    return count > 0;
+  }
+
+  // Devuelve false si no existe. Si tiene productos, SQLite rechaza el borrado
+  // (llave foránea) y Prisma lanza el error P2003.
+  static async delete(id) {
+    const { count } = await prisma.categories.deleteMany({ where: { id } });
+    return count > 0;
   }
 }
 

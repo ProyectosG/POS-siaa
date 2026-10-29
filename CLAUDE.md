@@ -88,8 +88,20 @@ Arreglos encontrados en el camino: el ticket imprimía como anticipo el 30 % del
 - Los intentos del SuperDeveloper y de la clave de precios se guardan en memoria: se reinician si se reinicia el servidor.
 - El `pos_backup_*.db` sigue en la historia de git (repo público). Si hiciera falta borrarlo de la historia, sería una reescritura que el dueño tendría que autorizar.
 - Las columnas de dinero siguen declaradas `REAL` aunque guardan centavos enteros.
+- **Borrar una familia** borra una por una sus categorías: si una subfamilia tiene productos, las vacías sí se borran y la familia queda a medias (ya pasaba antes, sin aviso; ahora la pantalla dice cuál no se pudo). Para hacerlo todo o nada: una ruta `DELETE /api/categories/familia/:nombre` en una transacción.
 
-## Fase 3 — Prisma (por decidir)
+## Fase 3 — Prisma (prueba de concepto hecha, rama `fase3-prisma`)
 
-- Empezar con una prueba de concepto en un solo modelo antes de decidir. Prisma 7 genera el cliente como TypeScript/ESM y se conecta a SQLite con un adaptador; el backend es CommonJS sin TypeScript, así que es un cambio de arquitectura: 164 consultas en 28 archivos, la cola de transacciones y las migraciones.
-- Si se descarta Prisma: pasar las columnas de dinero de `REAL` a `INTEGER` con una migración propia.
+Cómo funciona hoy:
+- **Prisma 7.10.1** (la 8 sigue en versión de prueba y su cliente no está publicado), adaptador **`@prisma/adapter-libsql`**. El backend sigue en JavaScript CommonJS.
+- `prisma/schema.prisma` salió de `prisma db pull` sobre una copia migrada. **Las migraciones siguen siendo de `config/migraciones.js`**: nunca usar `prisma migrate` ni `prisma db push`. Si una migración cambia tablas, volver a correr `db pull` sobre una copia temporal (con `DB_PATH`, nunca la base real).
+- `npm run prisma:generar` genera el cliente (TypeScript) y lo compila a JavaScript en `src/generated/prisma-js` (`tsconfig.prisma.json`). Corre solo después de `npm install`. `src/generated/` no va a git.
+- `src/config/prisma.js` exporta `prisma`. Solo **Categorías** usa Prisma por ahora.
+
+Reglas mientras Prisma conviva con sqlite3:
+- **Toda consulta de modelo de Prisma pasa por la cola de transacciones** (`enCola` de `transaccion.js`, ya hecho con `$extends` en `config/prisma.js`). Motivo: mientras Prisma espera el candado de SQLite **detiene todo Node**; si eso pasa con una transacción de sqlite3 a medias, esa transacción ya no puede terminar y Prisma falla a los 5 s (comprobado).
+- No usar `prisma.$transaction` ni consultas crudas (`$queryRaw`, `$executeRaw`) fuera de `config/prisma.js`: no pasan por la cola. No llamar a Prisma desde dentro de `enTransaccion`.
+- **No usar `@prisma/adapter-better-sqlite3`**: con él, una consulta de otra petición se mete en una `$transaction` abierta y se pierde si esa transacción falla (comprobado). Con libsql la otra petición espera.
+- En Windows libsql no suelta el archivo al desconectarse; las pruebas borran las bases temporales de corridas anteriores.
+
+Lo que falta (si se sigue): pasar el resto de los modelos (catálogos y lecturas primero; al final ventas, abonos, entradas, salidas y cortes juntos, cambiando la cola por `$transaction` de Prisma con una sola conexión y una prueba de carga); `autorizaciones_usadas` quedó fuera del esquema porque su `jti` admite nulos (necesita una migración que lo haga `NOT NULL`); `created_at` de SQLite es texto UTC y hay que revisar cómo lo entrega Prisma. Si se descarta Prisma: pasar las columnas de dinero de `REAL` a `INTEGER` con una migración propia.

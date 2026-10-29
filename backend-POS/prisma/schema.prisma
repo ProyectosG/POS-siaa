@@ -1,0 +1,292 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model autorizaciones_usadas {
+  jti     String? @id
+  sale_id Int?
+  usado   String
+
+  @@ignore
+}
+
+model cash_registers {
+  id          Int     @id @default(autoincrement())
+  numero_caja String  @unique(map: "sqlite_autoindex_cash_registers_1")
+  tipo_caja   String? @default("Normal")
+  password    String
+}
+
+model categories {
+  id        Int        @id @default(autoincrement())
+  family    String
+  subfamily String?
+  products  products[]
+}
+
+model codigo_barras_historial {
+  id              Int       @id @default(autoincrement())
+  product_id      Int
+  codigo_anterior String?
+  codigo_nuevo    String?
+  fecha           DateTime? @default(now())
+  products        products  @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model customer_balance_history {
+  id               Int       @id @default(autoincrement())
+  customer_id      Int
+  date             String
+  time             String
+  sale_id          Int?
+  previous_balance Float
+  amount           Float
+  new_balance      Float
+  description      String?
+  sales            sales?    @relation(fields: [sale_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  customers        customers @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model customers {
+  id                       Int                        @id @default(autoincrement())
+  first_name               String?
+  last_name_paternal       String?
+  last_name_maternal       String?
+  phone                    String?
+  email                    String?
+  address                  String?
+  rfc                      String?
+  postal_code              String?
+  city                     String?
+  current_balance          Float?                     @default(0)
+  customer_balance_history customer_balance_history[]
+  sales                    sales[]
+}
+
+model cuts {
+  id                 Int       @id @default(autoincrement())
+  type               String
+  date               String
+  desde              String
+  hasta              String
+  cash_register      String?
+  user_nickname      String?
+  total_sales        Float?    @default(0)
+  ventas_contado     Float?    @default(0)
+  ventas_credito     Float?    @default(0)
+  ventas_apartado    Float?    @default(0)
+  total_iva_gravado  Float?    @default(0)
+  total_recibido     Float?    @default(0)
+  total_anticipos    Float?    @default(0)
+  total_abonos       Float?    @default(0)
+  pago_efectivo      Float?    @default(0)
+  pago_tarjeta       Float?    @default(0)
+  pago_transferencia Float?    @default(0)
+  pago_otros         Float?    @default(0)
+  cash_in_box        Float?    @default(0)
+  first_ticket       Int?
+  last_ticket        Int?
+  created_at         DateTime? @default(now())
+  last_payment_id    Int?
+}
+
+model entries {
+  id            Int             @id @default(autoincrement())
+  entry_type    String
+  comments      String?
+  date          String
+  time          String
+  related_folio String?
+  entry_details entry_details[]
+}
+
+model entry_details {
+  id         Int      @id @default(autoincrement())
+  entry_id   Int
+  product_id Int
+  quantity   Float
+  products   products @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  entries    entries  @relation(fields: [entry_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model idempotencia {
+  id_user   Int
+  clave     String
+  ruta      String
+  status    Int
+  respuesta String
+  creado    String
+
+  @@id([id_user, clave])
+}
+
+model kardex {
+  id              Int      @id @default(autoincrement())
+  product_id      Int
+  id_user         Int?
+  nickname_user   String?
+  movement_type   String
+  movement_reason String?
+  previous_stock  Int
+  moved_quantity  Int
+  new_stock       Int
+  date            String
+  time            String
+  related_folio   String?
+  products        products @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model kardex_reasons {
+  id            Int    @id @default(autoincrement())
+  code          String @unique(map: "sqlite_autoindex_kardex_reasons_1")
+  description   String
+  movement_type String
+  active        Int?   @default(1)
+}
+
+model out_details {
+  id         Int      @id @default(autoincrement())
+  out_id     Int
+  product_id Int
+  quantity   Float
+  products   products @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  outs       outs     @relation(fields: [out_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model outs {
+  id            Int           @id @default(autoincrement())
+  out_type      String
+  comments      String?
+  date          String
+  time          String
+  related_folio String?
+  id_user       Int?
+  nickname_user String?
+  created_at    DateTime?     @default(now())
+  out_details   out_details[]
+}
+
+model payments {
+  id           Int     @id @default(autoincrement())
+  sale_id      Int
+  method       String
+  amount       Float
+  payment_type String  @default("normal")
+  bank         String?
+  last4        String?
+  reference    String?
+  date         String
+  sales        sales   @relation(fields: [sale_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model products {
+  id                      Int                       @id @default(autoincrement())
+  codigo_barras           String?                   @unique(map: "sqlite_autoindex_products_1")
+  codigo_interno          String?
+  articulo                String
+  presentacion            String?
+  unidad_medida           String?
+  precio_menudeo          Float?
+  precio_mayoreo          Float?
+  precio_especial         Float?
+  precio_oferta           Float?
+  iva                     Float?
+  ieps                    Float?
+  stock                   Int?                      @default(0)
+  category_id             Int
+  photo_url               String?
+  activo                  Int?                      @default(1)
+  codigo_barras_historial codigo_barras_historial[]
+  entry_details           entry_details[]
+  kardex                  kardex[]
+  out_details             out_details[]
+  categories              categories                @relation(fields: [category_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sale_details            sale_details[]
+}
+
+model sale_details {
+  id              Int      @id @default(autoincrement())
+  sale_id         Int
+  product_id      Int
+  articulo        String?
+  quantity        Int
+  base_price      Float?
+  price           Float
+  discount_pct    Float?
+  discount_amount Float?
+  subtotal        Float
+  tax_type        String?
+  tax_rate        Float?
+  tax_amount      Float?
+  precio_libre    Int?     @default(0)
+  products        products @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  sales           sales    @relation(fields: [sale_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model sales {
+  id                       Int                        @id @default(autoincrement())
+  date                     String
+  time                     String?
+  type                     String?
+  movement_reason          String?
+  customer_id              Int?
+  subtotal                 Float
+  tax_total                Float                      @default(0)
+  discount_total           Float?                     @default(0)
+  total                    Float
+  paid                     Float                      @default(0)
+  pending_balance          Float?                     @default(0)
+  status                   String?                    @default("pending")
+  id_user                  Int?
+  nickname_user            String?
+  efectivo_recibido        Float?                     @default(0)
+  cambio                   Float?                     @default(0)
+  created_at               DateTime?                  @default(now())
+  customer_balance_history customer_balance_history[]
+  payments                 payments[]
+  sale_details             sale_details[]
+  customers                customers?                 @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model settings {
+  id                        Int       @id @default(autoincrement())
+  ticket_header_line1       String?   @default("")
+  ticket_header_line2       String?   @default("")
+  ticket_header_line3       String?   @default("")
+  ticket_header_line4       String?   @default("")
+  ticket_subheader_line1    String?   @default("")
+  ticket_subheader_line2    String?   @default("")
+  ticket_subheader_line3    String?   @default("")
+  ticket_subheader_line4    String?   @default("")
+  ticket_footer_line1       String?   @default("")
+  ticket_footer_line2       String?   @default("")
+  ticket_width              Int?      @default(58)
+  auto_print_ticket         Int?      @default(1)
+  allow_discounts           Int?      @default(1)
+  max_discount_without_auth Float?    @default(0)
+  allow_negative_balance    Int?      @default(0)
+  dynamic_price_auth_key    String?   @default("1234")
+  customer_form_mode        String?   @default("basic")
+  card_payment_max_reprints Int?      @default(1)
+  created_at                DateTime? @default(now())
+  updated_at                DateTime? @default(now())
+}
+
+model users {
+  id           Int       @id @default(autoincrement())
+  nickname     String?   @unique(map: "sqlite_autoindex_users_1")
+  full_name    String?
+  phone        String?
+  email        String?   @unique(map: "sqlite_autoindex_users_2")
+  password     String?
+  access_level Int?
+  photo_url    String?
+  created_at   DateTime? @default(now())
+}
