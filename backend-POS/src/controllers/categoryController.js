@@ -1,10 +1,5 @@
 const Category = require('../models/Category');
-
-// El id de la ruta debe ser un entero positivo
-const leerId = (req) => {
-  const id = Number(req.params.id);
-  return Number.isInteger(id) && id > 0 ? id : null;
-};
+const { leerId, tieneRelacionados } = require('../utils/peticion');
 
 const familiaValida = (family) => family && typeof family === 'string' && family.trim() !== '';
 
@@ -61,8 +56,7 @@ exports.delete = async (req, res) => {
 
     res.json({ message: 'Categoría eliminada' });
   } catch (err) {
-    // P2003: la categoría tiene productos (llave foránea)
-    if (err.code === 'P2003') {
+    if (tieneRelacionados(err)) {
       return res.status(409).json({ error: 'No se puede eliminar: la categoría tiene productos' });
     }
     res.status(500).json({ error: err.message });
