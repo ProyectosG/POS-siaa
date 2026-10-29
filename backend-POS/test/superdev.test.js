@@ -3,7 +3,9 @@ const { test, before, after, beforeEach } = require('node:test');
 const assert = require('node:assert/strict');
 const jwt = require('jsonwebtoken');
 const { iniciar, detener, api, login } = require('./helpers');
-const superdev = require('../src/controllers/superdev.controller');
+
+// El controlador se carga hasta que la base temporal existe (abre la base)
+let superdev;
 
 const CREDENCIALES = () => ({
   nickname: process.env.SUPERDEV_USER,
@@ -14,6 +16,7 @@ let baseUrl;
 
 before(async () => {
   ({ baseUrl } = await iniciar());
+  superdev = require('../src/controllers/superdev.controller');
 });
 after(detener);
 beforeEach(() => superdev._limpiarIntentos());

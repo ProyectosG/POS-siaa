@@ -10,8 +10,12 @@ const crypto = require('crypto');
 
 let tmpDir;
 
-// Variables de entorno de prueba (antes de cargar server.js / dotenv)
+// Variables de entorno de prueba. Corre al cargar este archivo: cada prueba
+// lo carga primero, así la base temporal queda lista ANTES de cualquier módulo
+// del servidor (dotenv no pisa variables que ya existen). POS_PRUEBAS activa la
+// protección de config/database.js: fuera de la carpeta temporal no se abre nada.
 function configurarEntorno() {
+  process.env.POS_PRUEBAS = '1';
   limpiarCorridasViejas();
   tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'pos-test-'));
   process.env.DB_PATH = path.join(tmpDir, 'pos_test.db');
@@ -73,7 +77,6 @@ function abrirConexionPrueba() {
 // antesDeMigrar(db): opcional; corre con las tablas ya creadas pero ANTES de las
 // migraciones, para sembrar datos como los dejaba una versión vieja (pesos).
 async function iniciar({ antesDeMigrar } = {}) {
-  configurarEntorno();
   await sembrarBaseVieja();
   if (antesDeMigrar) {
     const db = require('../src/config/database');
@@ -149,5 +152,7 @@ async function login(nombre) {
 
 const dbGet = (db, sql, params = []) =>
   new Promise((resolve, reject) => db.get(sql, params, (err, row) => (err ? reject(err) : resolve(row))));
+
+configurarEntorno();
 
 module.exports = { USUARIOS, iniciar, detener, api, login, dbGet };
