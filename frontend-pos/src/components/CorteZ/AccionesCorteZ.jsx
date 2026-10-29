@@ -75,8 +75,8 @@ export default function AccionesCorteZ({
         disabled={confirming || !hasTickets}
         className={`px-6 py-3 rounded-lg font-bold flex items-center gap-2 ${
           confirming || !hasTickets
-            ? "bg-slate-700 opacity-50 cursor-not-allowed"
-            : "bg-green-600 hover:bg-green-700"
+            ? "bg-muted text-muted-foreground opacity-70 cursor-not-allowed"
+            : "bg-exito text-white hover:opacity-90"
         }`}
       >
         <CheckCircle size={20} />
@@ -88,8 +88,8 @@ export default function AccionesCorteZ({
         disabled={!hasTickets && !corteConfirmado}
         className={`px-6 py-3 rounded-lg font-bold flex items-center gap-2 ${
           !hasTickets && !corteConfirmado
-            ? "bg-slate-700 opacity-50 cursor-not-allowed"
-            : "bg-blue-600 hover:bg-blue-700"
+            ? "bg-muted text-muted-foreground opacity-70 cursor-not-allowed"
+            : "bg-primario text-white hover:opacity-90"
         }`}
       >
         <Printer size={20} />

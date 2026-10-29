@@ -64,7 +64,7 @@ export default function CustomerForm({
   const isBasic = FORM_MODE === "basic"
 
   return (
-<div className="flex justify-center items-start p-6 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+<div className="flex justify-center items-start p-6 ">
   <div
     className={`w-full max-w-4xl flex flex-col overflow-hidden rounded-lg shadow-lg ${
       isBasic ? "max-h-[75vh]" : "max-h-[90vh]"
@@ -72,10 +72,10 @@ export default function CustomerForm({
   >
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-3xl font-bold text-white">
+            <h2 className="text-3xl font-bold text-foreground">
               {isEditing ? "Editar Cliente" : "Nuevo Cliente"}
             </h2>
-            <p className="text-slate-400 mt-1">
+            <p className="text-muted-foreground mt-1">
               {isEditing
                 ? "Actualiza la información del cliente"
                 : "Completa el formulario para registrar un cliente"}
@@ -85,18 +85,18 @@ export default function CustomerForm({
             variant="ghost"
             size="icon"
             onClick={onCancel}
-            className="text-slate-400 hover:text-white hover:bg-slate-700"
+            className="text-muted-foreground hover:text-foreground hover:bg-muted"
           >
             <X className="h-5 w-5" />
           </Button>
         </div>
 
-        <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm flex-1 overflow-y-auto">
+        <Card className="bg-card border-border backdrop-blur-sm flex-1 overflow-y-auto">
           <CardContent className="p-6">
             <form onSubmit={handleSubmit} className="space-y-6">
               {isEditing && (
                 <div className="space-y-2">
-                  <Label htmlFor="cliente_id" className="text-slate-200">
+                  <Label htmlFor="cliente_id" className="text-foreground">
                     ID del Cliente
                   </Label>
                   <Input
@@ -104,22 +104,22 @@ export default function CustomerForm({
                     value={initialData.id || ""}
                     readOnly
                     disabled
-                    className="bg-slate-900/50 border-slate-600 text-slate-400 cursor-not-allowed"
+                    className="bg-background border-border text-muted-foreground cursor-not-allowed"
                   />
                 </div>
               )}
 
               {/* Información Personal */}
               <div className="space-y-4">
-                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                  <User className="h-5 w-5 text-blue-400" />
+                <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                  <User className="h-5 w-5 text-primario" />
                   Información Personal
                 </h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="first_name" className="text-slate-200">
-                      Nombre <span className="text-red-400">*</span>
+                    <Label htmlFor="first_name" className="text-foreground">
+                      Nombre <span className="text-error">*</span>
                     </Label>
                     <Input
                       id="first_name"
@@ -129,13 +129,13 @@ export default function CustomerForm({
                       maxLength={50}
                       required
                       placeholder="Juan"
-                      className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400 focus:border-blue-500"
+                      className="bg-muted border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="last_name_paternal" className="text-slate-200">
-                      Apellido Paterno <span className="text-red-400">*</span>
+                    <Label htmlFor="last_name_paternal" className="text-foreground">
+                      Apellido Paterno <span className="text-error">*</span>
                     </Label>
                     <Input
                       id="last_name_paternal"
@@ -145,12 +145,12 @@ export default function CustomerForm({
                       maxLength={50}
                       required
                       placeholder="García"
-                      className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400 focus:border-blue-500"
+                      className="bg-muted border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500"
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="last_name_maternal" className="text-slate-200">
+                    <Label htmlFor="last_name_maternal" className="text-foreground">
                       Apellido Materno
                     </Label>
                     <Input
@@ -160,24 +160,24 @@ export default function CustomerForm({
                       onChange={handleChange}
                       maxLength={50}
                       placeholder="López"
-                      className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400 focus:border-blue-500"
+                      className="bg-muted border-border text-foreground placeholder:text-muted-foreground focus:border-blue-500"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Información de Contacto */}
-              <div className="space-y-4 pt-6 border-t border-slate-700">
-                <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                  <Phone className="h-5 w-5 text-emerald-400" />
+              <div className="space-y-4 pt-6 border-t border-border">
+                <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                  <Phone className="h-5 w-5 text-exito" />
                   Información de Contacto
                 </h3>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="phone" className="text-slate-200">Teléfono</Label>
+                    <Label htmlFor="phone" className="text-foreground">Teléfono</Label>
                     <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
                         id="phone"
                         name="phone"
@@ -186,15 +186,15 @@ export default function CustomerForm({
                         onChange={handleChange}
                         maxLength={15}
                         placeholder="5551234567"
-                        className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400 focus:border-emerald-500 pl-10"
+                        className="bg-muted border-border text-foreground placeholder:text-muted-foreground focus:border-emerald-500 pl-10"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="email" className="text-slate-200">Email</Label>
+                    <Label htmlFor="email" className="text-foreground">Email</Label>
                     <div className="relative">
-                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
                         id="email"
                         name="email"
@@ -202,7 +202,7 @@ export default function CustomerForm({
                         value={formData.email || ""}
                         onChange={handleChange}
                         placeholder="cliente@email.com"
-                        className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400 focus:border-emerald-500 pl-10"
+                        className="bg-muted border-border text-foreground placeholder:text-muted-foreground focus:border-emerald-500 pl-10"
                       />
                     </div>
                   </div>
@@ -212,14 +212,14 @@ export default function CustomerForm({
               {/* Dirección y fiscal */}
               {!isBasic && (
                 <>
-                  <div className="space-y-4 pt-6 border-t border-slate-700">
-                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                      <MapPin className="h-5 w-5 text-purple-400" />
+                  <div className="space-y-4 pt-6 border-t border-border">
+                    <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                      <MapPin className="h-5 w-5 text-violet-700" />
                       Dirección
                     </h3>
                     <div className="space-y-4">
                       <div className="space-y-2">
-                        <Label htmlFor="address" className="text-slate-200">Dirección Completa</Label>
+                        <Label htmlFor="address" className="text-foreground">Dirección Completa</Label>
                         <Input
                           id="address"
                           name="address"
@@ -227,12 +227,12 @@ export default function CustomerForm({
                           onChange={handleChange}
                           maxLength={200}
                           placeholder="Calle, Número, Colonia"
-                          className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400 focus:border-purple-500"
+                          className="bg-muted border-border text-foreground placeholder:text-muted-foreground focus:border-purple-500"
                         />
                       </div>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="city" className="text-slate-200">Ciudad</Label>
+                          <Label htmlFor="city" className="text-foreground">Ciudad</Label>
                           <Input
                             id="city"
                             name="city"
@@ -240,11 +240,11 @@ export default function CustomerForm({
                             onChange={handleChange}
                             maxLength={100}
                             placeholder="Ciudad de México"
-                            className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400 focus:border-purple-500"
+                            className="bg-muted border-border text-foreground placeholder:text-muted-foreground focus:border-purple-500"
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="postal_code" className="text-slate-200">Código Postal</Label>
+                          <Label htmlFor="postal_code" className="text-foreground">Código Postal</Label>
                           <Input
                             id="postal_code"
                             name="postal_code"
@@ -252,21 +252,21 @@ export default function CustomerForm({
                             onChange={handleChange}
                             maxLength={10}
                             placeholder="06000"
-                            className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400 focus:border-purple-500"
+                            className="bg-muted border-border text-foreground placeholder:text-muted-foreground focus:border-purple-500"
                           />
                         </div>
                       </div>
                     </div>
                   </div>
 
-                  <div className="space-y-4 pt-6 border-t border-slate-700">
-                    <h3 className="text-lg font-semibold text-white flex items-center gap-2">
-                      <CreditCard className="h-5 w-5 text-amber-400" />
+                  <div className="space-y-4 pt-6 border-t border-border">
+                    <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
+                      <CreditCard className="h-5 w-5 text-aviso" />
                       Información Fiscal y Saldo
                     </h3>
                     <div className="grid grid-cols-1 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="rfc" className="text-slate-200">RFC</Label>
+                        <Label htmlFor="rfc" className="text-foreground">RFC</Label>
                         <Input
                           id="rfc"
                           name="rfc"
@@ -274,15 +274,15 @@ export default function CustomerForm({
                           onChange={handleChange}
                           maxLength={13}
                           placeholder="GALJ850101ABC"
-                          className="bg-slate-700/50 border-slate-600 text-white placeholder:text-slate-400 focus:border-amber-500 uppercase"
+                          className="bg-muted border-border text-foreground placeholder:text-muted-foreground focus:border-amber-500 uppercase"
                         />
                       </div>
 
                       <div className="flex justify-center">
                         <div className="space-y-2 w-auto">
-                          <Label htmlFor="current_balance" className="text-slate-200 text-center block">Saldo Actual</Label>
+                          <Label htmlFor="current_balance" className="text-foreground text-center block">Saldo Actual</Label>
                           <div className="relative">
-                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                            <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input
                               id="current_balance"
                               name="current_balance"
@@ -291,7 +291,7 @@ export default function CustomerForm({
                               value={formData.current_balance || 0}
                               disabled
                               readOnly
-                              className="bg-slate-900/50 border-slate-600 text-slate-400 placeholder:text-slate-500 pl-10 w-40 text-center cursor-not-allowed"
+                              className="bg-background border-border text-muted-foreground placeholder:text-muted-foreground pl-10 w-40 text-center cursor-not-allowed"
                             />
                           </div>
                         </div>
@@ -302,12 +302,12 @@ export default function CustomerForm({
               )}
 
               {/* Botones */}
-              <div className="flex gap-3 pt-6 border-t border-slate-700">
+              <div className="flex gap-3 pt-6 border-t border-border">
                 <Button
                   type="button"
                   variant="outline"
                   onClick={onCancel}
-                  className="flex-1 border-slate-600 text-slate-300 hover:bg-slate-700 hover:text-white bg-transparent"
+                  className="flex-1 border-border text-muted-foreground hover:bg-muted hover:text-foreground bg-transparent"
                 >
                   Cancelar
                 </Button>

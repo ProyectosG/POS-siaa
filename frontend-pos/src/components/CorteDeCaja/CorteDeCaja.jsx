@@ -100,13 +100,13 @@ export default function CorteDeCaja() {
     return (
       <div className="flex justify-center items-center h-32">
         <div className="animate-spin rounded-full h-8 w-8 border-t-4 border-blue-500"></div>
-        <p className="ml-2 text-sm text-slate-300">Calculando el corte... 💰</p>
+        <p className="ml-2 text-sm text-muted-foreground">Calculando el corte... 💰</p>
       </div>
     );
   }
 
   if (!data) {
-    return <div className="text-center text-red-400 text-lg">No hay datos para mostrar 😔</div>;
+    return <div className="text-center text-error text-lg">No hay datos para mostrar 😔</div>;
   }
 
   const totalRecibido = Object.values(data.pagos).reduce(
@@ -132,17 +132,17 @@ export default function CorteDeCaja() {
     first <= last;
     
   return (
-    <div className="max-w-2xl mx-auto p-4 bg-gradient-to-br from-slate-900 to-slate-800 rounded-xl border border-slate-700 shadow-xl overflow-auto max-h-screen">
+    <div className="max-w-2xl mx-auto p-4 rounded-xl border border-border shadow-xl overflow-auto max-h-screen">
       {/* Header */}
       <div className="text-center mb-4">
-        <h1 className="text-2xl font-extrabold text-white mb-1 flex items-center justify-center gap-2">
-          <DollarSign size={24} className="text-green-400" /> Corte X del Turno 💸
+        <h1 className="text-2xl font-extrabold text-foreground mb-1 flex items-center justify-center gap-2">
+          <DollarSign size={24} className="text-exito" /> Corte X del Turno 💸
         </h1>
-        <p className="text-slate-400 text-sm font-medium">
-          Caja: <span className="font-bold text-cyan-400">{caja?.numero || "Sin caja"}</span> |{" "}
+        <p className="text-muted-foreground text-sm font-medium">
+          Caja: <span className="font-bold text-primario">{caja?.numero || "Sin caja"}</span> |{" "}
           {hasTickets ? (
             <>
-              TICKETS: Desde: <span className="text-green-300 font-bold">{first}</span> | Hasta: <span className="text-green-300 font-bold">{last}</span>
+              TICKETS: Desde: <span className="text-exito font-bold">{first}</span> | Hasta: <span className="text-exito font-bold">{last}</span>
             </>
           ) : (
             <>Sin tickets nuevos en este período</>
@@ -153,86 +153,86 @@ export default function CorteDeCaja() {
 
       {/* SECCIÓN VENTAS TOTALES + IVA */}
       <section className="mb-6">
-        <h2 className="text-xl font-bold text-green-400 mb-3 text-center flex items-center justify-center gap-2">
+        <h2 className="text-xl font-bold text-exito mb-3 text-center flex items-center justify-center gap-2">
           <DollarSign size={20} /> Ventas Totales
         </h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-          <div className="p-3 bg-slate-800/80 rounded-lg border border-slate-700 text-center shadow-md animate-pulse-slow">
-            <p className="text-slate-300 mb-0.5 text-sm">Total Ventas</p>
-            <p className="text-xl font-bold text-white">${data.ventas.total_ventas_monto?.toFixed(2) || "0.00"}</p>
+          <div className="p-3 bg-card rounded-lg border border-border text-center shadow-md animate-pulse-slow">
+            <p className="text-muted-foreground mb-0.5 text-sm">Total Ventas</p>
+            <p className="text-xl font-bold text-foreground">${data.ventas.total_ventas_monto?.toFixed(2) || "0.00"}</p>
           </div>
-          <div className="p-3 bg-slate-800/80 rounded-lg border border-slate-700 text-center shadow-md animate-pulse-slow">
-            <p className="text-slate-300 mb-0.5 text-sm">Contado</p>
-            <p className="text-xl font-bold text-green-300">${data.ventas.ventas_contado?.toFixed(2) || "0.00"}</p>
+          <div className="p-3 bg-card rounded-lg border border-border text-center shadow-md animate-pulse-slow">
+            <p className="text-muted-foreground mb-0.5 text-sm">Contado</p>
+            <p className="text-xl font-bold text-exito">${data.ventas.ventas_contado?.toFixed(2) || "0.00"}</p>
           </div>
-          <div className="p-3 bg-slate-800/80 rounded-lg border border-slate-700 text-center shadow-md animate-pulse-slow">
-            <p className="text-slate-300 mb-0.5 text-sm">Crédito</p>
-            <p className="text-xl font-bold text-yellow-300">${data.ventas.ventas_credito?.toFixed(2) || "0.00"}</p>
+          <div className="p-3 bg-card rounded-lg border border-border text-center shadow-md animate-pulse-slow">
+            <p className="text-muted-foreground mb-0.5 text-sm">Crédito</p>
+            <p className="text-xl font-bold text-aviso">${data.ventas.ventas_credito?.toFixed(2) || "0.00"}</p>
           </div>
-          <div className="p-3 bg-slate-800/80 rounded-lg border border-slate-700 text-center shadow-md animate-pulse-slow">
-            <p className="text-slate-300 mb-0.5 text-sm">Apartado</p>
-            <p className="text-xl font-bold text-blue-300">${data.ventas.ventas_apartado?.toFixed(2) || "0.00"}</p>
+          <div className="p-3 bg-card rounded-lg border border-border text-center shadow-md animate-pulse-slow">
+            <p className="text-muted-foreground mb-0.5 text-sm">Apartado</p>
+            <p className="text-xl font-bold text-primario">${data.ventas.ventas_apartado?.toFixed(2) || "0.00"}</p>
           </div>
         </div>
 
-        <div className="text-center bg-slate-800/20 p-2 rounded-md border border-yellow-500/10 shadow-sm max-w-sm mx-auto mt-1">
-          <h3 className="text-xs font-normal text-yellow-400 mb-0">Ventas Gravadas con IVA</h3>
-          <p className="text-sm text-white font-normal">
+        <div className="text-center bg-muted/40 p-2 rounded-md border border-yellow-500/10 shadow-sm max-w-sm mx-auto mt-1">
+          <h3 className="text-xs font-normal text-aviso mb-0">Ventas Gravadas con IVA</h3>
+          <p className="text-sm text-foreground font-normal">
             ${data.ventas.total_iva_gravado?.toFixed(2) || "0.00"}
           </p>
-          <p className="text-xs text-slate-500 mt-0">(IVA total causado en el período)</p>
+          <p className="text-xs text-muted-foreground mt-0">(IVA total causado en el período)</p>
         </div>
       </section>
 
       {/* SECCIÓN DINERO RECIBIDO */}
       <section className="mb-6">
-        <h2 className="text-xl font-bold text-blue-400 mb-3 text-center flex items-center justify-center gap-2">
+        <h2 className="text-xl font-bold text-primario mb-3 text-center flex items-center justify-center gap-2">
           <DollarSign size={20} /> Dinero Recibido
         </h2>
 
-        <div className="text-center bg-gradient-to-r from-green-900/30 to-green-800/30 p-4 rounded-xl border border-green-500/40 shadow-xl max-w-md mx-auto mb-3 animate-glow">
-          <h3 className="text-lg font-semibold text-green-400 mb-1">TOTAL RECIBIDO EN CORTE</h3>
-          <p className="text-3xl font-extrabold text-green-300 glow-text">
+        <div className="text-center bg-gradient-to-r from-exito-suave to-exito-suave p-4 rounded-xl border border-green-500/40 shadow-xl max-w-md mx-auto mb-3 animate-glow">
+          <h3 className="text-lg font-semibold text-exito mb-1">TOTAL RECIBIDO EN CORTE</h3>
+          <p className="text-3xl font-extrabold text-exito glow-text">
             ${totalRecibido.toFixed(2)}
           </p>
-          <p className="text-xs text-slate-400 mt-1">(Efectivo + Tarjeta + Otros)</p>
+          <p className="text-xs text-muted-foreground mt-1">(Efectivo + Tarjeta + Otros)</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="flex flex-col justify-center items-center min-h-[150px] space-y-3 bg-slate-800/40 rounded-lg border border-slate-600 p-4">
-            <div className="border-b border-slate-600 pb-2 w-full text-center">
-              <p className="text-slate-300 text-sm mb-0.5">Total de Contado</p>
-              <p className="text-lg font-bold text-green-300">${totalContado.toFixed(2)}</p>
+          <div className="flex flex-col justify-center items-center min-h-[150px] space-y-3 bg-card rounded-lg border border-border p-4">
+            <div className="border-b border-border pb-2 w-full text-center">
+              <p className="text-muted-foreground text-sm mb-0.5">Total de Contado</p>
+              <p className="text-lg font-bold text-exito">${totalContado.toFixed(2)}</p>
             </div>
-            <div className="border-b border-slate-600 pb-2 w-full text-center">
-              <p className="text-slate-300 text-sm mb-0.5">Total Anticipos</p>
-              <p className="text-lg font-bold text-blue-300">${totalAnticipos.toFixed(2)}</p>
+            <div className="border-b border-border pb-2 w-full text-center">
+              <p className="text-muted-foreground text-sm mb-0.5">Total Anticipos</p>
+              <p className="text-lg font-bold text-primario">${totalAnticipos.toFixed(2)}</p>
             </div>
-            <div className="border-b border-slate-600 pb-2 w-full text-center">
-              <p className="text-slate-300 text-sm mb-0.5">Total Abonos</p>
-              <p className="text-lg font-bold text-purple-300">${totalAbonos.toFixed(2)}</p>
+            <div className="border-b border-border pb-2 w-full text-center">
+              <p className="text-muted-foreground text-sm mb-0.5">Total Abonos</p>
+              <p className="text-lg font-bold text-violet-700">${totalAbonos.toFixed(2)}</p>
             </div>
           </div>
 
-          <div className="flex flex-col justify-center items-center min-h-[150px] space-y-3 bg-slate-800/40 rounded-lg border border-slate-600 p-4">
-            <div className="border-b border-slate-600 pb-2 w-full text-center">
-              <p className="text-slate-300 text-sm mb-0.5">Formas de Pago</p>
+          <div className="flex flex-col justify-center items-center min-h-[150px] space-y-3 bg-card rounded-lg border border-border p-4">
+            <div className="border-b border-border pb-2 w-full text-center">
+              <p className="text-muted-foreground text-sm mb-0.5">Formas de Pago</p>
             </div>
             <div className="w-full">
-              <table className="w-full text-left text-slate-300">
+              <table className="w-full text-left text-muted-foreground">
                 <tbody>
                   {Object.entries(pagosConTarjeta).map(([method, amount]) => (
-                    <tr key={method} className="border-b border-slate-600 last:border-b-0">
+                    <tr key={method} className="border-b border-border last:border-b-0">
                       <td className="py-2 px-3 capitalize font-medium text-center">{method}</td>
-                      <td className="py-2 px-3 text-right font-bold text-green-300">
+                      <td className="py-2 px-3 text-right font-bold text-exito">
                         ${Number(amount).toFixed(2)}
                       </td>
                     </tr>
                   ))}
                   {Object.keys(pagosConTarjeta).length === 0 && (
                     <tr>
-                      <td colSpan={2} className="py-3 text-center text-slate-500">
+                      <td colSpan={2} className="py-3 text-center text-muted-foreground">
                         No hay pagos registrados
                       </td>
                     </tr>

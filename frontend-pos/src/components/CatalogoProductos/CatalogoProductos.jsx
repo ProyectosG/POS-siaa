@@ -84,7 +84,7 @@ export default function CatalogoProductos() {
   // Si el formulario está abierto, mostrarlo con botón de regreso
   if (showForm) {
     return (
-      <div className="min-h-screen bg-slate-50 dark:bg-slate-900 p-6">
+      <div className="min-h-screen bg-slate-50 dark:bg-background p-6">
         <div className="max-w-7xl mx-auto space-y-6">
           {/* Botón para regresar */}
           <Button variant="ghost" onClick={() => setShowForm(false)} className="gap-2 mb-4">
@@ -102,7 +102,7 @@ export default function CatalogoProductos() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-900 p-6">
+    <div className="min-h-screen bg-slate-50 dark:bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header y botón nuevo */}
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -120,16 +120,16 @@ export default function CatalogoProductos() {
         {/* Estadísticas */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="p-6 bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 border border-emerald-500/20 rounded-lg">
-            <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">Total Productos</p>
-            <p className="text-3xl font-bold text-emerald-700 dark:text-emerald-300">{products.length}</p>
+            <p className="text-sm font-medium text-emerald-600 dark:text-exito">Total Productos</p>
+            <p className="text-3xl font-bold text-emerald-700 dark:text-exito">{products.length}</p>
           </div>
           <div className="p-6 bg-gradient-to-br from-blue-500/10 to-blue-500/5 border border-blue-500/20 rounded-lg">
-            <p className="text-sm font-medium text-blue-600 dark:text-blue-400">Stock Total</p>
-            <p className="text-3xl font-bold text-blue-700 dark:text-blue-300">{totalStock}</p>
+            <p className="text-sm font-medium text-blue-600 dark:text-primario">Stock Total</p>
+            <p className="text-3xl font-bold text-blue-700 dark:text-primario">{totalStock}</p>
           </div>
           <div className="p-6 bg-gradient-to-br from-violet-500/10 to-violet-500/5 border border-violet-500/20 rounded-lg">
-            <p className="text-sm font-medium text-violet-600 dark:text-violet-400">Valor Inventario</p>
-            <p className="text-3xl font-bold text-violet-700 dark:text-violet-300">${totalValue.toFixed(2)}</p>
+            <p className="text-sm font-medium text-violet-600 dark:text-violet-700">Valor Inventario</p>
+            <p className="text-3xl font-bold text-violet-700 dark:text-violet-700">${totalValue.toFixed(2)}</p>
           </div>
         </div>
 
@@ -140,11 +140,11 @@ export default function CatalogoProductos() {
             placeholder="Buscar por nombre, presentación o código..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9 bg-background text-white"
+            className="pl-9 bg-background text-foreground"
           />
         </div>
 
-        {error && <div className="p-4 bg-red-900/20 border border-red-500/50 rounded-lg text-red-400 text-center">{error}</div>}
+        {error && <div className="p-4 bg-error-suave border border-red-500/50 rounded-lg text-error text-center">{error}</div>}
 
         {/* Tabla */}
 
@@ -177,7 +177,7 @@ export default function CatalogoProductos() {
           filteredProducts.map((p) => (
             <TableRow
               key={p.id}
-              className="hover:bg-blue-900/30 transition-colors border-b border-border/50 last:border-b-0 focus-within:bg-blue-900/40"
+              className="hover:bg-primario-suave transition-colors border-b border-border/50 last:border-b-0 focus-within:bg-primario-suave"
             >
               <TableCell className="font-medium text-foreground">{p.articulo}</TableCell>
               <TableCell className="text-foreground">{p.presentacion || "—"}</TableCell>
@@ -203,7 +203,7 @@ export default function CatalogoProductos() {
                   variant="ghost"
                   size="icon-sm"
                   onClick={() => { setCurrentProduct(p); setShowForm(true) }}
-                  className="text-blue-400 hover:text-blue-300 hover:bg-blue-950/50 transition-colors"
+                  className="text-primario hover:text-primario hover:bg-primario-suave transition-colors"
                 >
                   <Pencil className="w-4 h-4" />
                 </Button>
@@ -213,7 +213,7 @@ export default function CatalogoProductos() {
                   variant="ghost"
                   size="icon-sm"
                   onClick={() => { setProductToDelete(p); setIsDeleteDialogOpen(true) }}
-                  className="text-red-400 hover:text-red-300 hover:bg-red-950/50 transition-colors"
+                  className="text-error hover:text-error hover:bg-error-suave transition-colors"
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>

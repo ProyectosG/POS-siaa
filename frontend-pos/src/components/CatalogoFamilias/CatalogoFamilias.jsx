@@ -90,12 +90,12 @@ export default function CatalogoFamilias() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
+    <div className="min-h-screen p-6">
       <div className="max-w-7xl mx-auto">
         <Header />
 
         {error && (
-          <div className="mb-6 p-4 bg-red-900/20 border border-red-500/50 rounded-lg text-red-400 text-center">
+          <div className="mb-6 p-4 bg-error-suave border border-red-500/50 rounded-lg text-error text-center">
             {error}
           </div>
         )}

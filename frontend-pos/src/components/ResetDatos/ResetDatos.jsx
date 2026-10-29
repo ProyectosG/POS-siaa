@@ -161,21 +161,21 @@ const handleSelectTable = (table) => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6 bg-slate-900/90 rounded-2xl border border-slate-700 shadow-2xl">
-      <h1 className="text-4xl font-extrabold text-white mb-6 text-center flex items-center justify-center gap-4">
-        <Zap className="text-yellow-400 animate-pulse" size={40} /> ¡Zapeador de Datos! ⚡💥
+    <div className="max-w-4xl mx-auto p-6 bg-background rounded-2xl border border-border shadow-2xl">
+      <h1 className="text-4xl font-extrabold text-foreground mb-6 text-center flex items-center justify-center gap-4">
+        <Zap className="text-aviso animate-pulse" size={40} /> ¡Zapeador de Datos! ⚡💥
       </h1>
-      <p className="text-slate-300 mb-3 text-center text-lg">
+      <p className="text-muted-foreground mb-3 text-center text-lg">
         Selecciona qué zapear. <strong>¡Cuidado! Esto es irreversible</strong> ❌  
       </p>
-        <p className="text-slate-300 mb-3 text-center text-lg">
+        <p className="text-muted-foreground mb-3 text-center text-lg">
         Pero haremos backup automático antes del boom.
       </p>
 
       {/* Respaldo manual */}
-      <section className="mb-10 bg-slate-800/50 p-6 rounded-xl border border-emerald-700/60 text-center">
-        <h2 className="text-2xl font-bold text-emerald-400 mb-2">Respaldo</h2>
-        <p className="text-slate-300 mb-4 text-sm">
+      <section className="mb-10 bg-card p-6 rounded-xl border border-emerald-700/60 text-center">
+        <h2 className="text-2xl font-bold text-exito mb-2">Respaldo</h2>
+        <p className="text-muted-foreground mb-4 text-sm">
           Descarga una copia completa de la base. Es seguro con el servidor encendido.
         </p>
         <button
@@ -192,7 +192,7 @@ const handleSelectTable = (table) => {
 
       {/* Selección de Tablas */}
       <section className="mb-10">
-        <h2 className="text-2xl font-bold text-cyan-400 mb-6 text-center">Elige tablas a zapear</h2>
+        <h2 className="text-2xl font-bold text-primario mb-6 text-center">Elige tablas a zapear</h2>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {allTables.map(table => (
             <button
@@ -202,7 +202,7 @@ const handleSelectTable = (table) => {
                 "p-2 rounded-xl border-2 transition-all duration-200 text-center font-medium text-sm",
                 selectedTables.includes(table)
                   ? "bg-red-700/70 border-red-500 text-white shadow-lg scale-105"
-                  : "bg-slate-800 border-slate-600 text-slate-300 hover:bg-slate-700 hover:border-cyan-500"
+                  : "bg-card border-border text-muted-foreground hover:bg-muted hover:border-cyan-500"
               )}
             >
               {table.replace('_', ' ').toUpperCase()}
@@ -212,10 +212,10 @@ const handleSelectTable = (table) => {
       </section>
 
       {/* Opciones Extra */}
-      <section className="mb-10 bg-slate-800/50 p-6 rounded-xl border border-slate-700">
-        <h2 className="text-2xl font-bold text-yellow-400 mb-6 text-center">Opciones Extra</h2>
+      <section className="mb-10 bg-card p-6 rounded-xl border border-border">
+        <h2 className="text-2xl font-bold text-aviso mb-6 text-center">Opciones Extra</h2>
         <div className="space-y-6">
-          <label className="flex items-center gap-4 text-lg text-slate-200 cursor-pointer">
+          <label className="flex items-center gap-4 text-lg text-foreground cursor-pointer">
             <input
               type="checkbox"
               checked={resetIds}
@@ -224,7 +224,7 @@ const handleSelectTable = (table) => {
             />
             Resetear IDs autoincrementales (¡Vuelve a 1! 🔄)
           </label>
-          <label className="flex items-center gap-4 text-lg text-slate-200 cursor-pointer">
+          <label className="flex items-center gap-4 text-lg text-foreground cursor-pointer">
             <input
               type="checkbox"
               checked={resetBalances}
@@ -248,23 +248,23 @@ const handleSelectTable = (table) => {
       {/* Modal de Confirmación */}
       {isConfirmOpen && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 backdrop-blur-sm">
-          <div className="bg-slate-900 p-10 rounded-3xl border-4 border-red-600 max-w-lg w-full text-center shadow-2xl">
-            <h2 className="text-3xl font-bold text-red-400 mb-6">¡ÚLTIMA ADVERTENCIA! ⚠️💥</h2>
-            <p className="text-slate-300 mb-8 text-lg">
+          <div className="bg-background p-10 rounded-3xl border-4 border-red-600 max-w-lg w-full text-center shadow-2xl">
+            <h2 className="text-3xl font-bold text-error mb-6">¡ÚLTIMA ADVERTENCIA! ⚠️💥</h2>
+            <p className="text-muted-foreground mb-8 text-lg">
               Esto borrará los datos seleccionados de forma permanente.  
-              Escribe <strong className="text-yellow-300">ZAPEAR</strong> para confirmar el apocalipsis de datos.
+              Escribe <strong className="text-aviso">ZAPEAR</strong> para confirmar el apocalipsis de datos.
             </p>
             <input
               type="text"
               value={confirmText}
               onChange={(e) => setConfirmText(e.target.value.toUpperCase())}
-              className="w-full p-4 bg-slate-800 border-2 border-red-500 rounded-xl text-white text-xl mb-8 focus:outline-none focus:border-red-400"
+              className="w-full p-4 bg-card border-2 border-red-500 rounded-xl text-foreground text-xl mb-8 focus:outline-none focus:border-red-400"
               placeholder="Escribe ZAPEAR aquí"
             />
             <div className="flex gap-6 justify-center">
               <button
                 onClick={() => setIsConfirmOpen(false)}
-                className="px-8 py-4 bg-slate-700 text-white font-bold rounded-xl hover:bg-slate-600 transition text-lg"
+                className="px-8 py-4 bg-muted text-foreground font-bold rounded-xl hover:bg-muted transition text-lg"
               >
                 Cancelar 😅
               </button>

@@ -71,16 +71,16 @@ if (isFormOpen) {
 
 
   return (
-    <div className="min-h-screen bg-slate-900 p-6">
+    <div className="min-h-screen bg-background p-6">
       <div className="max-w-7xl mx-auto space-y-6">
 
         {/* Header */}
         <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
           <div className="text-center lg:text-left">
-            <h1 className="text-3xl font-bold text-white">
+            <h1 className="text-3xl font-bold text-foreground">
               Catálogo de Clientes
             </h1>
-            <p className="text-slate-400">
+            <p className="text-muted-foreground">
               Gestión de clientes
             </p>
           </div>
@@ -94,12 +94,12 @@ if (isFormOpen) {
           </Button>
 
           <div className="w-80 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Buscar cliente..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 bg-slate-800 border-slate-700 text-white"
+              className="pl-10 bg-card border-border text-foreground"
             />
           </div>
         </div>

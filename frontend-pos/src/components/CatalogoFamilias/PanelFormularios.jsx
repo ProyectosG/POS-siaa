@@ -36,20 +36,20 @@ export default function PanelFormularios({
       `}
     >
       {/* Agregar Familia */}
-      <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm transition-all duration-500 ease-out hover:shadow-[0_0_30px_rgba(59,130,246,0.3)] hover:border-blue-500/50">
+      <Card className="bg-card border-border backdrop-blur-sm transition-all duration-500 ease-out hover:shadow-[0_0_30px_rgba(59,130,246,0.3)] hover:border-blue-500/50">
         <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
-            <FolderPlus className="h-5 w-5 text-blue-400" />
+          <CardTitle className="text-foreground flex items-center gap-2">
+            <FolderPlus className="h-5 w-5 text-primario" />
             Agregar Familia
           </CardTitle>
-          <CardDescription className="text-slate-400">
+          <CardDescription className="text-muted-foreground">
             Crea una nueva categoría principal de productos
           </CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="nuevaFamilia" className="text-slate-200">
+            <Label htmlFor="nuevaFamilia" className="text-foreground">
               Nombre de la Familia
             </Label>
             <Input
@@ -58,7 +58,7 @@ export default function PanelFormularios({
               onChange={(e) => setNuevaFamilia(e.target.value.toUpperCase())}
               maxLength={30}
               placeholder="EJ: BEBIDAS, ABARROTES..."
-              className="bg-slate-700/50 border-slate-600 text-white uppercase placeholder:text-slate-400 focus:border-blue-500 transition-all duration-300"
+              className="bg-muted border-border text-foreground uppercase placeholder:text-muted-foreground focus:border-blue-500 transition-all duration-300"
               onKeyPress={(e) => e.key === "Enter" && handleAgregarFamilia()}
             />
           </div>
@@ -75,32 +75,32 @@ export default function PanelFormularios({
       </Card>
 
       {/* Agregar Subfamilia */}
-      <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm transition-all duration-500 ease-out hover:shadow-[0_0_30px_rgba(168,85,247,0.3)] hover:border-purple-500/50">
+      <Card className="bg-card border-border backdrop-blur-sm transition-all duration-500 ease-out hover:shadow-[0_0_30px_rgba(168,85,247,0.3)] hover:border-purple-500/50">
         <CardHeader>
-          <CardTitle className="text-white flex items-center gap-2">
-            <FolderOpen className="h-5 w-5 text-purple-400" />
+          <CardTitle className="text-foreground flex items-center gap-2">
+            <FolderOpen className="h-5 w-5 text-violet-700" />
             Agregar Subfamilia
           </CardTitle>
-          <CardDescription className="text-slate-400">
+          <CardDescription className="text-muted-foreground">
             Añade una subcategoría a una familia existente
           </CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label className="text-slate-200">
-              Seleccionar Familia <span className="text-red-400">*</span>
+            <Label className="text-foreground">
+              Seleccionar Familia <span className="text-error">*</span>
             </Label>
             <Select value={familiaSeleccionada} onValueChange={setFamiliaSeleccionada}>
-              <SelectTrigger className="w-full bg-slate-700/50 border-slate-600 text-white focus:border-purple-500 transition-all duration-300">
+              <SelectTrigger className="w-full bg-muted border-border text-foreground focus:border-purple-500 transition-all duration-300">
                 <SelectValue placeholder="Elige una familia..." />
               </SelectTrigger>
-              <SelectContent className="bg-slate-800 border-slate-700">
+              <SelectContent className="bg-card border-border">
                 {uniqueFamilies.map(f => (
                   <SelectItem
                     key={f}
                     value={f}
-                    className="text-white hover:bg-slate-700 uppercase"
+                    className="text-foreground hover:bg-muted uppercase"
                   >
                     {f}
                   </SelectItem>
@@ -110,14 +110,14 @@ export default function PanelFormularios({
           </div>
 
           <div className="space-y-2">
-            <Label className="text-slate-200">Nombre de la Subfamilia</Label>
+            <Label className="text-foreground">Nombre de la Subfamilia</Label>
             <Input
               value={nuevaSubfamilia}
               onChange={(e) => setNuevaSubfamilia(e.target.value.toUpperCase())}
               maxLength={30}
               placeholder="EJ: REFRESCOS, CEREALES..."
               disabled={!familiaSeleccionada}
-              className="bg-slate-700/50 border-slate-600 text-white uppercase placeholder:text-slate-400 focus:border-purple-500 disabled:opacity-50 transition-all duration-300"
+              className="bg-muted border-border text-foreground uppercase placeholder:text-muted-foreground focus:border-purple-500 disabled:opacity-50 transition-all duration-300"
               onKeyPress={(e) => e.key === "Enter" && handleAgregarSubfamilia()}
             />
           </div>

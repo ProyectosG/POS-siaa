@@ -108,18 +108,18 @@ export default function CatalogoCajas() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6">
+    <div className="min-h-screen p-6">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-white flex items-center justify-center gap-3">
-            <BoxIcon className="h-8 w-8 text-cyan-400" />
+          <h1 className="text-3xl font-bold text-foreground flex items-center justify-center gap-3">
+            <BoxIcon className="h-8 w-8 text-primario" />
             Catálogo de Cajas
           </h1>
-          <p className="text-slate-400 mt-2">Gestiona las cajas del punto de venta</p>
+          <p className="text-muted-foreground mt-2">Gestiona las cajas del punto de venta</p>
         </div>
 
         {error && (
-          <div className="mb-6 p-4 bg-red-900/20 border border-red-500/50 rounded-lg text-red-400 text-center">
+          <div className="mb-6 p-4 bg-error-suave border border-red-500/50 rounded-lg text-error text-center">
             {error}
           </div>
         )}
@@ -127,21 +127,21 @@ export default function CatalogoCajas() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Formulario */}
           <div className="lg:col-span-1">
-            <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
+            <Card className="bg-card border-border backdrop-blur-sm">
               <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <Plus className="h-5 w-5 text-cyan-400" />
+                <CardTitle className="text-foreground flex items-center gap-2">
+                  <Plus className="h-5 w-5 text-primario" />
                   {editingCaja ? "Editar Caja" : "Nueva Caja"}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <form onSubmit={handleSubmit} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="numero_caja" className="text-slate-200">
-                      Número de Caja <span className="text-red-400">*</span>
+                    <Label htmlFor="numero_caja" className="text-foreground">
+                      Número de Caja <span className="text-error">*</span>
                     </Label>
                     <div className="relative">
-                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Hash className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
                         id="numero_caja"
                         name="numero_caja"
@@ -149,17 +149,17 @@ export default function CatalogoCajas() {
                         onChange={handleInputChange}
                         required
                         placeholder="001"
-                        className="bg-slate-700/50 border-slate-600 text-white pl-10"
+                        className="bg-muted border-border text-foreground pl-10"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="password" className="text-slate-200">
-                      Clave de Caja <span className="text-red-400">*</span>
+                    <Label htmlFor="password" className="text-foreground">
+                      Clave de Caja <span className="text-error">*</span>
                     </Label>
                     <div className="relative">
-                      <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                      <Key className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
                         id="password"
                         name="password"
@@ -168,13 +168,13 @@ export default function CatalogoCajas() {
                         onChange={handleInputChange}
                         required={!editingCaja}
                         placeholder={editingCaja ? "Dejar vacío para no cambiar" : "••••"}
-                        className="bg-slate-700/50 border-slate-600 text-white pl-10"
+                        className="bg-muted border-border text-foreground pl-10"
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="tipo_caja" className="text-slate-200">
+                    <Label htmlFor="tipo_caja" className="text-foreground">
                       Tipo de Caja
                     </Label>
                     <select
@@ -182,7 +182,7 @@ export default function CatalogoCajas() {
                       name="tipo_caja"
                       value={formData.tipo_caja}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 bg-slate-700/50 border border-slate-600 rounded-lg text-white"
+                      className="w-full px-3 py-2 bg-muted border border-border rounded-lg text-foreground"
                     >
                       <option value="Normal">Normal</option>
                       <option value="Extraordinaria">Extraordinaria</option>
@@ -219,10 +219,10 @@ export default function CatalogoCajas() {
 
           {/* Lista */}
           <div className="lg:col-span-2">
-            <Card className="bg-slate-800/50 border-slate-700 backdrop-blur-sm">
+            <Card className="bg-card border-border backdrop-blur-sm">
               <CardHeader>
-                <CardTitle className="text-white flex items-center gap-2">
-                  <BoxIcon className="h-5 w-5 text-cyan-400" />
+                <CardTitle className="text-foreground flex items-center gap-2">
+                  <BoxIcon className="h-5 w-5 text-primario" />
                   Cajas Registradas
                 </CardTitle>
               </CardHeader>
@@ -230,12 +230,12 @@ export default function CatalogoCajas() {
                 {cajas.length === 0 ? (
                   <div className="text-center py-12">
                     <BoxIcon className="h-16 w-16 text-slate-600 mx-auto mb-3" />
-                    <p className="text-slate-400">No hay cajas registradas</p>
+                    <p className="text-muted-foreground">No hay cajas registradas</p>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {cajas.map((caja) => (
-                      <Card key={caja.id} className="bg-slate-700/30 border-slate-600/50 hover:bg-slate-700/50 transition-all">
+                      <Card key={caja.id} className="bg-muted border-border hover:bg-muted transition-all">
                         <CardContent className="p-6">
                           <div className="flex items-start justify-between mb-4">
                             <div className="flex items-center gap-3">
@@ -243,14 +243,14 @@ export default function CatalogoCajas() {
                                 <BoxIcon className="h-6 w-6 text-white" />
                               </div>
                               <div>
-                                <p className="text-xs text-slate-400 mb-1">Caja N°</p>
-                                <p className="text-2xl font-bold text-white">{caja.numero_caja}</p>
+                                <p className="text-xs text-muted-foreground mb-1">Caja N°</p>
+                                <p className="text-2xl font-bold text-foreground">{caja.numero_caja}</p>
                               </div>
                             </div>
                           </div>
 
-                          <div className="mb-4 p-3 bg-slate-800/50 rounded-lg text-center">
-                            <p className="text-sm text-slate-300">Tipo: <span className="font-mono">{caja.tipo_caja}</span></p>
+                          <div className="mb-4 p-3 bg-card rounded-lg text-center">
+                            <p className="text-sm text-muted-foreground">Tipo: <span className="font-mono">{caja.tipo_caja}</span></p>
                           </div>
 
                           <div className="flex gap-2">
@@ -258,7 +258,7 @@ export default function CatalogoCajas() {
                               <Edit2 className="h-3 w-3 mr-1" />
                               Editar
                             </Button>
-                            <Button size="sm" variant="outline" onClick={() => handleDelete(caja.id)} className="flex-1 border-red-900/50 text-red-400 hover:bg-red-900/20">
+                            <Button size="sm" variant="outline" onClick={() => handleDelete(caja.id)} className="flex-1 border-red-900/50 text-error hover:bg-error-suave">
                               <Trash2 className="h-3 w-3 mr-1" />
                               Eliminar
                             </Button>
