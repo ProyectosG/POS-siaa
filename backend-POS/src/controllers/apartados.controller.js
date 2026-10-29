@@ -1,7 +1,7 @@
 // src/controllers/apartados.controller.js
 const Payment = require('../models/Payment');
 const Customer = require('../models/Customer');
-const db = require('../config/database');
+const { prisma } = require('../config/prisma');
 const { ErrorNegocio } = require('../config/transaccion');
 const { aCentavos, aPesos, filasAPesos } = require('../utils/dinero');
 const { ahoraNegocio } = require('../utils/fechas');
@@ -11,25 +11,25 @@ const { operacionIdempotente, responderError } = require('../utils/idempotencia'
 // Ventas que se pagan con abonos (la ruta conserva el nombre /apartados/abono)
 const TIPOS_CON_ABONO = { apartado: 'apartado', credito: 'crédito' };
 
-exports.getApartadosByCustomer = (req, res) => {
-  const { customerId } = req.params;
+// Apartados del cliente con saldo pendiente (el más reciente primero)
+exports.getApartadosByCustomer = async (req, res) => {
+  const customerId = Number(req.params.customerId);
+  if (!Number.isInteger(customerId) || customerId <= 0) return res.json([]);
 
-  db.all(
-    `
-    SELECT id, date, total, paid, pending_balance, status
-    FROM sales
-    WHERE customer_id = ?
-      AND LOWER(type) = 'apartado'
-      AND status != 'paid'
-      AND pending_balance > 0
-    ORDER BY id DESC
-    `,
-    [customerId],
-    (err, rows) => {
-      if (err) return res.status(500).json({ error: err.message });
-      res.json(filasAPesos(rows, 'sales'));
-    }
-  );
+  try {
+    const filas = await prisma.sales.findMany({
+      where: { customer_id: customerId, status: { not: 'paid' }, pending_balance: { gt: 0 } },
+      select: { id: true, type: true, date: true, total: true, paid: true, pending_balance: true, status: true },
+      orderBy: { id: 'desc' },
+    });
+    // El tipo sin distinguir mayúsculas (las ventas viejas guardaban 'APARTADO')
+    const apartados = filas
+      .filter((f) => String(f.type).toLowerCase() === 'apartado')
+      .map(({ type, ...f }) => f);
+    res.json(filasAPesos(apartados, 'sales'));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 };
 
 /**

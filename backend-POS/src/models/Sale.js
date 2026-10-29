@@ -1,5 +1,5 @@
-const db = require('../config/database');
-const { filaAPesos } = require('../utils/dinero');
+const { prisma } = require('../config/prisma');
+const { filaAPesos, filasAPesos } = require('../utils/dinero');
 
 class Sale {
   // Va DENTRO de una transacción; los montos ya vienen en centavos
@@ -30,18 +30,39 @@ class Sale {
     return lastID;
   }
 
-  // En pesos, para responder al API
-  static findById(id) {
-    return new Promise((resolve, reject) => {
-      db.get(
-        `SELECT * FROM sales WHERE id = ?`,
-        [id],
-        (err, row) => {
-          if (err) reject(err);
-          else resolve(filaAPesos(row, 'sales'));
-        }
-      );
+  // Las lecturas son con Prisma y en pesos, para responder al API
+
+  static async findById(id) {
+    return filaAPesos(await prisma.sales.findUnique({ where: { id } }), 'sales');
+  }
+
+  static async findAll() {
+    return filasAPesos(await prisma.sales.findMany({ orderBy: [{ date: 'desc' }, { id: 'desc' }] }), 'sales');
+  }
+
+  // Primer y último ticket entre dos fechas (AAAA-MM-DD)
+  static async rangoTickets(desde, hasta) {
+    const r = await prisma.sales.aggregate({
+      where: { date: { gte: desde, lte: hasta } },
+      _min: { id: true },
+      _max: { id: true },
     });
+    return { firstTicket: r._min.id ?? null, lastTicket: r._max.id ?? null };
+  }
+
+  // Renglones de una venta. articulo: el nombre que tenía el producto al
+  // venderse (guardado en el renglón); si un renglón viejo no lo tiene, el del
+  // catálogo
+  static async renglones(sale_id) {
+    const filas = await prisma.sale_details.findMany({
+      where: { sale_id },
+      include: { products: { select: { articulo: true } } },
+      orderBy: { id: 'asc' },
+    });
+    return filasAPesos(
+      filas.map(({ products, ...d }) => ({ ...d, articulo: d.articulo || products?.articulo || null })),
+      'sale_details'
+    );
   }
 }
 

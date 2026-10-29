@@ -18,6 +18,7 @@ exports.getTicketText = async (req, res) => {
     const ticketText = buildTicketText(data);
     res.json({ ticketText });
   } catch (err) {
+    if (err.status === 404) return res.status(404).json({ error: err.message });
     console.error('[ERROR] Error al generar texto de ticket:', err);
     res.status(500).json({ error: err.message });
   }
@@ -63,6 +64,7 @@ exports.printById = async (req, res) => {
       });
     }
   } catch (err) {
+    if (err.status === 404 && !res.headersSent) return res.status(404).json({ error: err.message });
     console.error('[ERROR] Error al imprimir ticket de venta:', err);
     if (!res.headersSent) {
       res.status(500).json({ error: err.message });

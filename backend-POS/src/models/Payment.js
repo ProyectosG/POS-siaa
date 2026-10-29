@@ -1,5 +1,5 @@
 // src/models/Payment.js
-const db = require('../config/database');
+const { prisma } = require('../config/prisma');
 const { filasAPesos } = require('../utils/dinero');
 
 // Formas de pago aceptadas
@@ -17,17 +17,8 @@ class Payment {
   }
 
   // En pesos, para responder al API
-  static findBySaleId(sale_id) {
-    return new Promise((resolve, reject) => {
-      db.all(
-        `SELECT * FROM payments WHERE sale_id = ?`,
-        [sale_id],
-        (err, rows) => {
-          if (err) reject(err);
-          else resolve(filasAPesos(rows, 'payments'));
-        }
-      );
-    });
+  static async findBySaleId(sale_id) {
+    return filasAPesos(await prisma.payments.findMany({ where: { sale_id }, orderBy: { id: 'asc' } }), 'payments');
   }
 }
 

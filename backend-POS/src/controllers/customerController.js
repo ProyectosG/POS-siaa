@@ -1,5 +1,6 @@
 const Customer = require('../models/Customer');
-const db = require('../config/database');
+const Sale = require('../models/Sale');
+const { prisma } = require('../config/prisma');
 const { filaAPesos, filasAPesos } = require('../utils/dinero');
 const { leerId, tieneRelacionados } = require('../utils/peticion');
 
@@ -76,75 +77,35 @@ exports.search = async (req, res) => {
 
 
 //...........................GET STATEMENT...........................//
+// Ventas del cliente (la más reciente primero), cada una con sus renglones,
+// pagos e historial de saldo. Antes eran 3 consultas por venta.
 exports.getStatement = async (req, res) => {
-  const customerId = req.params.id;
+  const customerId = leerId(req);
+  if (!customerId) return res.json([]);
 
   try {
-    // 1. Obtener todas las ventas del cliente
-    const sales = await new Promise((resolve, reject) => {
-      db.all(
-        `
-        SELECT 
-          s.*,
-          u.nickname AS nickname_user
-        FROM sales s
-        LEFT JOIN users u ON s.id_user = u.id
-        WHERE s.customer_id = ?
-        ORDER BY s.date DESC, s.id DESC
-        `,
-        [customerId],
-        (err, rows) => {
-          if (err) {
-            console.error('Error consultando ventas:', err);
-            reject(err);
-          } else {
-            resolve(rows || []);
-          }
-        }
-      );
+    const sales = await prisma.sales.findMany({
+      where: { customer_id: customerId },
+      orderBy: [{ date: 'desc' }, { id: 'desc' }],
+      include: {
+        payments: { orderBy: { id: 'asc' } },
+        customer_balance_history: { orderBy: [{ date: 'desc' }, { time: 'desc' }] },
+      },
     });
+    if (sales.length === 0) return res.json([]); // Cliente sin ventas
 
-    if (sales.length === 0) {
-      return res.json([]); // Cliente sin ventas
-    }
+    // Cajero de cada venta (users no tiene relación con sales en el esquema)
+    const idsUsuarios = [...new Set(sales.map((s) => s.id_user).filter(Boolean))];
+    const usuarios = await prisma.users.findMany({ where: { id: { in: idsUsuarios } }, select: { id: true, nickname: true } });
+    const nickname = new Map(usuarios.map((u) => [u.id, u.nickname]));
 
-    // 2. Enriquecer cada venta con detalles y pagos
     const statement = await Promise.all(
-      sales.map(async (sale) => {
-        // Detalles de productos
-        const details = await new Promise((resolve, reject) => {
-          db.all(
-            `SELECT * FROM sale_details WHERE sale_id = ?`,
-            [sale.id],
-            (err, rows) => (err ? reject(err) : resolve(rows || []))
-          );
-        });
-
-        // Pagos
-        const payments = await new Promise((resolve, reject) => {
-          db.all(
-            `SELECT * FROM payments WHERE sale_id = ?`,
-            [sale.id],
-            (err, rows) => (err ? reject(err) : resolve(rows || []))
-          );
-        });
-
-        // Opcional: historial de balance para auditoría
-        const balanceHistory = await new Promise((resolve, reject) => {
-          db.all(
-            `SELECT * FROM customer_balance_history WHERE sale_id = ? ORDER BY date DESC, time DESC`,
-            [sale.id],
-            (err, rows) => (err ? reject(err) : resolve(rows || []))
-          );
-        });
-
-        return {
-          ...filaAPesos(sale, 'sales'),
-          details: filasAPesos(details, 'sale_details'),
-          payments: filasAPesos(payments, 'payments'),
-          balance_history: filasAPesos(balanceHistory, 'customer_balance_history')
-        };
-      })
+      sales.map(async ({ payments, customer_balance_history, ...sale }) => ({
+        ...filaAPesos({ ...sale, nickname_user: nickname.get(sale.id_user) ?? null }, 'sales'),
+        details: await Sale.renglones(sale.id),
+        payments: filasAPesos(payments, 'payments'),
+        balance_history: filasAPesos(customer_balance_history, 'customer_balance_history'),
+      }))
     );
 
     res.json(statement);
@@ -154,38 +115,27 @@ exports.getStatement = async (req, res) => {
   }
 };
 
-// customerController.js
+// Movimientos de saldo del cliente en orden cronológico
+exports.getBalanceHistory = async (req, res) => {
+  const id = leerId(req);
+  if (!id) return res.json([]);
 
-exports.getBalanceHistory = (req, res) => {
-  const { id } = req.params;
-
-  db.all(
-    `
-    SELECT 
-      cbh.id,
-      cbh.date,
-      cbh.time,
-      cbh.sale_id,
-      cbh.previous_balance,
-      cbh.amount,
-      cbh.new_balance,
-      cbh.description,
-      CASE 
-        WHEN cbh.amount > 0 THEN 'Venta / Cargo'
-        WHEN cbh.amount < 0 THEN 'Abono / Pago'
-        ELSE 'Ajuste'
-      END AS movement_type
-    FROM customer_balance_history cbh
-    WHERE cbh.customer_id = ?
-    ORDER BY cbh.date ASC, cbh.time ASC  -- ← ¡Aquí está el cambio! ASC para cronológico ascendente
-    `,
-    [id],
-    (err, rows) => {
-      if (err) {
-        console.error('Error al obtener historial de balance:', err);
-        return res.status(500).json({ error: err.message });
-      }
-      res.json(filasAPesos(rows, 'customer_balance_history'));
-    }
-  );
+  try {
+    const filas = await prisma.customer_balance_history.findMany({
+      where: { customer_id: id },
+      select: {
+        id: true, date: true, time: true, sale_id: true,
+        previous_balance: true, amount: true, new_balance: true, description: true,
+      },
+      orderBy: [{ date: 'asc' }, { time: 'asc' }, { id: 'asc' }],
+    });
+    const conTipo = filas.map((m) => ({
+      ...m,
+      movement_type: m.amount > 0 ? 'Venta / Cargo' : m.amount < 0 ? 'Abono / Pago' : 'Ajuste',
+    }));
+    res.json(filasAPesos(conTipo, 'customer_balance_history'));
+  } catch (err) {
+    console.error('Error al obtener historial de balance:', err);
+    res.status(500).json({ error: err.message });
+  }
 };

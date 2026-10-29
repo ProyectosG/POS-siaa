@@ -4,6 +4,7 @@ const { enTransaccion, ErrorNegocio } = require('../config/transaccion');
 const { aPesos, camposAPesos, filaAPesos } = require('../utils/dinero');
 const { ahoraNegocio } = require('../utils/fechas');
 const { responderError } = require('../utils/idempotencia');
+const { leerId } = require('../utils/peticion');
 
 // Consultas sobre la conexión principal (para los GET)
 const principal = {
@@ -238,8 +239,8 @@ exports.getAllCuts = async (req, res) => {
  */
 exports.getCutById = async (req, res) => {
   try {
-    const { id } = req.params;
-    const cut = await Cut.findById(id);
+    const id = leerId(req);
+    const cut = id && (await Cut.findById(id));
     if (!cut) {
       return res.status(404).json({ error: 'Corte no encontrado' });
     }

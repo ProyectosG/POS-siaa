@@ -1,4 +1,5 @@
 const Out = require('../models/Out');
+const { leerId } = require('../utils/peticion');
 const { ErrorNegocio } = require('../config/transaccion');
 const { ahoraNegocio } = require('../utils/fechas');
 const { operacionIdempotente } = require('../utils/idempotencia');
@@ -46,7 +47,8 @@ exports.getAll = async (req, res) => {
 
 exports.getById = async (req, res) => {
   try {
-    const out = await Out.findById(req.params.id);
+    const id = leerId(req);
+    const out = id && (await Out.findById(id));
     if (!out) {
       return res.status(404).json({
         message: 'Salida no encontrada'
