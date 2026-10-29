@@ -28,6 +28,19 @@ export function useCustomers() {
     }
   }, [])
 
+  // El servidor responde { id, message } al crear y { message } al editar, no el
+  // cliente: se vuelve a leer para que la lista y el detalle muestren lo guardado
+  const leerCliente = async (id) => {
+    const res = await apiFetch(`/customers/${id}`)
+    if (!res.ok) throw new Error('No se pudo leer el cliente guardado')
+    return res.json()
+  }
+
+  const errorDe = async (res, porOmision) => {
+    const errData = await res.json().catch(() => ({}))
+    return new Error(errData.error || porOmision)
+  }
+
   const createCustomer = async (data) => {
     const res = await apiFetch(CUSTOMERS_URL, {
       method: 'POST',
@@ -35,12 +48,10 @@ export function useCustomers() {
       body: JSON.stringify(data),
     })
 
-    if (!res.ok) {
-      const errData = await res.json().catch(() => ({}))
-      throw new Error(errData.error || 'Error al crear cliente')
-    }
+    if (!res.ok) throw await errorDe(res, 'Error al crear cliente')
 
-    const newCustomer = await res.json()
+    const { id } = await res.json()
+    const newCustomer = await leerCliente(id)
     setCustomers(prev => [...prev, newCustomer])
     return newCustomer
   }
@@ -52,11 +63,9 @@ export function useCustomers() {
       body: JSON.stringify(data),
     })
 
-    if (!res.ok) {
-      throw new Error('Error al actualizar cliente')
-    }
+    if (!res.ok) throw await errorDe(res, 'Error al actualizar cliente')
 
-    const updated = await res.json()
+    const updated = await leerCliente(id)
     setCustomers(prev =>
       prev.map(c => (c.id === id ? updated : c))
     )
@@ -68,9 +77,8 @@ export function useCustomers() {
       method: 'DELETE',
     })
 
-    if (!res.ok) {
-      throw new Error('Error al eliminar cliente')
-    }
+    // Por ejemplo 409: el cliente tiene ventas o movimientos de saldo
+    if (!res.ok) throw await errorDe(res, 'Error al eliminar cliente')
 
     setCustomers(prev => prev.filter(c => c.id !== id))
   }
