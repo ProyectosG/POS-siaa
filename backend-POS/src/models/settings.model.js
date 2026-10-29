@@ -2,6 +2,7 @@
 // La lectura que hace la venta dentro de su transacción sigue en utils/precios.js.
 const { prisma } = require('../config/prisma');
 const { ahoraUTC } = require('../utils/fechas');
+const { ErrorCampo } = require('../utils/peticion');
 
 // Campos que se pueden actualizar desde PUT /api/settings (el resto se ignora).
 // La clave de precios no está aquí: se cambia aparte con hash (ver updatePriceKey).
@@ -34,14 +35,6 @@ function convertir(campo, valor) {
     return n;
   }
   return String(valor);
-}
-
-// Un valor que no es del tipo del campo (el controlador responde 400)
-class ErrorCampo extends Error {
-  constructor(campo) {
-    super(`Valor inválido para ${campo}`);
-    this.campo = campo;
-  }
 }
 
 const Settings = {
