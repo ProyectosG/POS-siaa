@@ -4,6 +4,11 @@ generator client {
   moduleFormat = "cjs"
 }
 
+// Las fechas que SQLite pone con CURRENT_TIMESTAMP se declaran como texto
+// (String con dbgenerated), no DateTime: así el API las entrega igual que
+// siempre ("AAAA-MM-DD HH:MM:SS", UTC) y no hay conversiones de zona horaria.
+// Un `prisma db pull` las regresa a DateTime: hay que volver a cambiarlas.
+
 datasource db {
   provider = "sqlite"
 }
@@ -36,7 +41,7 @@ model codigo_barras_historial {
   product_id      Int
   codigo_anterior String?
   codigo_nuevo    String?
-  fecha           DateTime? @default(now())
+  fecha           String?   @default(dbgenerated("CURRENT_TIMESTAMP"))
   products        products  @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
@@ -93,7 +98,7 @@ model cuts {
   cash_in_box        Float?    @default(0)
   first_ticket       Int?
   last_ticket        Int?
-  created_at         DateTime? @default(now())
+  created_at         String?   @default(dbgenerated("CURRENT_TIMESTAMP"))
   last_payment_id    Int?
 }
 
@@ -169,7 +174,7 @@ model outs {
   related_folio String?
   id_user       Int?
   nickname_user String?
-  created_at    DateTime?     @default(now())
+  created_at    String?       @default(dbgenerated("CURRENT_TIMESTAMP"))
   out_details   out_details[]
 }
 
@@ -248,7 +253,7 @@ model sales {
   nickname_user            String?
   efectivo_recibido        Float?                     @default(0)
   cambio                   Float?                     @default(0)
-  created_at               DateTime?                  @default(now())
+  created_at               String?                    @default(dbgenerated("CURRENT_TIMESTAMP"))
   customer_balance_history customer_balance_history[]
   payments                 payments[]
   sale_details             sale_details[]
@@ -275,8 +280,8 @@ model settings {
   dynamic_price_auth_key    String?   @default("1234")
   customer_form_mode        String?   @default("basic")
   card_payment_max_reprints Int?      @default(1)
-  created_at                DateTime? @default(now())
-  updated_at                DateTime? @default(now())
+  created_at                String?   @default(dbgenerated("CURRENT_TIMESTAMP"))
+  updated_at                String?   @default(dbgenerated("CURRENT_TIMESTAMP"))
 }
 
 model users {
@@ -288,5 +293,5 @@ model users {
   password     String?
   access_level Int?
   photo_url    String?
-  created_at   DateTime? @default(now())
+  created_at   String?   @default(dbgenerated("CURRENT_TIMESTAMP"))
 }

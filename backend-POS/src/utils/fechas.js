@@ -28,4 +28,11 @@ function ahoraNegocio(instante = new Date()) {
   return { date: `${p.year}-${p.month}-${p.day}`, time: `${p.hour}:${p.minute}:${p.second}` };
 }
 
-module.exports = { zonaNegocio, ahoraNegocio };
+// 'AAAA-MM-DD HH:MM:SS' en UTC: el mismo texto que pone CURRENT_TIMESTAMP de
+// SQLite. Es para las columnas de registro (created_at, updated_at), no para la
+// fecha de un movimiento del negocio (esa es ahoraNegocio).
+function ahoraUTC(instante = new Date()) {
+  return instante.toISOString().slice(0, 19).replace('T', ' ');
+}
+
+module.exports = { zonaNegocio, ahoraNegocio, ahoraUTC };
