@@ -1,5 +1,9 @@
-const db = require('../config/database');
-const { aCentavos, filaAPesos, filasAPesos } = require('../utils/dinero');
+// src/models/Product.js
+// Consulta, edición y baja con Prisma. El alta (crear) sigue con la conexión
+// de transacciones: va junto con el kardex de su stock inicial.
+const { prisma } = require('../config/prisma');
+const { aCentavos, filaAPesos } = require('../utils/dinero');
+const { ErrorCampo, numeroONulo } = require('../utils/peticion');
 
 // Precios: llegan y salen en pesos; en la base van en centavos
 const PRECIOS = ['precio_menudeo', 'precio_mayoreo', 'precio_especial', 'precio_oferta'];
@@ -12,13 +16,42 @@ const CAMPOS_EDITABLES = [
   'precio_menudeo', 'precio_mayoreo', 'precio_especial', 'precio_oferta',
   'iva', 'ieps', 'category_id', 'photo_url', 'activo',
 ];
+const NUMEROS = ['iva', 'ieps'];
+
+// Familia y subfamilia de la categoría, como las daba el JOIN de antes
+const CON_CATEGORIA = { categories: { select: { family: true, subfamily: true } } };
+
+// Fila de Prisma → producto del API (en pesos, con family y subfamily)
+function aProducto(fila) {
+  if (!fila) return fila;
+  const { categories, ...producto } = fila;
+  return filaAPesos({ ...producto, family: categories?.family, subfamily: categories?.subfamily }, 'products');
+}
+
+// Valor del API → valor de la columna (lanza ErrorCampo si no es del tipo)
+function convertir(campo, valor) {
+  if (PRECIOS.includes(campo)) {
+    if (valor === null || valor === '') return null;
+    const centavos = aCentavos(valor);
+    if (centavos === null) throw new ErrorCampo(campo);
+    return centavos;
+  }
+  if (NUMEROS.includes(campo)) return numeroONulo(campo, valor);
+  if (campo === 'category_id') {
+    const id = numeroONulo(campo, valor, { entero: true });
+    if (id === null) throw new ErrorCampo(campo);
+    return id;
+  }
+  if (campo === 'activo') return valor ? 1 : 0;
+  return valor === null ? null : String(valor);
+}
 
 class Product {
   // Va DENTRO de una transacción, junto con el kardex del alta
   static async crear(tx, data) {
     const { lastID } = await tx.run(
-        `INSERT INTO products 
-        (codigo_barras, codigo_interno,articulo, presentacion, unidad_medida, precio_menudeo, precio_mayoreo, precio_especial, precio_oferta, 
+        `INSERT INTO products
+        (codigo_barras, codigo_interno,articulo, presentacion, unidad_medida, precio_menudeo, precio_mayoreo, precio_especial, precio_oferta,
           iva, ieps, stock, category_id, photo_url, activo)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
@@ -42,113 +75,54 @@ class Product {
     return lastID;
   }
 
-  static findAll() {
-    return new Promise((resolve, reject) => {
-      db.all(
-        `SELECT products.*, categories.family, categories.subfamily 
-         FROM products 
-         JOIN categories ON products.category_id = categories.id 
-         ORDER BY articulo`, 
-        [], 
-        (err, rows) => {
-          if (err) reject(err);
-          else resolve(filasAPesos(rows, 'products'));
-        }
-      );
+  static async findAll() {
+    const filas = await prisma.products.findMany({ include: CON_CATEGORIA, orderBy: { articulo: 'asc' } });
+    return filas.map(aProducto);
+  }
+
+  static async findByBarcode(codigo) {
+    return aProducto(await prisma.products.findUnique({ where: { codigo_barras: String(codigo) }, include: CON_CATEGORIA }));
+  }
+
+  // Activos cuyo nombre contiene el texto (máximo 20)
+  static async searchByName(texto) {
+    const filas = await prisma.products.findMany({
+      where: { articulo: { contains: texto }, activo: 1 },
+      select: {
+        id: true, codigo_barras: true, articulo: true, presentacion: true, stock: true,
+        precio_menudeo: true, precio_mayoreo: true, precio_especial: true, precio_oferta: true,
+        iva: true, category_id: true, ...CON_CATEGORIA,
+      },
+      orderBy: { articulo: 'asc' },
+      take: 20,
     });
+    return filas.map(aProducto);
   }
 
-  static findByBarcode(codigo) {
-    return new Promise((resolve, reject) => {
-      db.get(
-        `SELECT products.*, categories.family, categories.subfamily 
-         FROM products 
-         JOIN categories ON products.category_id = categories.id 
-         WHERE products.codigo_barras = ? 
-         LIMIT 1`,
-        [codigo],
-        (err, row) => {
-          if (err) reject(err)
-          else resolve(filaAPesos(row, 'products'))
-        }
-      )
-    })
+  static async findById(id) {
+    return aProducto(await prisma.products.findUnique({ where: { id }, include: CON_CATEGORIA }));
   }
 
-  static searchByName(texto) {
-    return new Promise((resolve, reject) => {
-      db.all(
-        `
-        SELECT 
-          products.id,
-          products.codigo_barras,
-          products.articulo,
-          products.presentacion,
-          products.stock,
-          products.precio_menudeo,
-          products.precio_mayoreo,
-          products.precio_especial,
-          products.precio_oferta,
-          products.iva,
-          products.category_id,
-          categories.family,
-          categories.subfamily
-        FROM products
-        JOIN categories ON products.category_id = categories.id
-        WHERE products.articulo LIKE ?
-          AND products.activo = 1
-        ORDER BY products.articulo
-        LIMIT 20
-        `,
-        [`%${texto}%`],
-        (err, rows) => {
-          if (err) reject(err)
-          else resolve(filasAPesos(rows, 'products'))
-        }
-      )
-    })
+  // Solo campos de la lista fija; lo demás (incluido stock) se ignora.
+  // Devuelve false si no existe. Una categoría inexistente lanza P2003 y un
+  // código de barras repetido, P2002.
+  static async update(id, data) {
+    const cambios = {};
+    for (const campo of CAMPOS_EDITABLES) {
+      if (data[campo] !== undefined) cambios[campo] = convertir(campo, data[campo]);
+    }
+    if (Object.keys(cambios).length === 0) {
+      return (await prisma.products.count({ where: { id } })) > 0;
+    }
+    const { count } = await prisma.products.updateMany({ where: { id }, data: cambios });
+    return count > 0;
   }
 
-  static findById(id) {
-    return new Promise((resolve, reject) => {
-      db.get(
-        `SELECT products.*, categories.family, categories.subfamily 
-         FROM products 
-         JOIN categories ON products.category_id = categories.id 
-         WHERE products.id = ?`,
-        [id], 
-        (err, row) => {
-          if (err) reject(err);
-          else resolve(filaAPesos(row, 'products'));
-        }
-      );
-    });
-  }
-
-  // Solo campos de la lista fija; lo demás se ignora
-  static update(id, data) {
-    return new Promise((resolve, reject) => {
-      const campos = CAMPOS_EDITABLES.filter(key => data[key] !== undefined);
-      if (campos.length === 0) return resolve();
-
-      const fields = campos.map(key => `${key} = ?`).join(', ');
-      const values = campos.map(key => (PRECIOS.includes(key) ? aCentavos(data[key]) : data[key]));
-      values.push(id);
-
-      db.run(`UPDATE products SET ${fields} WHERE id = ?`, values, err => {
-        if (err) reject(err);
-        resolve();
-      });
-    });
-  }
-
-  static delete(id) {
-    return new Promise((resolve, reject) => {
-      db.run(`DELETE FROM products WHERE id = ?`, [id], err => {
-        if (err) reject(err);
-        resolve();
-      });
-    });
+  // Devuelve false si no existe. Con movimientos (kardex, ventas, entradas,
+  // salidas) SQLite rechaza el borrado y Prisma lanza P2003.
+  static async delete(id) {
+    const { count } = await prisma.products.deleteMany({ where: { id } });
+    return count > 0;
   }
 }
 

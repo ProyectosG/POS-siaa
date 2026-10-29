@@ -1,8 +1,10 @@
-const db = require('../config/database');
 const Product = require('../models/Product');
 const Kardex = require('../models/Kardex');
 const { ahoraNegocio } = require('../utils/fechas');
 const { enTransaccion } = require('../config/transaccion');
+const { leerId, esDuplicado, tieneRelacionados, ErrorCampo } = require('../utils/peticion');
+
+const CODIGO_REPETIDO = 'Ya existe un producto con ese código de barras';
 
 exports.getAll = async (req, res) => {
   try {
@@ -15,7 +17,8 @@ exports.getAll = async (req, res) => {
 
 exports.getById = async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id);
+    const id = leerId(req);
+    const product = id && (await Product.findById(id));
     if (!product) return res.status(404).json({ error: 'Producto no encontrado' });
     res.json(product);
   } catch (err) {
@@ -87,6 +90,13 @@ exports.create = async (req, res) => {
     });
 
   } catch (err) {
+    // El alta va por sqlite3 (en su transacción): sus errores no son de Prisma
+    if (err.code === 'SQLITE_CONSTRAINT' && /UNIQUE/.test(err.message)) {
+      return res.status(409).json({ error: CODIGO_REPETIDO });
+    }
+    if (err.code === 'SQLITE_CONSTRAINT' && /FOREIGN KEY/.test(err.message)) {
+      return res.status(400).json({ error: 'La familia (category_id) no existe' });
+    }
     console.error(err);
     res.status(500).json({ error: err.message });
   }
@@ -94,6 +104,9 @@ exports.create = async (req, res) => {
 
 exports.update = async (req, res) => {
   try {
+    const id = leerId(req);
+    if (!id) return res.status(404).json({ error: 'Producto no encontrado' });
+
     const data = req.body;
     if (data.articulo && data.articulo.trim() === '') {
       return res.status(400).json({ error: 'articulo no puede estar vacío' });
@@ -116,32 +129,14 @@ exports.update = async (req, res) => {
     if (data.codigo_interno !== undefined) cleanData.codigo_interno = data.codigo_interno || null;
     if (data.activo !== undefined) cleanData.activo = data.activo ? 1 : 0;
 
-    // Fecha y hora del negocio (para kardex si decides registrar cambio)
-    const { date, time } = ahoraNegocio();
-
-    // 1️⃣ Actualizar producto
-    await Product.update(req.params.id, cleanData);
-
-    // 2️⃣ (Opcional) Registrar en kardex como CAMBIO
-    // Descomenta si quieres registrar cada modificación en kardex
-    /*
-    await Kardex.logMovement({
-      product_id: req.params.id,
-      id_user: req.user.id,                    // del token
-      nickname_user: req.user.nickname,
-      movement_type: "CAMBIO",
-      movement_reason: "MODIFICACIÓN CATÁLOGO",
-      previous_stock: 0,                       // Puedes obtener stock anterior si quieres
-      moved_quantity: 0,
-      new_stock: 0,
-      date,
-      time,
-      related_folio: null
-    });
-    */
+    const existe = await Product.update(id, cleanData);
+    if (!existe) return res.status(404).json({ error: 'Producto no encontrado' });
 
     res.json({ message: 'Producto actualizado correctamente' });
   } catch (err) {
+    if (err instanceof ErrorCampo) return res.status(400).json({ error: err.message });
+    if (esDuplicado(err)) return res.status(409).json({ error: CODIGO_REPETIDO });
+    if (tieneRelacionados(err)) return res.status(400).json({ error: 'La familia (category_id) no existe' });
     console.error('Error al actualizar producto:', err);
     res.status(500).json({ error: err.message });
   }
@@ -149,9 +144,15 @@ exports.update = async (req, res) => {
 
 exports.delete = async (req, res) => {
   try {
-    await Product.delete(req.params.id);
+    const id = leerId(req);
+    const existe = id && (await Product.delete(id));
+    if (!existe) return res.status(404).json({ error: 'Producto no encontrado' });
     res.json({ message: 'Producto eliminado' });
   } catch (err) {
+    // Todo producto tiene al menos el kardex de su alta
+    if (tieneRelacionados(err)) {
+      return res.status(409).json({ error: 'El producto tiene movimientos; desactívalo en lugar de borrarlo' });
+    }
     res.status(500).json({ error: err.message });
   }
 };
