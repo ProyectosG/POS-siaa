@@ -1,4 +1,6 @@
 node_modules/
+# Cliente de Prisma: se genera con npm install (npm run prisma:generar)
+src/generated/
 .env
 *.db
 *.db-journal

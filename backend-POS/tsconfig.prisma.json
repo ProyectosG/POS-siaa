@@ -1,0 +1,13 @@
+{
+  "//": "Solo compila el cliente que genera Prisma (TypeScript) a JavaScript CommonJS. El resto del backend es JavaScript.",
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "target": "es2022",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "rewriteRelativeImportExtensions": true,
+    "outDir": "src/generated/prisma-js"
+  },
+  "files": ["src/generated/prisma/client.ts"]
+}
