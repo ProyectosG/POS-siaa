@@ -118,7 +118,8 @@ export default function CorteZ() {
 
 
       <AccionesCorteZ
-        hasTickets={hasTickets}
+        // También con solo cobros (abonos a ventas anteriores) hay corte que confirmar
+        hasTickets={hasTickets || Boolean(data.hay_movimientos)}
         confirming={confirming}
         corteConfirmado={corteConfirmado}
         setConfirming={setConfirming}

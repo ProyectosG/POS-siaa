@@ -171,7 +171,8 @@ export default function CatalogoProductosForm({ product, onSave, onCancel }) {
       precio_oferta: parseFloat(formData.precio_oferta) || null,
       iva: parseFloat(formData.iva) || null,
       ieps: parseFloat(formData.ieps) || null,
-      stock: parseInt(formData.stock) || 0,
+      // El stock solo va en el alta; después cambia con ventas, entradas y salidas
+      ...(product ? {} : { stock: parseInt(formData.stock) || 0 }),
       category_id: selectedCategory.id,
 
       // 🔥 CONTEXTO DE USUARIO

@@ -33,12 +33,13 @@ export default function CorteDeCaja() {
 
   const handlePrint = async () => {
     try {
-      const res = await apiFetch(`/cuts/print/current`);
+      const res = await apiFetch(`/cuts/print/current?tipo=X&caja=${encodeURIComponent(caja?.numero || "")}`);
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || `Error ${res.status} al imprimir corte`);
+        throw new Error(data.error || `Error ${res.status} al imprimir corte`);
       }
-      toast.success("¡Corte X impreso directamente en impresora! 🖨️💸");
+      // El servidor dice si imprimió o si no encontró impresora (modo prueba)
+      toast.success(data.message || "Corte X impreso 🖨️");
     } catch (err) {
       toast.error("No se pudo imprimir el corte: " + err.message);
     }

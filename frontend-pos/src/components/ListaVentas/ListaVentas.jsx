@@ -52,7 +52,6 @@ const handleReimprimirTicket = async (venta) => {
    const data = await res.json();
 
 
-    console.log('Ticket data:', data); // ← Depuración
     setTicketText(data.ticketText);
     setSelectedSaleId(venta.id);
     setShowPrintModal(true);

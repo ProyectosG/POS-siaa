@@ -2,6 +2,7 @@ const db = require('../config/database');
 const Product = require('../models/Product');
 const Kardex = require('../models/Kardex');
 const { ahoraNegocio } = require('../utils/fechas');
+const { enTransaccion } = require('../config/transaccion');
 
 exports.getAll = async (req, res) => {
   try {
@@ -52,23 +53,32 @@ exports.create = async (req, res) => {
       activo: data.activo !== undefined ? data.activo : true
     };
 
-    // 1️⃣ Crear producto
-    const productId = await Product.create(cleanData);
+    // Producto y kardex del alta en una sola transacción. El stock inicial
+    // queda en el kardex (antes se guardaba sin movimiento).
+    const stockInicial = Number(cleanData.stock) || 0;
+    if (!Number.isInteger(stockInicial) || stockInicial < 0) {
+      return res.status(400).json({ error: 'El stock inicial debe ser un entero mayor o igual a cero' });
+    }
 
-    // 2️⃣ Registrar Kardex (ALTA DE PRODUCTO) con fecha y hora del negocio
-    const { date, time } = ahoraNegocio();
+    const productId = await enTransaccion(async (tx) => {
+      const id = await Product.crear(tx, { ...cleanData, stock: stockInicial });
+      const { date, time } = ahoraNegocio();
 
-    await Kardex.logMovement({
-      product_id: productId,
-      id_user: req.user.id,               // del token
-      nickname_user: req.user.nickname,
-      movement_type: "ALTA",
-      previous_stock: 0,
-      moved_quantity: 0,
-      new_stock: 0,
-      date,
-      time,
-      related_folio: null
+      await Kardex.logMovement({
+        product_id: id,
+        id_user: req.user.id,               // del token
+        nickname_user: req.user.nickname,
+        movement_type: "ALTA",
+        movement_reason: "ALTA_PRODUCTO",
+        previous_stock: 0,
+        moved_quantity: stockInicial,
+        new_stock: stockInicial,
+        date,
+        time,
+        related_folio: null
+      }, tx);
+
+      return id;
     });
 
     res.status(201).json({
@@ -99,7 +109,7 @@ exports.update = async (req, res) => {
     if (data.precio_oferta !== undefined) cleanData.precio_oferta = data.precio_oferta;
     if (data.iva !== undefined) cleanData.iva = data.iva;
     if (data.ieps !== undefined) cleanData.ieps = data.ieps;
-    if (data.stock !== undefined) cleanData.stock = data.stock;
+    // El stock no se edita aquí: solo con ventas, entradas y salidas
     if (data.category_id !== undefined) cleanData.category_id = data.category_id;
     if (data.photo_url !== undefined) cleanData.photo_url = data.photo_url || null;
     if (data.codigo_barras !== undefined) cleanData.codigo_barras = data.codigo_barras || null;

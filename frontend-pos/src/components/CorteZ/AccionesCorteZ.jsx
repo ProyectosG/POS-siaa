@@ -59,8 +59,10 @@ export default function AccionesCorteZ({
     }
 
     try {
-      await apiFetch(`/cuts/print/current`);
-      toast.success("¡Corte Z impreso correctamente! 🖨️");
+      const res = await apiFetch(`/cuts/print/current?tipo=Z`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error);
+      toast.success(data.message || "¡Corte Z impreso correctamente! 🖨️");
     } catch (err) {
       toast.error("Error al imprimir");
     }

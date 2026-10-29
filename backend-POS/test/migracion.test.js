@@ -20,7 +20,9 @@ before(async () => {
       await correr(vieja,
         `INSERT INTO sales (id, date, type, customer_id, subtotal, tax_total, total, paid, pending_balance, status)
          VALUES (1, '2026-01-10', 'apartado', 1, 215.6, 34.5, 250.1, 75, 175.1, 'pending')`);
-      await correr(vieja, `INSERT INTO payments (sale_id, method, amount, payment_type, date) VALUES (1, 'efectivo', 75, 'anticipo', '2026-01-10')`);
+      await correr(vieja, `INSERT INTO payments (id, sale_id, method, amount, payment_type, date) VALUES (1, 1, 'efectivo', 75, 'anticipo', '2026-01-10')`);
+      // Un corte Z viejo que cubrió el ticket 1 (todavía sin last_payment_id)
+      await correr(vieja, `INSERT INTO cuts (type, date, desde, hasta, total_sales, first_ticket, last_ticket) VALUES ('Z', '2026-01-10', '1', '1', 250.1, 1, 1)`);
     },
   }));
 });
@@ -50,5 +52,11 @@ test('el saldo del cliente se recalcula con lo pendiente y deja historial', asyn
 test('se respaldó la base antes de migrar y la versión quedó marcada', async () => {
   const respaldos = fs.readdirSync(process.env.BACKUP_DIR).filter((f) => f.startsWith('pos_antes_fase1_'));
   assert.equal(respaldos.length, 1);
-  assert.equal((await dbGet(db, 'PRAGMA user_version')).user_version, 1);
+  assert.equal((await dbGet(db, 'PRAGMA user_version')).user_version, 2);
+});
+
+test('los cortes viejos quedan con el último pago que cubrieron (migración 2)', async () => {
+  const corte = await dbGet(db, 'SELECT total_sales, last_payment_id FROM cuts LIMIT 1');
+  assert.equal(corte.total_sales, 25010);
+  assert.equal(corte.last_payment_id, 1);
 });
