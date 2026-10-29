@@ -3,32 +3,52 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ==========================================================================
+   COLORES DEL SISTEMA: este es el ÚNICO lugar donde se definen.
+   - primario (azul): acciones principales, enlaces, selección
+   - exito (verde): cobros, pagado, confirmaciones
+   - aviso (ámbar): pendientes, advertencias
+   - error (rojo): SOLO errores y acciones que borran
+   Cada uno tiene su versión "-suave" para fondos de etiquetas y avisos.
+   Las pantallas usan las clases de Tailwind que salen de aquí
+   (bg-primario, text-exito, bg-aviso-suave, border-error...), no colores a mano.
+   ========================================================================== */
 :root {
+  --primario: oklch(0.55 0.19 258);
+  --primario-suave: oklch(0.95 0.03 258);
+  --exito: oklch(0.56 0.15 152);
+  --exito-suave: oklch(0.95 0.05 152);
+  --aviso: oklch(0.62 0.16 65);
+  --aviso-suave: oklch(0.96 0.06 85);
+  --error: oklch(0.58 0.22 27);
+  --error-suave: oklch(0.96 0.03 27);
+  --sombra-suave: 0 1px 2px oklch(0 0 0 / 0.04), 0 2px 8px oklch(0 0 0 / 0.06);
+
   --background: oklch(0.98 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
+  --primary: var(--primario);
+  --primary-foreground: oklch(0.99 0 0);
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
   --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.488 0.243 264.376);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --accent: var(--primario-suave);
+  --accent-foreground: var(--primario);
+  --destructive: var(--error);
+  --destructive-foreground: var(--error);
+  --border: oklch(0.91 0 0);
+  --input: oklch(0.88 0 0);
+  --ring: var(--primario);
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 0.5rem;
+  --radius: 0.75rem;
   --sidebar: oklch(0.158 0.014 271.79);
   --sidebar-foreground: oklch(0.945 0.01 286.63);
   --sidebar-primary: oklch(0.488 0.243 264.376);
@@ -77,8 +97,18 @@
 }
 
 @theme inline {
-  --font-sans: "Geist", "Geist Fallback";
-  --font-mono: "Geist Mono", "Geist Mono Fallback";
+  --font-sans: var(--font-geist-sans), "Geist", "Geist Fallback", system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), "Geist Mono", "Geist Mono Fallback", ui-monospace, monospace;
+  --color-primario: var(--primario);
+  --color-primario-suave: var(--primario-suave);
+  --color-exito: var(--exito);
+  --color-exito-suave: var(--exito-suave);
+  --color-aviso: var(--aviso);
+  --color-aviso-suave: var(--aviso-suave);
+  --color-error: var(--error);
+  --color-error-suave: var(--error-suave);
+  --shadow-suave: var(--sombra-suave);
+  --radius-tarjeta: calc(var(--radius) + 4px);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -121,6 +151,23 @@
   body {
     @apply bg-background text-foreground;
   }
+  /* Botones de al menos 44 px de alto (se tocan con el dedo) */
+  button,
+  [role="button"],
+  [type="button"],
+  [type="submit"] {
+    min-height: 2.75rem;
+  }
+}
+
+/* Montos: alineados a la derecha y con números del mismo ancho (tabulares) */
+.monto {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+.tabular {
+  font-variant-numeric: tabular-nums;
 }
 
 /* En globals.css o en un componente */
@@ -148,4 +195,13 @@
 .glow-text {
   animation: glow 3s infinite ease-in-out;
   text-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
+}
+/* Tablas anchas en pantallas angostas: se desplazan de lado dentro de su
+   recuadro y una sombra en la orilla avisa que hay más columnas */
+.tabla-desplazable {
+  background:
+    linear-gradient(to right, var(--card) 30%, transparent) left / 2rem 100% no-repeat local,
+    linear-gradient(to left, var(--card) 30%, transparent) right / 2rem 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, oklch(0 0 0 / 0.14), transparent) left / 0.75rem 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, oklch(0 0 0 / 0.14), transparent) right / 0.75rem 100% no-repeat scroll;
 }
