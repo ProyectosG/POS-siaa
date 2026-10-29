@@ -11,6 +11,12 @@ import { Switch } from "@/components/ui/switch"
 import PagoMixto from "@/components/PagoMixto/PagoMixto"
 import { apiFetch } from "@/lib/apiFetch"
 
+// Ventas que se pagan con abonos: apartados y créditos
+const TIPOS_CON_ABONO = {
+  apartado: { etiqueta: "Apartado", insignia: "APARTADO", clase: "bg-blue-100 text-blue-700" },
+  credito: { etiqueta: "Crédito", insignia: "CRÉDITO", clase: "bg-amber-100 text-amber-800" },
+}
+
 
 export default function AbonosApartados() {
   const [ticketId, setTicketId] = useState("")
@@ -35,8 +41,8 @@ export default function AbonosApartados() {
 
       const data = await res.json()
 
-      if (data.type !== "apartado") {
-        throw new Error("Este ticket no es un apartado")
+      if (!TIPOS_CON_ABONO[data.type]) {
+        throw new Error("Este ticket no es un apartado ni un crédito")
       }
 
       setVenta(data)
@@ -49,6 +55,8 @@ export default function AbonosApartados() {
   /* =====================================================
      LIQUIDAR → COLOCA SALDO EN NUEVO ABONO
   ===================================================== */
+  const tipo = venta ? TIPOS_CON_ABONO[venta.type] : null
+
   useEffect(() => {
     if (liquidar && venta) {
       setMontoAbono(venta.pending_balance.toFixed(2))
@@ -71,7 +79,7 @@ export default function AbonosApartados() {
           <Card className="shadow-md">
             <CardContent className="p-5 flex flex-col items-center gap-3">
               <span className="text-xs uppercase tracking-[0.35em] text-muted-foreground font-semibold">
-                Ticket Apartado
+                Ticket {tipo ? tipo.etiqueta : "Apartado / Crédito"}
               </span>
 
               <Input
@@ -94,8 +102,8 @@ export default function AbonosApartados() {
               />
 
               {venta && (
-                <Badge className="bg-blue-100 text-blue-700">
-                  APARTADO
+                <Badge className={tipo.clase}>
+                  {tipo.insignia}
                 </Badge>
               )}
             </CardContent>
@@ -150,7 +158,7 @@ export default function AbonosApartados() {
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="text-lg font-bold">
-                    🧾 Ticket Apartado #{venta.id}
+                    🧾 Ticket {tipo.etiqueta} #{venta.id}
                   </h3>
                   <p className="text-sm text-muted-foreground">
                     {/* Fecha y hora del negocio que puso el servidor (created_at está en UTC) */}
@@ -161,8 +169,8 @@ export default function AbonosApartados() {
                   </p>
                 </div>
 
-                <Badge className="bg-blue-100 text-blue-700">
-                  APARTADO
+                <Badge className={tipo.clase}>
+                  {tipo.insignia}
                 </Badge>
               </div>
 
@@ -270,8 +278,8 @@ export default function AbonosApartados() {
             ticketId={ticketId}                 // ← Agrega esto
             venta={venta}                       // ← Agrega esto (para customer_id y otros datos)
             onAbonoRegistrado={() => {
-              toast.success("Abono registrado correctamente")
-              buscarTicket() // ← Recarga la venta actualizada
+              // El aviso de éxito lo muestra PagoMixto; aquí solo se recarga la venta
+              buscarTicket()
             }}
           />
 

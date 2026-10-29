@@ -34,6 +34,7 @@ Punto de venta independiente. Backend en `backend-POS/` (Express 5 + sqlite3, si
 - **Idempotencia**: `POST /sales`, `/apartados/abono`, `/entries` y `/outs` exigen el encabezado `Idempotency-Key` (`utils/idempotencia.js`, tabla `idempotencia`). La misma clave del mismo usuario devuelve la primera respuesta (`repetida: true`) sin registrar otra vez. En el frontend: `enviarOperacion(ruta, body, claveRef)` de `src/lib/apiFetch.js`, con un `useRef` por pantalla.
 - **Fechas**: el servidor pone fecha y hora de cada movimiento con `ahoraNegocio()` (`utils/fechas.js`), en `TZ_NEGOCIO` (por omisión `America/Mexico_City`). No usar `new Date()`, `toISOString()` ni fechas del navegador. `created_at` (de SQLite) está en UTC: para mostrar, usar `date` y `time`.
 - **Saldo de clientes**: `current_balance` es lo que el cliente debe. Sube con lo pendiente de un apartado o crédito y baja con cada abono; siempre con `Customer.moverSaldo`, que deja historial.
+- **Abonos**: `POST /api/apartados/abono` cobra **apartados y créditos** del mismo cliente (nunca contado); la ruta conserva su nombre. El pago queda con `payment_type = 'abono'` y entra en el corte de su día. Pantalla: Registro de Abonos.
 - **Precio libre**: en el menú de precios (tecla P) está "Precio libre (con clave)". `POST /api/settings/validar-clave-precio { clave, product_id, precio }` devuelve una autorización de 5 minutos para ese producto, precio y usuario (5 claves equivocadas → 15 min de bloqueo). La venta solo acepta el precio libre con esa autorización y marca el renglón (`sale_details.precio_libre`).
 - **Migraciones**: `src/config/migraciones.js`, versionadas con `PRAGMA user_version`, cada una en una transacción y con respaldo previo (`VACUUM INTO` en `BACKUP_DIR`) si la base tiene datos. Un cambio de datos nuevo es una migración nueva, nunca un cambio a una que ya corrió.
 - **Probar módulos sueltos**: cargar cualquier archivo del backend abre la base con el `.env` real y crea `src/pos.db` vacía si no existe. Siempre con `DB_PATH` apuntando a un archivo temporal.
@@ -84,7 +85,7 @@ Arreglos encontrados en el camino: el ticket imprimía como anticipo el 30 % del
 ## Pendientes (sin hacer)
 
 - **Historial de códigos de barras**: la tabla `codigo_barras_historial` existe pero nada la llena; cambiar el código de un producto no deja rastro.
-- **Las ventas a crédito no se pueden cobrar**: `POST /api/apartados/abono` solo acepta apartados y no hay otra ruta para abonar a un crédito; la deuda sube con la venta y no hay forma de bajarla desde el sistema.
+- **No hay pantalla de venta a crédito**: el menú solo tiene contado y apartado; un crédito hoy solo se crea por el API (`POST /api/sales` con `type: 'credito'`). Falta decidir quién vende a crédito, si hay límite por cliente y si se pide anticipo.
 
 - **Reimprimir un corte viejo**: en Reporte de Cortes el botón de imprimir solo muestra un aviso; no hay ruta (`printCorteById` se quitó porque no tenía ruta y fallaba). Si se necesita, crear `GET /api/cuts/:id/print`.
 - "Saldos y stocks a cero" del reset pone el stock en 0 sin kardex (es una herramienta del SuperDeveloper).

@@ -8,6 +8,9 @@ const { ahoraNegocio } = require('../utils/fechas');
 const { leerPagos } = require('../utils/precios');
 const { operacionIdempotente, responderError } = require('../utils/idempotencia');
 
+// Ventas que se pagan con abonos (la ruta conserva el nombre /apartados/abono)
+const TIPOS_CON_ABONO = { apartado: 'apartado', credito: 'crédito' };
+
 exports.getApartadosByCustomer = (req, res) => {
   const { customerId } = req.params;
 
@@ -30,7 +33,7 @@ exports.getApartadosByCustomer = (req, res) => {
 };
 
 /**
- * POST /api/apartados/abono
+ * POST /api/apartados/abono  (apartados y créditos)
  * Cuerpo: { sale_id, customer_id, amount, pagos: [{ method, amount, bank, last4 }] }
  * Todo en una transacción: pagos, venta y saldo del cliente, o nada.
  * Encabezado obligatorio: Idempotency-Key.
@@ -56,12 +59,13 @@ exports.registrarAbono = async (req, res) => {
       const sale = await tx.get('SELECT * FROM sales WHERE id = ?', [sale_id]);
       if (!sale) throw new ErrorNegocio(404, 'Venta no encontrada');
 
-      // El abono solo aplica a un apartado de ese mismo cliente
+      // El abono solo aplica a un apartado o crédito de ese mismo cliente (nunca a contado)
+      const tipo = String(sale.type).toLowerCase();
       if (
-        String(sale.type).toLowerCase() !== 'apartado' ||
+        !TIPOS_CON_ABONO[tipo] ||
         (customer_id !== undefined && customer_id !== null && String(sale.customer_id) !== String(customer_id))
       ) {
-        throw new ErrorNegocio(400, 'La venta no es un apartado de este cliente');
+        throw new ErrorNegocio(400, 'La venta no es un apartado ni un crédito de este cliente');
       }
 
       const pendiente = Math.round(sale.pending_balance || 0);
@@ -84,7 +88,7 @@ exports.registrarAbono = async (req, res) => {
 
       // Baja la deuda del cliente
       await Customer.moverSaldo(tx, sale.customer_id, -abono, sale.id,
-        `Abono a apartado #${sale.id} (${aPesos(abono).toFixed(2)})`);
+        `Abono a ${TIPOS_CON_ABONO[tipo]} #${sale.id} (${aPesos(abono).toFixed(2)})`);
 
       return {
         status: 200,
