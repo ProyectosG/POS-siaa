@@ -6,6 +6,7 @@ Punto de venta independiente. Backend en `backend-POS/` (Express 5 + sqlite3, si
 
 - Responder y comentar el código en **español**. Commits pequeños y claros, en español.
 - Trabajar en ramas; **nunca** hacer push sin que el dueño lo pida. Nunca reescribir la historia de git ni hacer push forzado.
+- **Sin pull requests** (desde el 2026-10-29): cuando una rama está lista y el dueño dice "sí, fusiona", respaldar antes los `.db`, juntarla con `main` con `git merge --no-ff` y la descripción completa en el mensaje del commit, y subir `main`. **Nunca fusionar sin que lo diga.**
 - Si algo del plan no se puede hacer como está escrito, avisar antes de improvisar.
 - Nunca versionar bases de datos (`*.db`), respaldos (`backups/`) ni `.env`.
 - Puertos para pruebas locales: backend **5050**, frontend **3050**. Detener al terminar lo que se haya arrancado.
@@ -38,6 +39,7 @@ Punto de venta independiente. Backend en `backend-POS/` (Express 5 + sqlite3, si
 - **Precio libre**: en el menú de precios (tecla P) está "Precio libre (con clave)". `POST /api/settings/validar-clave-precio { clave, product_id, precio }` devuelve una autorización de 5 minutos para ese producto, precio y usuario (5 claves equivocadas → 15 min de bloqueo). La venta solo acepta el precio libre con esa autorización y marca el renglón (`sale_details.precio_libre`).
 - **Migraciones**: `src/config/migraciones.js`, versionadas con `PRAGMA user_version`, cada una en una transacción y con respaldo previo (`VACUUM INTO` en `BACKUP_DIR`) si la base tiene datos. Un cambio de datos nuevo es una migración nueva, nunca un cambio a una que ya corrió.
 - **Probar módulos sueltos**: cargar cualquier archivo del backend abre la base con el `.env` real y crea `src/pos.db` vacía si no existe. Siempre con `DB_PATH` apuntando a un archivo temporal.
+- **Pruebas y la base real**: cada prueba carga `test/helpers.js` primero (prepara la base temporal al cargarse) y nunca carga un módulo del servidor antes. `config/database.js` lo protege: en las pruebas (`NODE_TEST_CONTEXT` o `POS_PRUEBAS`) falla de inmediato si la base no está en la carpeta temporal (`test/proteccion.test.js`).
 - **Git y la base local**: el `pos_backup_*.db` sigue versionado en commits viejos de `main`. Cambiar a uno de esos commits y regresar BORRA la copia local (git la trata como archivo ignorado). Respaldarla antes de cualquier checkout a historia vieja.
 
 ## Fase 0 — Seguridad (hecha, rama `fase0-seguridad`)
@@ -91,7 +93,6 @@ Arreglos encontrados en el camino: el ticket imprimía como anticipo el 30 % del
 - "Saldos y stocks a cero" del reset pone el stock en 0 sin kardex (es una herramienta del SuperDeveloper).
 - Los intentos del SuperDeveloper y de la clave de precios se guardan en memoria: se reinician si se reinicia el servidor.
 - El `pos_backup_*.db` sigue en la historia de git (repo público). Si hiciera falta borrarlo de la historia, sería una reescritura que el dueño tendría que autorizar.
-- **No hay botón de "Respaldar ahora"**: la app respalda sola antes de migrar y antes de un reset; para un respaldo a mano hay que apagar el servidor y copiar `pos.db` (con WAL, nunca con el servidor encendido).
 - **Borrar una familia** borra una por una sus categorías: si una subfamilia tiene productos, las vacías sí se borran y la familia queda a medias (ya pasaba antes, sin aviso; ahora la pantalla dice cuál no se pudo). Para hacerlo todo o nada: una ruta `DELETE /api/categories/familia/:nombre` en una transacción.
 
 ## Fase 3 — Prisma (hecha por tandas: `fase3-prisma`, `fase3-catalogos`, `fase3-productos`, `fase3-lecturas`, `fase3-transacciones`)
@@ -111,5 +112,6 @@ Cómo funciona hoy:
 - **Fechas de registro como texto**: en `schema.prisma`, `created_at`, `updated_at` y `fecha` son `String` con `dbgenerated("CURRENT_TIMESTAMP")`. Al escribirlas a mano usar `ahoraUTC()`. No usar consultas crudas para leer fechas (les suman 6 horas).
 - Errores de Prisma en los controladores (`utils/peticion.js`): `esDuplicado` (P2002) → 409; `tieneRelacionados` (P2003) → 409; `leerId`/`idEntero` para ids (Prisma no acepta texto); `numeroONulo` + `ErrorCampo` (→ 400) para números.
 - **No usar `@prisma/adapter-better-sqlite3`**: con él, una consulta de otra petición se mete en una `$transaction` abierta y se pierde si esa transacción falla (comprobado).
+- **Respaldar ahora** (`GET /api/superdev/respaldo`, solo SuperDeveloper, `utils/respaldos.js`): `VACUUM INTO` (seguro con el servidor encendido), revisa la copia (`quick_check` y misma versión) antes de entregarla, la descarga y deja una copia en `backups/` conservando solo los 10 manuales más recientes (`pos_respaldo_*`; los `pos_antes_*` y `pos_backup_*` no se tocan). CORS expone `Content-Disposition`.
 - El reset del SuperDeveloper apaga las llaves foráneas solo para su transacción (`PRAGMA foreign_keys = OFF` justo antes; la conexión siguiente las tiene activas).
 - Pruebas: `test/helpers.js` revisa la base con una conexión sqlite3 propia (el servidor ya cerró la suya). En Windows libsql a veces no suelta el archivo; las pruebas borran las bases temporales de corridas anteriores.
