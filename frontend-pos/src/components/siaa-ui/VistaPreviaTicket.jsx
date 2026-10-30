@@ -7,32 +7,35 @@ import { Button } from "@/components/ui/button"
 import { apiFetch } from "@/lib/apiFetch"
 import { ES_DEMO } from "@/lib/demo"
 
-// Vista previa del ticket de una venta (texto del servidor) con opción de
-// imprimirlo. saleId null = cerrado. En la demo solo hay vista previa.
-export default function VistaPreviaTicket({ saleId, onClose }) {
+// Vista previa de un ticket (texto del servidor) con opción de imprimirlo.
+// Venta: saleId (null = cerrado). Otro ticket, como un corte: ruta base
+// (`/cuts/5`, de donde salen /text y /print) y titulo. En la demo solo hay vista previa.
+export default function VistaPreviaTicket({ saleId, ruta, titulo, onClose }) {
+  const base = ruta || (saleId ? `/tickets/${saleId}` : null)
+  const encabezado = titulo || `Ticket #${saleId}`
   const [texto, setTexto] = useState("")
   const [imprimiendo, setImprimiendo] = useState(false)
 
   useEffect(() => {
-    if (!saleId) return
+    if (!base) return
     setTexto("")
-    apiFetch(`/tickets/${saleId}/text`)
+    apiFetch(`${base}/text`)
       .then(async (res) => {
         const data = await res.json().catch(() => ({}))
         if (!res.ok) throw new Error(data.error || "No se pudo cargar el ticket")
         setTexto(data.ticketText)
       })
       .catch((err) => toast.error(err.message))
-  }, [saleId])
+  }, [base])
 
   const imprimir = async () => {
     setImprimiendo(true)
     try {
-      const res = await apiFetch(`/tickets/${saleId}/print`)
+      const res = await apiFetch(`${base}/print`)
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || "No se pudo imprimir")
       // El servidor dice si imprimió o si no encontró impresora (modo prueba)
-      toast.success(data.message || `Ticket #${saleId} impreso`)
+      toast.success(data.message || `${encabezado} impreso`)
       onClose()
     } catch (err) {
       toast.error(err.message)
@@ -42,14 +45,14 @@ export default function VistaPreviaTicket({ saleId, onClose }) {
   }
 
   return (
-    <Dialog open={Boolean(saleId)} onOpenChange={(abierto) => !abierto && onClose()}>
+    <Dialog open={Boolean(base)} onOpenChange={(abierto) => !abierto && onClose()}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
-          <DialogTitle>Ticket #{saleId}</DialogTitle>
+          <DialogTitle>{encabezado}</DialogTitle>
         </DialogHeader>
 
-        {/* Letra más chica en celular para que quepa la línea completa del ticket (42 caracteres) */}
-        <div className="max-h-[60vh] overflow-auto rounded-lg border bg-card p-3 sm:p-4 font-mono text-[10px] leading-snug sm:text-xs whitespace-pre">
+        {/* Letra más chica en celular para que quepa la línea completa del ticket (hasta 48 caracteres) */}
+        <div className="max-h-[60vh] overflow-auto rounded-lg border bg-card px-2 py-3 sm:p-4 font-mono text-[10px] leading-snug sm:text-xs whitespace-pre">
           {texto || "Cargando…"}
         </div>
 
