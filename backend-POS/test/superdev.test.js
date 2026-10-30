@@ -90,3 +90,20 @@ test('reset con tabla no permitida → 400; con tabla permitida funciona y respa
   assert.equal(ok.status, 200);
   assert.match(ok.data.backup, /^pos_backup_\d+\.db$/);
 });
+
+test('la lista de tablas para la pantalla sale del servidor (solo SuperDeveloper)', async () => {
+  assert.equal((await api('GET', '/api/reset/tablas')).status, 401);
+  assert.equal((await api('GET', '/api/reset/tablas', { token: await login('admin') })).status, 403);
+
+  const { data } = await api('POST', '/api/superdev/entrar', { body: CREDENCIALES() });
+  const r = await api('GET', '/api/reset/tablas', { token: data.token });
+  assert.equal(r.status, 200);
+  const { TABLAS_PERMITIDAS } = require('../src/controllers/resetController');
+  assert.deepEqual(r.data.map((t) => t.tabla), TABLAS_PERMITIDAS);
+  // Las que faltaban en la pantalla, con nombre legible
+  const nombre = (tabla) => r.data.find((t) => t.tabla === tabla).nombre;
+  assert.equal(nombre('outs'), 'Salidas');
+  assert.equal(nombre('out_details'), 'Detalle de salidas');
+  assert.equal(nombre('codigo_barras_historial'), 'Historial de códigos');
+  for (const t of r.data) assert.notEqual(t.nombre, t.tabla, `${t.tabla} sin nombre`);
+});

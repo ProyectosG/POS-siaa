@@ -37,6 +37,31 @@ const TABLAS_AUXILIARES = ['idempotencia', 'autorizaciones_usadas'];
 
 exports.TABLAS_PERMITIDAS = TABLAS_PERMITIDAS;
 
+// Nombres para la pantalla (en el mismo orden: detalles, cabeceras, productos, catálogos)
+const NOMBRES_TABLAS = {
+  sale_details: 'Detalle de ventas',
+  entry_details: 'Detalle de entradas',
+  out_details: 'Detalle de salidas',
+  kardex: 'Kardex',
+  customer_balance_history: 'Historial de saldos',
+  codigo_barras_historial: 'Historial de códigos',
+  payments: 'Pagos',
+  sales: 'Ventas',
+  entries: 'Entradas',
+  outs: 'Salidas',
+  cuts: 'Cortes',
+  products: 'Productos',
+  categories: 'Familias',
+  customers: 'Clientes',
+  cash_registers: 'Cajas',
+  users: 'Usuarios',
+};
+
+// GET /api/reset/tablas: la pantalla arma sus botones con esta lista (una sola fuente)
+exports.listarTablas = (req, res) => {
+  res.json(TABLAS_PERMITIDAS.map((tabla) => ({ tabla, nombre: NOMBRES_TABLAS[tabla] || tabla })));
+};
+
 // Respaldo consistente antes de borrar (VACUUM INTO no copia a medias). Devuelve la ruta.
 async function respaldar() {
   const backupDir = getBackupDir();
