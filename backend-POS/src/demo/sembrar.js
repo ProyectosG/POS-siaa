@@ -225,6 +225,11 @@ async function sembrar(app) {
     a(0, 7, 30);
     await surtir(50, 90, 'Compra inicial a proveedor');
 
+    // El proveedor cambió la etiqueta del primer producto: queda en su historial
+    // de códigos (y el código viejo todavía lo encuentra al vender)
+    a(0, 7, 45);
+    await api(tokens.luis, 'PUT', `/products/${productos[0].id}`, { codigo_barras: '7502000000001' });
+
     // --- Dos semanas de ventas, abonos y cortes ---
     const pendientes = []; // apartados y créditos con saldo: { id, cliente, pendiente }
 

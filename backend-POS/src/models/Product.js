@@ -1,7 +1,9 @@
 // src/models/Product.js
 // Con Prisma. El alta (crear) va en una transacción junto con el kardex de su
-// stock inicial.
+// stock inicial; un cambio de código de barras, junto con su historial.
 const { prisma } = require('../config/prisma');
+const { enTransaccion } = require('../config/transaccion');
+const { ahoraNegocio, ahoraUTC } = require('../utils/fechas');
 const { aCentavos, filaAPesos } = require('../utils/dinero');
 const { ErrorCampo, numeroONulo } = require('../utils/peticion');
 
@@ -114,7 +116,9 @@ class Product {
   // Solo campos de la lista fija; lo demás (incluido stock) se ignora.
   // Devuelve false si no existe. Una categoría inexistente lanza P2003 y un
   // código de barras repetido, P2002.
-  static async update(id, data) {
+  // Con `usuario` (del token) va en una transacción: si cambia el código de
+  // barras, anota el cambio en codigo_barras_historial junto con la edición.
+  static async update(id, data, usuario) {
     const cambios = {};
     for (const campo of CAMPOS_EDITABLES) {
       if (data[campo] !== undefined) cambios[campo] = convertir(campo, data[campo]);
@@ -122,8 +126,58 @@ class Product {
     if (Object.keys(cambios).length === 0) {
       return (await prisma.products.count({ where: { id } })) > 0;
     }
-    const { count } = await prisma.products.updateMany({ where: { id }, data: cambios });
-    return count > 0;
+    if (cambios.codigo_barras === undefined) {
+      const { count } = await prisma.products.updateMany({ where: { id }, data: cambios });
+      return count > 0;
+    }
+    return enTransaccion(async (tx) => {
+      const antes = await tx.products.findUnique({ where: { id }, select: { codigo_barras: true } });
+      if (!antes) return false;
+      await tx.products.update({ where: { id }, data: cambios });
+      const anterior = antes.codigo_barras ?? null;
+      const nuevo = cambios.codigo_barras ?? null;
+      if (anterior !== nuevo) {
+        const { date, time } = ahoraNegocio();
+        await tx.codigo_barras_historial.create({
+          data: {
+            product_id: id,
+            codigo_anterior: anterior,
+            codigo_nuevo: nuevo,
+            id_user: usuario?.id ?? null,
+            nickname_user: usuario?.nickname ?? null,
+            date,
+            time,
+            fecha: ahoraUTC(),
+          },
+        });
+      }
+      return true;
+    });
+  }
+
+  // Cambios de código de barras del producto, del más reciente al más viejo
+  static async historialCodigos(id) {
+    return prisma.codigo_barras_historial.findMany({
+      where: { product_id: id },
+      select: {
+        id: true, codigo_anterior: true, codigo_nuevo: true,
+        nickname_user: true, date: true, time: true,
+      },
+      orderBy: { id: 'desc' },
+    });
+  }
+
+  // Producto que tuvo antes este código (etiquetas viejas en el anaquel). Solo
+  // se usa si ningún producto tiene hoy ese código. Si varios lo tuvieron, gana
+  // el cambio más reciente.
+  static async findByCodigoAnterior(codigo) {
+    const cambio = await prisma.codigo_barras_historial.findFirst({
+      where: { codigo_anterior: String(codigo) },
+      select: { product_id: true },
+      orderBy: { id: 'desc' },
+    });
+    if (!cambio) return null;
+    return Product.findById(cambio.product_id);
   }
 
   // Devuelve false si no existe. Con movimientos (kardex, ventas, entradas,

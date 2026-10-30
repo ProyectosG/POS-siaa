@@ -35,7 +35,7 @@ before(async () => {
 after(detener);
 
 test('la migración 5 agrega costo y costo_unitario', async () => {
-  assert.equal((await dbGet(db, 'PRAGMA user_version')).user_version, 5);
+  assert.equal((await dbGet(db, 'PRAGMA user_version')).user_version, 6);
   assert.equal((await dbGet(db, `SELECT type FROM pragma_table_info('products') WHERE name = 'costo'`)).type, 'INTEGER');
   assert.equal((await dbGet(db, `SELECT type FROM pragma_table_info('sale_details') WHERE name = 'costo_unitario'`)).type, 'INTEGER');
   assert.equal((await dbGet(db, 'SELECT costo FROM products WHERE id = ?', [ids.aceite])).costo, 5800);

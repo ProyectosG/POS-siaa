@@ -42,6 +42,10 @@ Punto de venta independiente. Backend en `backend-POS/` (Express 5 + sqlite3, si
   - Pantalla `/dashboard/ventas/credito`: es `VentasApartado` con `tipo="credito"`. En `PagoVenta` (`mode="credito"`) lo recibido es el anticipo y no hay cambio.
   - Al guardar se abre `VistaPreviaTicket` (`components/siaa-ui`).
   - El ticket de crédito lleva el anticipo y "Firma del cliente". Las transferencias se imprimen como "Transferencia".
+- **Historial de códigos de barras** (rama `historial-codigos`, migración 6):
+  - Al editar un producto, si cambia `codigo_barras` (también ponerlo o quitarlo), `Product.update` anota en `codigo_barras_historial` el código anterior, el nuevo, el usuario del token y `date`/`time` del negocio, en la misma transacción que la edición. El alta no se anota (ya está en el kardex).
+  - `GET /api/products/:id/codigos` (Gerente o superior), del más reciente al más viejo. Se ve en Catálogo de Productos → Editar, debajo del código ("Historial de códigos").
+  - **Etiquetas viejas**: `GET /api/products/barcode/:code` busca primero el código actual; si ningún producto lo tiene, busca el cambio más reciente con ese `codigo_anterior` y devuelve el producto con `codigo_cambiado: { anterior, actual }`. Contado y apartado avisan "Este código cambió; el actual es X". Entradas, salidas y kardex también lo encuentran (sin aviso).
 - **Abonos**: `POST /api/apartados/abono` cobra **apartados y créditos** del mismo cliente (nunca contado); la ruta conserva su nombre. El pago queda con `payment_type = 'abono'` y entra en el corte de su día. Pantalla: Registro de Abonos.
 - **Precio libre**: en el menú de precios (tecla P) está "Precio libre (con clave)". `POST /api/settings/validar-clave-precio { clave, product_id, precio }` devuelve una autorización de 5 minutos para ese producto, precio y usuario (5 claves equivocadas → 15 min de bloqueo). La venta solo acepta el precio libre con esa autorización y marca el renglón (`sale_details.precio_libre`).
 - **Migraciones**: `src/config/migraciones.js`, versionadas con `PRAGMA user_version`, cada una en una transacción y con respaldo previo (`VACUUM INTO` en `BACKUP_DIR`) si la base tiene datos. Un cambio de datos nuevo es una migración nueva, nunca un cambio a una que ya corrió.
@@ -121,8 +125,6 @@ Arreglos encontrados en el camino: el ticket imprimía como anticipo el 30 % del
 7. Fuera 38 dependencias del frontend que no se importaban (entre ellas los duplicados `sonner`, `react-modal` y `react-day-picker`; se usan `react-hot-toast`, Radix Dialog y `react-datepicker`). `react-dom` se queda porque Next lo necesita. Fuera `porsiacaso.initDatabase.js`, `scripts/sanitize_sales.js`, `1CustomerStatement` y `2CustomerStatement` (ese borrado quedó dentro del commit de cortes).
 
 ## Pendientes (sin hacer)
-
-- **Historial de códigos de barras**: la tabla `codigo_barras_historial` existe pero nada la llena; cambiar el código de un producto no deja rastro.
 
 - **Reimprimir un corte viejo**: en Reporte de Cortes el botón de imprimir solo muestra un aviso; no hay ruta (`printCorteById` se quitó porque no tenía ruta y fallaba). Si se necesita, crear `GET /api/cuts/:id/print`.
 - "Saldos y stocks a cero" del reset pone el stock en 0 sin kardex (es una herramienta del SuperDeveloper).

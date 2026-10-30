@@ -257,6 +257,25 @@ const MIGRACIONES = [
       await tx.run('ALTER TABLE sale_details ADD COLUMN costo_unitario INTEGER');
     },
   },
+  {
+    version: 6,
+    nombre: 'historial_codigos',
+    async aplicar(tx) {
+      // Quién cambió el código de barras y cuándo (fecha y hora del negocio,
+      // como el kardex). La tabla existía vacía: nada la llenaba.
+      await tx.run('ALTER TABLE codigo_barras_historial ADD COLUMN id_user INTEGER');
+      await tx.run('ALTER TABLE codigo_barras_historial ADD COLUMN nickname_user TEXT');
+      await tx.run('ALTER TABLE codigo_barras_historial ADD COLUMN date TEXT');
+      await tx.run('ALTER TABLE codigo_barras_historial ADD COLUMN time TEXT');
+      // La venta busca aquí un código que ya no existe (etiquetas viejas)
+      await tx.run(
+        'CREATE INDEX IF NOT EXISTS idx_codigo_barras_historial_anterior ON codigo_barras_historial (codigo_anterior)'
+      );
+      await tx.run(
+        'CREATE INDEX IF NOT EXISTS idx_codigo_barras_historial_producto ON codigo_barras_historial (product_id)'
+      );
+    },
+  },
 ];
 
 async function migrar() {

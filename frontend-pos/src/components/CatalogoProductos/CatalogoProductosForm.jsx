@@ -244,6 +244,7 @@ export default function CatalogoProductosForm({ product, onSave, onCancel }) {
           onChange={update}
           imagePreview={imagePreview}
           isEditing={!!product}
+          productId={product?.id}
           // 🔥 CUANDO TERMINA UNIDAD → SALTA A PRECIOS
           onGoToPrecios={() => setActiveTab("precios")}
         />

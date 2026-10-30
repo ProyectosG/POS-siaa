@@ -144,7 +144,8 @@ exports.update = async (req, res) => {
     if (data.codigo_interno !== undefined) cleanData.codigo_interno = data.codigo_interno || null;
     if (data.activo !== undefined) cleanData.activo = data.activo ? 1 : 0;
 
-    const existe = await Product.update(id, cleanData);
+    // Con el usuario: un cambio de código de barras queda en su historial
+    const existe = await Product.update(id, cleanData, req.user);
     if (!existe) return res.status(404).json({ error: 'Producto no encontrado' });
 
     res.json({ message: 'Producto actualizado correctamente' });
@@ -175,12 +176,30 @@ exports.delete = async (req, res) => {
 exports.getByBarcode = async (req, res) => {
   try {
     const product = await Product.findByBarcode(req.params.code);
+    if (product) return res.json(paraUsuario(req, product));
 
-    if (!product) {
+    // Etiqueta vieja: ningún producto tiene hoy ese código, pero alguno lo tuvo.
+    // Se entrega ese producto y se avisa cuál es su código actual.
+    const anterior = await Product.findByCodigoAnterior(req.params.code);
+    if (!anterior) {
       return res.status(404).json({ error: 'Producto no encontrado' });
     }
+    res.json({
+      ...paraUsuario(req, anterior),
+      codigo_cambiado: { anterior: String(req.params.code), actual: anterior.codigo_barras },
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
 
-    res.json(paraUsuario(req, product));
+// Cambios de código de barras de un producto (Gerente o superior)
+exports.historialCodigos = async (req, res) => {
+  try {
+    const id = leerId(req);
+    const product = id && (await Product.findById(id));
+    if (!product) return res.status(404).json({ error: 'Producto no encontrado' });
+    res.json(await Product.historialCodigos(id));
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

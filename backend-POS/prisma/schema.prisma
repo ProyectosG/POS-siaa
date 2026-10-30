@@ -45,7 +45,14 @@ model codigo_barras_historial {
   codigo_anterior String?
   codigo_nuevo    String?
   fecha           String?   @default(dbgenerated("CURRENT_TIMESTAMP"))
+  id_user         Int?
+  nickname_user   String?
+  date            String?
+  time            String?
   products        products  @relation(fields: [product_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([codigo_anterior], map: "idx_codigo_barras_historial_anterior")
+  @@index([product_id], map: "idx_codigo_barras_historial_producto")
 }
 
 model customer_balance_history {
