@@ -14,6 +14,7 @@ router.get('/:id', productController.getById);
 // Catálogo: Gerente o superior
 router.post('/', soloGerente, productController.create);
 router.put('/:id', soloGerente, productController.update);
+router.get('/:id/codigos', soloGerente, productController.historialCodigos);
 router.delete('/:id', soloGerente, productController.delete);
 
 module.exports = router;
