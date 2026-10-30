@@ -46,7 +46,7 @@ test('no se borra una categoría con productos (409) y sí una vacía', async ()
 
   const r = await api('DELETE', `/api/categories/${cat}`, { token: tokens.gerente });
   assert.equal(r.status, 409);
-  assert.match(r.data.error, /tiene productos/);
+  assert.match(r.data.error, /la familia Juguetes tiene 1 producto/);
   assert.ok(await dbGet(db, 'SELECT id FROM categories WHERE id = ?', [cat]));
 
   const vacia = (await api('POST', '/api/categories', { token: tokens.admin, body: { family: 'Temporal' } })).data.id;

@@ -1,4 +1,5 @@
 const Category = require('../models/Category');
+const { enTransaccion, ErrorNegocio } = require('../config/transaccion');
 const { leerId, tieneRelacionados } = require('../utils/peticion');
 
 const familiaValida = (family) => family && typeof family === 'string' && family.trim() !== '';
@@ -57,8 +58,24 @@ exports.delete = async (req, res) => {
     res.json({ message: 'Categoría eliminada' });
   } catch (err) {
     if (tieneRelacionados(err)) {
-      return res.status(409).json({ error: 'No se puede eliminar: la categoría tiene productos' });
+      const motivo = await Category.motivoNoBorrar(leerId(req)).catch(() => 'la categoría tiene productos');
+      return res.status(409).json({ error: `No se puede eliminar: ${motivo}. Muévelos a otra familia primero.` });
     }
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// Familia completa con sus subfamilias, todo o nada (antes el navegador borraba
+// una por una y la familia quedaba a medias si alguna tenía productos)
+exports.deleteFamilia = async (req, res) => {
+  try {
+    const family = String(req.params.nombre || '');
+    if (!familiaValida(family)) return res.status(400).json({ error: 'Falta el nombre de la familia' });
+
+    const borradas = await enTransaccion((tx) => Category.borrarFamilia(tx, family));
+    res.json({ message: `Familia ${family} eliminada`, borradas });
+  } catch (err) {
+    if (err instanceof ErrorNegocio) return res.status(err.status).json({ error: err.message });
     res.status(500).json({ error: err.message });
   }
 };

@@ -9,6 +9,7 @@ export default function ArbolFamilias({
   familiasAgrupadas,
   categories,
   handleEliminar,
+  handleEliminarFamilia,
 }) {
   return (
     <Card className="bg-card border-border backdrop-blur-sm h-full transition-all duration-500 ease-out hover:shadow-[0_0_30px_rgba(34,211,238,0.3)] hover:border-cyan-500/50">
@@ -36,19 +37,19 @@ export default function ArbolFamilias({
             </p>
           </div>
         ) : (
-          <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
+          <div className="space-y-3 max-h-[600px] overflow-y-auto overflow-x-hidden sm:pr-2">
             {familiasAgrupadas.map(familia => (
               <div
                 key={familia.family}
-                className="bg-muted border border-border rounded-lg p-4 hover:bg-muted transition-all duration-300 ease-out hover:shadow-lg"
+                className="bg-muted border border-border rounded-lg p-3 sm:p-4 hover:bg-muted transition-all duration-300 ease-out hover:shadow-lg"
               >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <FolderPlus className="h-5 w-5 text-primario" />
-                    <h3 className="text-foreground font-semibold text-lg">
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <FolderPlus className="h-5 w-5 shrink-0 text-primario" />
+                    <h3 className="min-w-0 break-words text-foreground font-semibold text-lg">
                       {familia.family}
                     </h3>
-                    <span className="text-xs bg-blue-500/20 text-primario px-2 py-1 rounded-full">
+                    <span className="shrink-0 whitespace-nowrap text-xs bg-primario-suave text-primario px-2 py-1 rounded-full">
                       {familia.subfamilias.length} sub
                     </span>
                   </div>
@@ -56,11 +57,8 @@ export default function ArbolFamilias({
                   <Button
                     size="sm"
                     variant="ghost"
-                    onClick={() => {
-                      // subfamilias ya incluye la categoría principal (sin subfamilia):
-                      // cada id se borra una sola vez, con una sola confirmación
-                      handleEliminar(familia.subfamilias.map(s => s.id))
-                    }}
+                    onClick={() => handleEliminarFamilia(familia.family)}
+                    aria-label={`Eliminar familia ${familia.family}`}
                     className="text-error hover:text-error hover:bg-error-suave h-8 w-8 p-0"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -68,24 +66,26 @@ export default function ArbolFamilias({
                 </div>
 
            {familia.subfamilias.filter(sub => sub.subfamily && sub.subfamily.trim() !== "").length > 0 ? (
-  <div className="ml-6 space-y-2 border-l-2 border-border pl-4">
+  <div className="ml-2 sm:ml-6 space-y-2 border-l-2 border-border pl-2 sm:pl-4">
     {familia.subfamilias
       .filter(sub => sub.subfamily && sub.subfamily.trim() !== "")
       .map(sub => (
         <div
           key={sub.id}
-          className="flex items-center justify-between bg-card rounded px-3 py-2 group hover:bg-muted transition-colors"
+          className="flex items-center justify-between gap-2 bg-card rounded px-3 py-2 group hover:bg-muted transition-colors"
         >
-          <div className="flex items-center gap-2">
-            <div className="h-1.5 w-1.5 rounded-full bg-purple-400"></div>
-            <span className="text-muted-foreground text-sm">{sub.subfamily}</span>
+          <div className="flex min-w-0 items-center gap-2">
+            <div className="h-1.5 w-1.5 shrink-0 rounded-full bg-purple-400"></div>
+            <span className="min-w-0 break-words text-muted-foreground text-sm">{sub.subfamily}</span>
           </div>
 
           <Button
             size="sm"
             variant="ghost"
             onClick={() => handleEliminar(sub.id)}
-            className="opacity-0 group-hover:opacity-100 text-error hover:text-error hover:bg-error-suave h-6 w-6 p-0 transition-opacity"
+            aria-label={`Eliminar subfamilia ${sub.subfamily}`}
+            // Con mouse aparece al pasar encima; en pantallas táctiles (sin hover) siempre se ve
+            className="[@media(hover:hover)]:opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-error hover:text-error hover:bg-error-suave h-6 w-6 p-0 transition-opacity"
           >
             <Trash2 className="h-3 w-3" />
           </Button>
@@ -93,7 +93,7 @@ export default function ArbolFamilias({
       ))}
   </div>
 ) : (
-  <p className="text-muted-foreground text-sm ml-6 italic">Sin subfamilias</p>
+  <p className="text-muted-foreground text-sm ml-2 sm:ml-6 italic">Sin subfamilias</p>
 )}
 
               </div>
