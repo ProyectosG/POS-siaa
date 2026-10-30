@@ -1,12 +1,18 @@
 // src/controllers/ticket.controller.js
-const escpos = require('escpos');
-escpos.USB = require('escpos-usb');
-
 const buildTicketData = require('../utils/buildTicketData');
 const buildTicketText = require('../utils/buildTicketText');
 const buildTicketTextCorte = require('../utils/buildTicketTextCorte'); // ← Importamos la versión que respeta TICKET_WIDTH
 const cutController = require('./cutController');
 const { ahoraNegocio } = require('../utils/fechas');
+const { esDemo } = require('../demo/demo');
+
+// La librería de la impresora (USB, módulo nativo) se carga hasta que se va a
+// imprimir: si no está disponible en el equipo, se responde en modo prueba.
+function cargarEscpos() {
+  const escpos = require('escpos');
+  escpos.USB = require('escpos-usb');
+  return escpos;
+}
 
 // =======================
 // TICKETS DE VENTA
@@ -33,6 +39,7 @@ exports.printById = async (req, res) => {
     let responded = false;
 
     try {
+      const escpos = cargarEscpos();
       const device = new escpos.USB();
       const printer = new escpos.Printer(device);
 
@@ -129,9 +136,13 @@ exports.printCorteCurrent = async (req, res) => {
         ticketText
       });
 
+    // En la demo el corte solo se muestra en pantalla: nunca se imprime
+    if (esDemo()) return res.status(200).json({ message: 'Demo: el corte no se imprime, solo se muestra en pantalla', ticketText });
+
     let responded = false;
 
     try {
+      const escpos = cargarEscpos();
       const device = new escpos.USB();
       const printer = new escpos.Printer(device);
 

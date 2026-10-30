@@ -60,8 +60,10 @@ test('sin token, con token falso o vencido responde 401', async () => {
   assert.equal((await api('GET', '/api/users', { token: otraFirma })).status, 401);
 });
 
-test('/health no pide token', async () => {
-  assert.equal((await api('GET', '/health')).status, 200);
+test('/health no pide token (y sin MODO_DEMO no dice demo)', async () => {
+  const { status, data } = await api('GET', '/health');
+  assert.equal(status, 200);
+  assert.equal(data.demo, undefined);
 });
 
 test('ninguna respuesta de usuarios devuelve la contraseña', async () => {

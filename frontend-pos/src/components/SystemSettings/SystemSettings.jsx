@@ -13,6 +13,7 @@ import TicketPreview from "./TicketPreview"
 import { apiFetch } from "@/lib/apiFetch"
 import EncabezadoPantalla from "@/components/ui/encabezado-pantalla"
 import { Esqueleto, EsqueletoFilas } from "@/components/ui/esqueleto"
+import { ES_DEMO } from "@/lib/demo"
 
 
 export default function SystemSettings() {
@@ -76,9 +77,16 @@ export default function SystemSettings() {
           icono={Settings}
           className="mb-0"
           acciones={
-            <Button onClick={handleSave} disabled={saving} className="gap-2">
-              <Save className="w-4 h-4" /> {saving ? "Guardando…" : "Guardar configuración"}
-            </Button>
+            // En la demo la configuración se puede ver, no guardar
+            ES_DEMO ? (
+              <span className="rounded-md bg-aviso-suave px-3 py-2 text-sm font-medium text-foreground">
+                En la demo la configuración no se guarda
+              </span>
+            ) : (
+              <Button onClick={handleSave} disabled={saving} className="gap-2">
+                <Save className="w-4 h-4" /> {saving ? "Guardando…" : "Guardar configuración"}
+              </Button>
+            )
           }
         />
 

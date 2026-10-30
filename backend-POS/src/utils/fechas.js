@@ -34,8 +34,15 @@ function formatoDe(zona) {
   return formatos.get(zona);
 }
 
+// Reloj fijo: SOLO para sembrar la demo con fechas pasadas, antes de atender la
+// primera petición (src/demo/sembrar.js). null = la hora real.
+let relojFijo = null;
+function fijarReloj(instante) {
+  relojFijo = instante;
+}
+
 // { date: 'YYYY-MM-DD', time: 'HH:MM:SS' } en la zona del negocio
-function ahoraNegocio(instante = new Date()) {
+function ahoraNegocio(instante = relojFijo || new Date()) {
   const partes = formatoDe(zonaNegocio()).formatToParts(instante);
 
   const p = Object.fromEntries(partes.map((x) => [x.type, x.value]));
@@ -49,4 +56,4 @@ function ahoraUTC(instante = new Date()) {
   return instante.toISOString().slice(0, 19).replace('T', ' ');
 }
 
-module.exports = { zonaNegocio, ahoraNegocio, ahoraUTC };
+module.exports = { zonaNegocio, ahoraNegocio, ahoraUTC, fijarReloj };

@@ -3,6 +3,10 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config();
 
+// Modo demo: la base se borra ANTES de abrirla (se vuelve a sembrar al arrancar)
+const demo = require('./src/demo/demo');
+if (demo.esDemo()) demo.borrarBaseDemo();
+
 const db = require('./src/config/database'); // Conexión del arranque: tablas y migraciones
 const { cerrarPrisma } = require('./src/config/prisma');
 const { requireAuth } = require('./src/middleware/auth');
@@ -40,6 +44,9 @@ const RUTAS_PUBLICAS = new Set([
   'POST /users/login',
   'POST /superdev/entrar',
 ]);
+
+// En la demo, lo sensible responde 403 (antes de revisar el token)
+if (demo.esDemo()) app.use('/api', demo.bloqueoDemo);
 
 app.use('/api', (req, res, next) => {
   if (RUTAS_PUBLICAS.has(`${req.method} ${req.path}`)) return next();
@@ -114,7 +121,8 @@ app.get('/health', (req, res) => {
     message: 'Servidor POS activo',
     database: 'conectado',
     timestamp: new Date().toISOString(),
-    port: PORT
+    port: PORT,
+    ...(demo.esDemo() && { demo: true })
   });
 });
 
@@ -125,7 +133,9 @@ app.ready = db.ready
   .then(() => zonaNegocio())
   .then(() => migrar())
   .then(() => convertirSecretosPlanos(db))
-  .then(() => db.cerrarArranque());
+  .then(() => db.cerrarArranque())
+  // Demo: datos de una tienda de abarrotes, antes de atender la primera petición
+  .then(() => demo.esDemo() && require('./src/demo/sembrar').sembrar(app));
 
 module.exports = app;
 
@@ -142,6 +152,7 @@ if (require.main === module) {
         console.log(`🚀 Servidor corriendo en http://0.0.0.0:${PORT}`);
         console.log(`   - CORS habilitado para ${CORS_ORIGINS.join(', ')}`);
         console.log(`   - SuperDeveloper ${process.env.SUPERDEV_USER && process.env.SUPERDEV_PASSWORD ? 'activo' : 'desactivado'}`);
+        if (demo.esDemo()) console.log('   - MODO DEMO: base nueva en cada arranque; usuario demo / demo');
       });
     })
     .catch((err) => {

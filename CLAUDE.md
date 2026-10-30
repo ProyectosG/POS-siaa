@@ -54,6 +54,24 @@ Punto de venta independiente. Backend en `backend-POS/` (Express 5 + sqlite3, si
 - **Piezas comunes** (`components/ui`): `EncabezadoPantalla` (título, subtítulo, icono y acciones; toda pantalla nueva lo usa), `EtiquetaTipoVenta` / `EtiquetaEstadoVenta`, `ListaVacia`, `Esqueleto` / `EsqueletoFilas` (mientras carga).
 - **Auditoría**: en la revisión con Edge se miden las pantallas de `/dashboard` en 360, 768 y 1280 px: sin desplazamiento lateral, nada cortado y ningún botón de menos de 44 px.
 
+## Modo demo: cómo funciona hoy (rama `modo-demo`)
+
+- **Solo con `MODO_DEMO=1`** en el backend y `NEXT_PUBLIC_MODO_DEMO=1` al construir el frontend (`src/lib/demo.js`, `ES_DEMO`). Sin ellas no existe nada de la demo. Nunca en la tienda.
+- **Base nueva en cada arranque**: `server.js` llama a `borrarBaseDemo()` (`src/demo/demo.js`) ANTES de cargar `config/database.js`. **Candado**: solo borra si `DB_PATH` se llama `demo.db`; si no, no arranca.
+- **Siembra** (`src/demo/sembrar.js`, después de migrar y antes de atender):
+  - Usuarios (`demo`/`demo` Administrador; `maria` y `luis` con clave al azar), caja `1`/`demo` y configuración van directo con Prisma.
+  - Todo lo demás pasa por el API real en un puerto local temporal, con el reloj fijado en cada fecha (`fijarReloj` de `utils/fechas.js`; se suelta en `finally`): catálogo, clientes, entradas, ventas, abonos y cortes Z.
+  - Al final revisa stock = kardex y saldo = pendiente. Los números al azar usan una semilla fija.
+- **Bloqueos** (`bloqueoDemo`, en `/api` antes de la autenticación, sin distinguir mayúsculas): 403 "No disponible en la demo" en cambios de usuarios y cajas, `/superdev/*`, `/reset/*`, `PUT /settings`, `validar-clave-precio` y `GET /tickets/:id/print`. Una ruta sensible nueva va en `BLOQUEADAS`.
+  - `GET /cuts/print/current` responde sin imprimir.
+  - La librería de la impresora se carga hasta que se va a imprimir.
+- **Frontend en la demo**:
+  - datos de acceso con "Usar estos datos" en el login y en la caja (`components/ui/datos-demo.jsx`), sin enlace al SuperDeveloper;
+  - franja fija "DEMO · los datos se reinician";
+  - sin botón Imprimir (queda la vista previa), sin "Precio libre" y sin Guardar en Configuración.
+- **Render**: `render.yaml` (dos servicios gratuitos desde `main`) y los pasos en `docs/DEMO-RENDER.md`. `npm ci --include=dev` porque Prisma y TypeScript están en devDependencies.
+- **Probar la demo en local**: con `DB_PATH` hacia una carpeta temporal (`.../demo.db`). Después de construir el frontend con `NEXT_PUBLIC_MODO_DEMO=1`, volver a correr `npm run build` normal: si no, `.next` se queda con la demo.
+
 ## Fase 0 — Seguridad (hecha, rama `fase0-seguridad`)
 
 1. Base de datos fuera del repo (`git rm --cached`, `*.db` y `backups/` en `.gitignore`; la historia no se reescribió, el archivo viejo sigue en commits anteriores).

@@ -7,3 +7,6 @@ backend-POS/backups/
 
 # Variables de entorno
 .env
+
+# Base de la demo (MODO_DEMO=1)
+backend-POS/demo/
