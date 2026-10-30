@@ -35,6 +35,8 @@ import { apiFetch } from "@/lib/apiFetch"
 import { pesos } from "@/lib/formato"
 import ListaVacia from "@/components/ui/lista-vacia"
 import { EsqueletoFilas } from "@/components/ui/esqueleto"
+import VistaPreviaTicket from "@/components/siaa-ui/VistaPreviaTicket"
+import toast from "react-hot-toast"
 
 
 const ReporteCortes = () => {
@@ -52,10 +54,8 @@ const ReporteCortes = () => {
   const [modalVistaPreviaAbierto, setModalVistaPreviaAbierto] = useState(false);
   const [corteSeleccionado, setCorteSeleccionado] = useState(null);
 
-  // Estados para modal de reimpresión
-  const [showPrintModal, setShowPrintModal] = useState(false);
-  const [cortePreviewText, setCortePreviewText] = useState('');
-  const [selectedCorteId, setSelectedCorteId] = useState(null);
+  // Corte que se va a reimprimir (abre la vista previa)
+  const [corteAReimprimir, setCorteAReimprimir] = useState(null);
 
   useEffect(() => {
     cargarCortes();
@@ -148,6 +148,7 @@ const ReporteCortes = () => {
               variant="outline"
               size="sm"
               onClick={() => manejarVistaPrevia(row.original)}
+              aria-label={`Ver corte #${row.original.id}`}
               className="h-8 w-8 p-0"
             >
               <Eye className="h-4 w-4" />
@@ -155,7 +156,8 @@ const ReporteCortes = () => {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => handleReimprimirCorte(row.original)}
+              onClick={() => setCorteAReimprimir(row.original.id)}
+              aria-label={`Reimprimir corte #${row.original.id}`}
               className="h-8 w-8 p-0"
             >
               <Printer className="h-4 w-4" />
@@ -185,74 +187,7 @@ const ReporteCortes = () => {
       setCorteSeleccionado(detalle);
       setModalVistaPreviaAbierto(true);
     } catch (err) {
-      alert('Error al cargar vista previa: ' + err.message);
-    }
-  };
-
-  const handleReimprimirCorte = async (corte) => {
-    try {
-      const response = await apiFetch(`/cuts/${corte.id}`, {
-      });
-
-      if (!response.ok) throw new Error('Error al cargar datos del corte');
-
-      const detalle = await response.json();
-
-      const ticketFormateado = `
-╔════════════════════════════════════════════╗
-║           CORTE ${detalle.type.toUpperCase()}               ║
-╚════════════════════════════════════════════╝
-Fecha: ${detalle.date} 
-Usuario: ${detalle.user_nickname || '—'} 
-Caja: ${detalle.cash_register || '—'}
-
-Rango de Tickets:
-Desde: ${detalle.desde || '—'} 
-Hasta: ${detalle.hasta || '—'}
-
-📊 RESUMEN DE VENTAS
-Total Ventas:     $${Number(detalle.total_sales || 0).toFixed(2)}
-Contado:          $${Number(detalle.ventas_contado || 0).toFixed(2)}
-Crédito:          $${Number(detalle.ventas_credito || 0).toFixed(2)}
-Apartado:         $${Number(detalle.ventas_apartado || 0).toFixed(2)}
-IVA Gravado:      $${Number(detalle.total_iva_gravado || 0).toFixed(2)}
-
-💰 DINERO RECIBIDO
-Total Recibido:   $${Number(detalle.total_recibido || 0).toFixed(2)}
-Anticipos:        $${Number(detalle.total_anticipos || 0).toFixed(2)}
-Abonos:           $${Number(detalle.total_abonos || 0).toFixed(2)}
-
-Formas de Pago:
-• Efectivo:       $${Number(detalle.pago_efectivo || 0).toFixed(2)}
-• Tarjeta:        $${Number(detalle.pago_tarjeta || 0).toFixed(2)}
-• Transferencia:  $${Number(detalle.pago_transferencia || 0).toFixed(2)}
-• Otros:          $${Number(detalle.pago_otros || 0).toFixed(2)}
-
-Efectivo en Caja: $${Number(detalle.cash_in_box || 0).toFixed(2)}
-
-╭────────────────────────────────────────────╮
-│ ¡Gran trabajo hoy! Sigue así 🚀            │
-╰────────────────────────────────────────────╯
-      `.trim();
-
-      setCortePreviewText(ticketFormateado);
-      setSelectedCorteId(corte.id);
-      setShowPrintModal(true);
-    } catch (err) {
-      console.error('Error en previsualización de corte:', err);
-      alert('No se pudo cargar la previsualización del corte.');
-    }
-  };
-
-  const handleConfirmPrintCorte = async () => {
-    try {
-      // Ruta real cuando la tengas
-      // await apiFetch(`/cuts/${selectedCorteId}/print`, { method: 'POST' });
-      alert(`Corte #${selectedCorteId} enviado a impresión! 🖨️`);
-      setShowPrintModal(false);
-    } catch (err) {
-      console.error('Error imprimiendo corte:', err);
-      alert('No se pudo imprimir. Verifica impresora o ruta del backend.');
+      toast.error('Error al cargar vista previa: ' + err.message);
     }
   };
 
@@ -317,12 +252,6 @@ Efectivo en Caja: $${Number(detalle.cash_in_box || 0).toFixed(2)}
   const cerrarModal = () => {
     setModalVistaPreviaAbierto(false);
     setCorteSeleccionado(null);
-  };
-
-  const cerrarPrintModal = () => {
-    setShowPrintModal(false);
-    setCortePreviewText('');
-    setSelectedCorteId(null);
   };
 
   return (
@@ -630,42 +559,12 @@ Efectivo en Caja: $${Number(detalle.cash_in_box || 0).toFixed(2)}
   </DialogContent>
 </Dialog>
 
-        {/* Modal Reimpresión */}
-        <Dialog open={showPrintModal} onOpenChange={cerrarPrintModal}>
-          <DialogContent className="max-w-4xl rounded-2xl bg-white shadow-2xl border-emerald-100">
-            <DialogHeader>
-              <DialogTitle className="text-2xl flex items-center gap-3">
-                <Printer className="h-6 w-6 text-emerald-600" />
-                Previsualización Corte #{selectedCorteId}
-              </DialogTitle>
-            </DialogHeader>
-
-            <div className="p-6 bg-white border rounded-lg font-mono text-sm max-h-[60vh] overflow-auto leading-relaxed">
-              <div className="text-center mb-4 border-b pb-3">
-                <h3 className="text-xl font-bold text-emerald-700">CORTE DE CAJA</h3>
-                <p className="text-gray-600 text-sm">Sistema POS - ¡Todo bajo control! 🚀</p>
-              </div>
-              <div className="whitespace-pre-wrap">
-                {cortePreviewText || 'Cargando contenido del corte...'}
-              </div>
-              <div className="text-center mt-6 pt-4 border-t text-gray-500 text-xs">
-                Gracias por tu esfuerzo hoy 💪 • {new Date().toLocaleDateString()}
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-4 mt-6">
-              <Button variant="outline" onClick={cerrarPrintModal}>
-                Cancelar
-              </Button>
-              <Button 
-                onClick={handleConfirmPrintCorte}
-                className="bg-emerald-600 hover:bg-emerald-700 text-white"
-              >
-                Imprimir Corte
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        {/* Reimpresión: el texto y la impresión salen del servidor (montos guardados del corte) */}
+        <VistaPreviaTicket
+          ruta={corteAReimprimir ? `/cuts/${corteAReimprimir}` : null}
+          titulo={`Reimprimir corte #${corteAReimprimir}`}
+          onClose={() => setCorteAReimprimir(null)}
+        />
 
         {/* Estilos impresión */}
         <style jsx global>{`
