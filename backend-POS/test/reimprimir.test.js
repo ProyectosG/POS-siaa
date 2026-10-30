@@ -54,7 +54,7 @@ test('la reimpresión trae los montos guardados aunque después haya más ventas
   assert.match(t, /Total Ventas:\s+\$200\.00/);
   assert.match(t, /Efectivo:\s+\$100\.00/);
   assert.match(t, /Tarjeta:\s+\$100\.00/);
-  assert.match(t, /EFECTIVO EN CAJA: \$100\.00/);
+  assert.match(t, /EFECTIVO EN CAJA:\s+\$100\.00/);
   assert.doesNotMatch(t, /💪/);
 
   // Sin impresora conectada responde 200 en modo prueba con el mismo texto

@@ -1,72 +1,63 @@
 // src/utils/buildTicketTextCorte.js
-const TICKET_WIDTH = process.env.TICKET_WIDTH || '80'; // 80 o 58
-const CHARS_PER_LINE = TICKET_WIDTH === '80' ? 48 : 32; // caracteres por línea
-
-// Función auxiliar para centrar texto
-function centerText(text) {
-  const padding = Math.max(0, CHARS_PER_LINE - text.length);
-  const leftPad = Math.floor(padding / 2);
-  return ' '.repeat(leftPad) + text;
-}
-
-// Función auxiliar para línea divisoria
-function divider() {
-  return '-'.repeat(CHARS_PER_LINE);
-}
+// Texto del ticket de corte. Cabe en el ancho de Configuración (32 caracteres
+// en 57/58 mm, 48 en 80 mm): etiquetas a la izquierda y montos a la derecha.
+const { columnas, partir, centrar, renglonMonto } = require('./ticketConfig');
 
 // Función principal para generar texto del ticket de corte.
 // Opcionales: numero (corte guardado), usuario (quien hizo el corte) y
 // reimpresion { fecha, usuario } para marcar una copia de un corte viejo.
-function buildTicketTextCorte(data) {
+// `ancho`: caracteres por línea (de leerConfigTicket); sin él, 58 mm.
+function buildTicketTextCorte(data, ancho = columnas(58)) {
   const lines = [];
+  const agregar = (...renglones) => lines.push(...renglones.flat());
+  const divider = '-'.repeat(ancho);
+  const seccion = (titulo) => agregar(titulo, divider);
+  const monto = (etiqueta, valor) => agregar(renglonMonto(etiqueta, valor, ancho));
 
-  lines.push(centerText(`${data.type} DE CAJA`));
-  if (data.reimpresion) lines.push(centerText('*** REIMPRESIÓN ***'));
-  lines.push(divider());
-  if (data.numero) lines.push(`Corte #${data.numero}`);
-  lines.push(`Caja: ${data.caja}`);
-  if (data.usuario) lines.push(`Usuario: ${data.usuario}`);
-  lines.push(`Fecha: ${data.fecha}`);
-  lines.push(`Desde: ${data.desde}   Hasta: ${data.hasta}`);
-  lines.push(`Tickets: ${data.firstTicket} al ${data.lastTicket}`);
-  lines.push(divider());
+  agregar(centrar(`${data.type} DE CAJA`, ancho));
+  if (data.reimpresion) agregar(centrar('*** REIMPRESIÓN ***', ancho));
+  agregar(divider);
+  if (data.numero) agregar(`Corte #${data.numero}`);
+  agregar(partir(`Caja: ${data.caja}`, ancho));
+  if (data.usuario) agregar(partir(`Usuario: ${data.usuario}`, ancho));
+  agregar(`Fecha: ${data.fecha}`);
+  const desdeHasta = `Desde: ${data.desde}   Hasta: ${data.hasta}`;
+  agregar(desdeHasta.length <= ancho ? desdeHasta : partir(desdeHasta, ancho));
+  agregar(partir(`Tickets: ${data.firstTicket} al ${data.lastTicket}`, ancho));
+  agregar(divider);
 
-  lines.push('VENTAS TOTALES');
-  lines.push(divider());
-  lines.push(`Total Ventas:    $${data.totalVentas.toFixed(2)}`);
-  lines.push(`Contado:         $${data.contado.toFixed(2)}`);
-  lines.push(`Crédito:         $${data.credito.toFixed(2)}`);
-  lines.push(`Apartado:        $${data.apartado.toFixed(2)}`);
-  lines.push(`IVA Gravado:     $${data.iva.toFixed(2)}`);
-  lines.push(divider());
+  seccion('VENTAS TOTALES');
+  monto('Total Ventas:', data.totalVentas);
+  monto('Contado:', data.contado);
+  monto('Crédito:', data.credito);
+  monto('Apartado:', data.apartado);
+  monto('IVA Gravado:', data.iva);
+  agregar(divider);
 
-  lines.push('DINERO RECIBIDO');
-  lines.push(divider());
-  lines.push(`Total Recibido:  $${data.totalRecibido.toFixed(2)}`);
-  lines.push(`Anticipos:       $${data.anticipos.toFixed(2)}`);
-  lines.push(`Abonos:          $${data.abonos.toFixed(2)}`);
-  lines.push(divider());
+  seccion('DINERO RECIBIDO');
+  monto('Total Recibido:', data.totalRecibido);
+  monto('Anticipos:', data.anticipos);
+  monto('Abonos:', data.abonos);
+  agregar(divider);
 
-  lines.push('FORMAS DE PAGO');
-  lines.push(divider());
-  lines.push(`Efectivo:        $${data.efectivo.toFixed(2)}`);
-  lines.push(`Tarjeta:         $${data.tarjeta.toFixed(2)}`);
-  lines.push(`Transferencia:   $${data.transferencia.toFixed(2)}`);
-  lines.push(`Otros:           $${data.otros.toFixed(2)}`);
-  lines.push(divider());
+  seccion('FORMAS DE PAGO');
+  monto('Efectivo:', data.efectivo);
+  monto('Tarjeta:', data.tarjeta);
+  monto('Transferencia:', data.transferencia);
+  monto('Otros:', data.otros);
+  agregar(divider);
 
-  lines.push(`EFECTIVO EN CAJA: $${data.cashInBox.toFixed(2)}`);
-  lines.push(divider());
+  monto('EFECTIVO EN CAJA:', data.cashInBox);
+  agregar(divider);
 
   if (data.reimpresion) {
-    lines.push(`Reimpreso: ${data.reimpresion.fecha}`);
-    lines.push(`Por: ${data.reimpresion.usuario}`);
-    lines.push(divider());
+    agregar(`Reimpreso: ${data.reimpresion.fecha}`);
+    agregar(partir(`Por: ${data.reimpresion.usuario}`, ancho));
+    agregar(divider);
   }
 
-  // Sin emojis: la impresora térmica no los tiene y los imprime como basura
-  lines.push(centerText('¡Gracias por tu turno! Sigue rockeándola'));
-  lines.push(divider());
+  agregar(centrar('¡Gracias por tu turno!', ancho));
+  agregar(divider);
 
   return lines.join('\n');
 }
