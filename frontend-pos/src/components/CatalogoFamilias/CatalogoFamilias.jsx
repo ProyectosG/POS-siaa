@@ -68,29 +68,29 @@ export default function CatalogoFamilias() {
     fetchCategories();
   };
 
-  // Recibe un id (subfamilia) o una lista de ids (familia completa)
-  const handleEliminar = async (ids) => {
-    const lista = Array.isArray(ids) ? ids : [ids];
-    const pregunta = lista.length > 1
-      ? "¿Estás seguro de eliminar esta familia y sus subfamilias?"
-      : "¿Estás seguro de eliminar esta categoría?";
-    if (!confirm(pregunta)) return;
-
-    // Antes un borrado fallido se ignoraba; ahora se muestra el motivo (p. ej. tiene productos)
-    let fallo = "";
-    for (const id of lista) {
-      const res = await apiFetch(`/categories/${id}`, { method: "DELETE" });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        fallo = data.error || "No se pudo eliminar la categoría";
-      }
-    }
-    setError(fallo);
+  // Borra en el servidor y muestra el motivo si lo rechaza (p. ej. tiene productos)
+  const borrar = async (ruta) => {
+    const res = await apiFetch(ruta, { method: "DELETE" });
+    const data = await res.json().catch(() => ({}));
+    setError(res.ok ? "" : data.error || "No se pudo eliminar");
     fetchCategories();
   };
 
+  // Una subfamilia
+  const handleEliminar = (id) => {
+    if (!confirm("¿Estás seguro de eliminar esta subfamilia?")) return;
+    borrar(`/categories/${id}`);
+  };
+
+  // La familia completa en una sola operación: si alguna subfamilia tiene
+  // productos, el servidor no borra nada (antes quedaba a medias)
+  const handleEliminarFamilia = (family) => {
+    if (!confirm(`¿Estás seguro de eliminar la familia ${family} y sus subfamilias?`)) return;
+    borrar(`/categories/familia/${encodeURIComponent(family)}`);
+  };
+
   return (
-    <div className="min-h-screen p-6">
+    <div className="min-h-screen sm:p-6">
       <div className="max-w-7xl mx-auto">
         <Header />
 
@@ -120,6 +120,7 @@ export default function CatalogoFamilias() {
             familiasAgrupadas={familiasAgrupadas}
             categories={categories}
             handleEliminar={handleEliminar}
+            handleEliminarFamilia={handleEliminarFamilia}
           />
         </div>
       </div>
