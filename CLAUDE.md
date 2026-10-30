@@ -1,6 +1,6 @@
 # CLAUDE.md — POS-siaa
 
-Punto de venta independiente. Backend en `backend-POS/` (Express 5 + sqlite3, sin ORM). Frontend en `frontend-pos/` (Next 16 + React 19 + Tailwind 4 + Zustand). Solo hay datos de **prueba**. El repositorio en GitHub es **público**.
+Punto de venta independiente. Backend en `backend-POS/` (Express 5 + Prisma 7 sobre SQLite con libsql; `sqlite3` solo al arrancar, para crear tablas y migrar: ver Fase 3). Frontend en `frontend-pos/` (Next 16 + React 19 + Tailwind 4 + Zustand). Solo hay datos de **prueba**. El repositorio en GitHub es **público**.
 
 ## Reglas del proyecto
 
@@ -20,7 +20,7 @@ Punto de venta independiente. Backend en `backend-POS/` (Express 5 + sqlite3, si
 - **Contraseñas**: bcrypt (`backend-POS/src/utils/seguridad.js`). Al arrancar se convierte a hash todo lo que esté en texto plano en `users.password`, `cash_registers.password` y `settings.dynamic_price_auth_key`. Ninguna respuesta devuelve contraseñas.
 - **Actualizaciones dinámicas**: siempre con LISTA FIJA de campos (`CAMPOS_EDITABLES`) en `userController.update`, `Customer.update`, `Product.update` y `settings.model.update`. Si se agrega una columna editable, hay que agregarla a la lista.
 - **Usuarios**: solo el Administrador cambia `access_level`; nadie cambia el suyo; no se puede borrar ni bajar al último Administrador.
-- **SuperDeveloper**: `POST /api/superdev/entrar` con `SUPERDEV_USER` / `SUPERDEV_PASSWORD` de `.env` (comparación en tiempo constante, 5 intentos por IP y bloqueo de 15 min, en la base; ver "Intentos de clave"). Token con `superdev: true` de 45 min. Sin esas variables queda apagado. `/api/reset/*` exige ese token y solo acepta las tablas de `TABLAS_PERMITIDAS` (`resetController.js`).
+- **SuperDeveloper**: `POST /api/superdev/entrar` con `SUPERDEV_USER` / `SUPERDEV_PASSWORD` de `.env` (comparación en tiempo constante, 5 intentos por IP y bloqueo de 15 min, en la base; ver "Intentos de clave"). Token con `superdev: true` de 45 min. Sin esas variables queda apagado. `/api/reset/*` exige ese token y solo acepta las tablas de `TABLAS_PERMITIDAS` (`resetController.js`); la pantalla Resetear Datos arma sus botones con `GET /api/reset/tablas` (esa lista, con nombres en español): una tabla nueva se agrega solo ahí, con su nombre en `NOMBRES_TABLAS`.
 - **Clave para liberar precios**: no sale en `GET /api/settings`; se valida con `POST /api/settings/validar-clave-precio` `{ clave } → { valida }`; solo el Administrador la cambia (vacía = no cambia).
 - **Frontend**: todas las llamadas al API pasan por `apiFetch` (`frontend-pos/src/lib/apiFetch.js`): toma `NEXT_PUBLIC_API_URL`, agrega `Authorization: Bearer <token>` y cierra la sesión si recibe 401. **No usar `fetch` directo contra el API.** El token vive en `useAuthStore`; la cookie `auth-token` solo la usa `src/middleware.js` para redirigir (lee el JWT sin verificar la firma, solo para decidir a dónde mandar; nunca da permisos).
 - **Menú y pantallas por rol**: la tabla está en `frontend-pos/src/lib/permisos.js` (`puedeVer(user, ruta)`); la usan el menú lateral y `app/dashboard/layout.js`. Solo decide qué se muestra; debe coincidir con los `requireLevel` del servidor. Una pantalla nueva de `/dashboard` que no esté en la tabla queda solo para el Administrador: hay que agregarla.
