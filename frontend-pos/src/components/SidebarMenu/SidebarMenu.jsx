@@ -29,7 +29,8 @@ const menuItems = [
     iconColor: "text-emerald-500",
     subItems: [
       { label: "Ventas Contado", href: "/dashboard/ventas/contado" },
-      { label: "Ventas Apartado", href: "/dashboard/ventas/apartado" }
+      { label: "Ventas Apartado", href: "/dashboard/ventas/apartado" },
+      { label: "Ventas Crédito", href: "/dashboard/ventas/credito" },
     ],
   },
   {

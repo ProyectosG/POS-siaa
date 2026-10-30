@@ -11,6 +11,7 @@ export const SOLO_SUPERDEV = "superdev"
 const PERMISOS_RUTAS = {
   "/dashboard/ventas/contado": NIVELES.CAJERO,
   "/dashboard/ventas/apartado": NIVELES.CAJERO,
+  "/dashboard/ventas/credito": NIVELES.CAJERO,
   "/dashboard/cortes/cortesx": NIVELES.CAJERO,
   "/dashboard/cortes/cortesz": NIVELES.GERENTE,
   "/dashboard/cxc/registroAbonosApartados": NIVELES.CAJERO,

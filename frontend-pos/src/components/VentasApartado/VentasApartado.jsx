@@ -6,7 +6,7 @@ import { useAuthStore } from "@/store/useAuthStore"
 import { useSettingsStore } from "@/store/useSettingsStore"
 import toast from "react-hot-toast"
 
-import { Plus, User, DollarSign, CreditCard, ShoppingBag } from "lucide-react"
+import { Plus, User, DollarSign, CreditCard, ShoppingBag, HandCoins } from "lucide-react"
 import EncabezadoPantalla from "@/components/ui/encabezado-pantalla"
 import BarraTotalMovil from "@/components/siaa-ui/BarraTotalMovil"
 
@@ -20,6 +20,7 @@ import CustomerForm from "@/components/CatalogoClientes/CustomerForm.jsx"
 import MenuPrecios from "../siaa-ui/MenuPrecios"
 import ResumenApartado from "./ResumenApartado"
 import PagoVenta from "../siaa-ui/PagoVenta"
+import VistaPreviaTicket from "../siaa-ui/VistaPreviaTicket"
 // import PagoApartado from "./PagoApartado"
 
 import { Button } from "@/components/ui/button"
@@ -48,10 +49,14 @@ const beep = (ok = true) => {
   osc.stop(ctx.currentTime + 0.08)
 }
 
-export default function VentasApartado() {
+// La misma pantalla sirve para apartado y para crédito (tipo="credito"): en
+// crédito el anticipo es opcional y al terminar se muestra el ticket
+export default function VentasApartado({ tipo = "apartado" }) {
+  const esCredito = tipo === "credito"
   const caja = useCajaStore((s) => s.caja)
   const user = useAuthStore((s) => s.user)
-  const claveVentaRef = React.useRef(null) // Idempotency-Key del apartado en curso
+  const claveVentaRef = React.useRef(null) // Idempotency-Key de la venta en curso
+  const [ticketVenta, setTicketVenta] = useState(null) // venta a crédito recién hecha (vista previa)
   const inicializadoRef = React.useRef(false)
   const [mostrarNuevoCliente, setMostrarNuevoCliente] = useState(false)
   
@@ -249,11 +254,18 @@ export default function VentasApartado() {
     const efectivoRecibido = Number(efectivo || 0)
     const tarjetaPagada = Number(tarjeta || 0)
 
-    // El anticipo es el requerido; el efectivo de más se devuelve como cambio
-    const efectivoAplicado = aCentavosPesos(Math.min(efectivoRecibido, pagoInicialRequerido - tarjetaPagada))
+    // Apartado: el anticipo es el requerido y el efectivo de más se devuelve como
+    // cambio. Crédito: el anticipo es lo que se recibe (puede ser 0), sin cambio.
+    const efectivoAplicado = esCredito
+      ? aCentavosPesos(efectivoRecibido)
+      : aCentavosPesos(Math.min(efectivoRecibido, pagoInicialRequerido - tarjetaPagada))
     const paid = efectivoAplicado + tarjetaPagada
 
-    if (paid < pagoInicialRequerido) {
+    if (esCredito && paid >= granTotal) {
+      toast.error("Si paga todo, cóbralo como venta de contado")
+      return
+    }
+    if (!esCredito && paid < pagoInicialRequerido) {
       toast.error(`El pago debe ser al menos ${pesos(pagoInicialRequerido)}`)
       return
     }
@@ -278,12 +290,12 @@ export default function VentasApartado() {
       return
     }
     if (!selectedCustomer?.id) {
-      toast.error("Debes seleccionar un cliente para el apartado")
+      toast.error(`Debes seleccionar un cliente para ${esCredito ? "el crédito" : "el apartado"}`)
       return
     }
 
     const saleData = {
-      type: "apartado",
+      type: tipo,
       customer_id: selectedCustomer.id,
       total_esperado: aCentavosPesos(granTotal),
       efectivo_recibido: efectivoRecibido,
@@ -307,7 +319,12 @@ export default function VentasApartado() {
       setCustomerQuery("")               // Limpia el input de búsqueda
       setShowOverlay(false)              // Cierra cualquier overlay abierto
 
-      toast.success(r.data.repetida ? "Este apartado ya estaba registrado ✅" : "Venta guardada ✅")
+      if (esCredito) {
+        toast.success(r.data.repetida ? "Este crédito ya estaba registrado ✅" : "Venta a crédito guardada ✅")
+        setTicketVenta(r.data.id)
+      } else {
+        toast.success(r.data.repetida ? "Este apartado ya estaba registrado ✅" : "Venta guardada ✅")
+      }
     } catch (err) {
       console.error(err)
       toast.error(err.message)
@@ -404,8 +421,8 @@ const handleClienteCreado = (clienteNuevo) => {
   return (
     <div className="space-y-5 pb-20 md:pb-12">
       <EncabezadoPantalla
-        titulo="Venta de apartado"
-        icono={ShoppingBag}
+        titulo={esCredito ? "Venta a crédito" : "Venta de apartado"}
+        icono={esCredito ? HandCoins : ShoppingBag}
         className="mb-0"
         subtitulo={<>Caja <b className="text-foreground">{caja?.numero || "—"}</b> <span className="opacity-70">({caja?.tipo || "N/A"})</span></>}
         acciones={
@@ -534,8 +551,8 @@ const handleClienteCreado = (clienteNuevo) => {
                   </span>
                 </div>
                 <div className="col-span-2">
-                  <span className="text-muted-foreground block text-xs">Saldo actual</span>
-                  <span className="font-bold text-emerald-700 text-lg">
+                  <span className="text-muted-foreground block text-xs">{esCredito ? "Ya debe" : "Saldo actual"}</span>
+                  <span className={`font-bold text-lg ${esCredito && Number(selectedCustomer.current_balance) > 0 ? "text-aviso" : "text-emerald-700"}`}>
                     {pesos(Number(selectedCustomer.current_balance || 0))}
                   </span>
                 </div>
@@ -567,12 +584,13 @@ const handleClienteCreado = (clienteNuevo) => {
           montoFijo={montoFijo}
           setMontoFijo={setMontoFijo}
           pagoInicialRequerido={pagoInicialRequerido}
+          tipo={tipo}
         />
 
         {/* Card 3: Pago */}
         <div id="pago-venta" className="scroll-mt-20">
         <PagoVenta
-          mode="apartado"
+          mode={tipo}
           total={granTotal}
           anticipoRequerido={pagoInicialRequerido}
 
@@ -595,7 +613,10 @@ const handleClienteCreado = (clienteNuevo) => {
       </div>
       </div>
 
-      <BarraTotalMovil total={granTotal} textoBoton="Ir al anticipo" />
+      <BarraTotalMovil total={granTotal} textoBoton={esCredito ? "Ir a cobrar" : "Ir al anticipo"} />
+
+      {/* Crédito: ticket de la venta recién hecha (para imprimir y que el cliente firme) */}
+      <VistaPreviaTicket saleId={ticketVenta} onClose={() => setTicketVenta(null)} />
 
       {/* Overlays */}
       {mostrarLista && (

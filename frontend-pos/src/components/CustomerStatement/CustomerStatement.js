@@ -19,6 +19,8 @@ import {
 } from "@/components/ui/dialog"
 import { apiFetch } from "@/lib/apiFetch"
 import { pesos } from "@/lib/formato"
+import EncabezadoPantalla from "@/components/ui/encabezado-pantalla"
+import { EtiquetaEstadoVenta } from "@/components/ui/etiqueta-venta"
 
 
 export default function CustomerStatement() {
@@ -124,7 +126,10 @@ export default function CustomerStatement() {
         (v.id.toString().includes(term) ||
          (v.movement_reason || "").toLowerCase().includes(term)) &&
         (filtroType !== "all" ? v.type === filtroType : true) &&
-        (filtroStatus !== "all" ? v.status === filtroStatus : true) &&
+        // "Pagada" incluye las liquidadas con abonos (paid) y las de contado (completed)
+        (filtroStatus === "all" ? true
+          : filtroStatus === "completed" ? ["paid", "completed"].includes(v.status)
+          : v.status === filtroStatus) &&
         (!filtroFechaInicio || v.date >= filtroFechaInicio) &&
         (!filtroFechaFin || v.date <= filtroFechaFin)
       )
@@ -279,7 +284,7 @@ export default function CustomerStatement() {
                   <SelectContent>
                     <SelectItem value="all">Todos</SelectItem>
                     <SelectItem value="pending">Pendiente</SelectItem>
-                    <SelectItem value="completed">Completada</SelectItem>
+                    <SelectItem value="completed">Pagada</SelectItem>
                   </SelectContent>
                 </Select>
                 <Input type="date" value={filtroFechaInicio} onChange={e => setFiltroFechaInicio(e.target.value)} className="h-10" />
@@ -331,12 +336,8 @@ export default function CustomerStatement() {
                           <TableCell className="text-right text-green-700">{pesos(Number(v.paid || 0))}</TableCell>
                           <TableCell className="text-right font-bold text-red-700">{pesos(Number(v.pending_balance || 0))}</TableCell>
                           <TableCell>
-                            <Badge 
-                              variant={v.status === "completed" ? "default" : "secondary"}
-                              className={v.status === "completed" ? "bg-green-100 text-green-800" : "bg-yellow-100 text-yellow-800"}
-                            >
-                              {v.status === "completed" ? "Completada" : "Pendiente"}
-                            </Badge>
+                            {/* paid (liquidada con abonos) y completed (contado) = Pagado */}
+                            <EtiquetaEstadoVenta estado={v.status} />
                           </TableCell>
                           <TableCell className="text-center">
                             <Button 
