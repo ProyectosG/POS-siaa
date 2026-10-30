@@ -136,8 +136,8 @@ exports.printCorteCurrent = async (req, res) => {
         ticketText
       });
 
-    // En la demo el corte solo se muestra (vista previa): nunca se imprime
-    if (esDemo()) return sinImpresora();
+    // En la demo el corte solo se muestra en pantalla: nunca se imprime
+    if (esDemo()) return res.status(200).json({ message: 'Demo: el corte no se imprime, solo se muestra en pantalla', ticketText });
 
     let responded = false;
 

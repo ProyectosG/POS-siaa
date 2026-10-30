@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { apiFetch } from "@/lib/apiFetch"
+import { ES_DEMO } from "@/lib/demo"
 
 const fmt = (n) =>
   Number(n || 0).toLocaleString("es-MX", {
@@ -18,10 +19,10 @@ export default function MenuPrecios({
   setSelectedIndex,
   onSelect,
   onClose,
-  productId, // con productId aparece la opción de precio libre
+  productId, // con productId aparece la opción de precio libre (nunca en la demo)
 }) {
   const ref = useRef(null)
-  const opciones = productId ? [...precios, OPCION_LIBRE] : precios
+  const opciones = productId && !ES_DEMO ? [...precios, OPCION_LIBRE] : precios
 
   // Captura del precio libre: el servidor valida la clave y entrega la autorización
   const [modoLibre, setModoLibre] = useState(false)

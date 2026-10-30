@@ -24,6 +24,7 @@ import { fechaCorta } from "@/lib/formato"
 import { EtiquetaTipoVenta, EtiquetaEstadoVenta } from "@/components/ui/etiqueta-venta"
 import ListaVacia from "@/components/ui/lista-vacia"
 import { Esqueleto, EsqueletoFilas } from "@/components/ui/esqueleto"
+import { ES_DEMO } from "@/lib/demo"
 
 
 export default function ListaVentas() {
@@ -839,11 +840,14 @@ const handleConfirmPrint = async () => {
               variant="outline"
               onClick={() => setShowPrintModal(false)}
             >
-              Cancelar
+              {ES_DEMO ? "Cerrar" : "Cancelar"}
             </Button>
-            <Button onClick={handleConfirmPrint}>
-              Imprimir Ticket
-            </Button>
+            {/* En la demo solo hay vista previa */}
+            {!ES_DEMO && (
+              <Button onClick={handleConfirmPrint}>
+                Imprimir Ticket
+              </Button>
+            )}
           </div>
         </DialogContent>
       </Dialog>

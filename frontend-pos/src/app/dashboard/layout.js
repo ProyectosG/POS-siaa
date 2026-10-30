@@ -8,6 +8,7 @@ import SidebarMenu from "@/components/SidebarMenu/SidebarMenu"
 import { useAuthStore } from "@/store/useAuthStore"
 import { useCajaStore } from "@/store/useCajaStore"
 import { puedeVer } from "@/lib/permisos"
+import { ES_DEMO } from "@/lib/demo"
 
 export default function DashboardLayout({ children }) {
   const router = useRouter()
@@ -61,6 +62,12 @@ export default function DashboardLayout({ children }) {
       <SidebarMenu />
       {/* Debajo de 1024 px: espacio para la barra superior; desde 1024 px: para el menú fijo */}
       <main className="min-w-0 pt-14 lg:pt-0 lg:pl-64">
+        {/* Franja fija de la demo, debajo de la barra superior (en celular) o arriba (con el menú fijo) */}
+        {ES_DEMO && (
+          <div className="sticky top-14 lg:top-0 z-30 border-b border-aviso/30 bg-aviso-suave px-4 py-1.5 text-center text-sm font-semibold text-foreground">
+            DEMO · los datos se reinician
+          </div>
+        )}
         <div className="mx-auto w-full max-w-[1600px] p-4 sm:p-6">
           {/* Si escribió a mano la dirección de una pantalla que no le toca, no se carga la pantalla */}
           {puedeVer(user, pathname) ? children : <SinPermiso />}

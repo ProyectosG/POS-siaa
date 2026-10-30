@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils"
 import toast from "react-hot-toast"
 import Cookies from 'js-cookie';  
 import { apiFetch } from "@/lib/apiFetch"
+import { ES_DEMO } from "@/lib/demo"
+import DatosDemo from "@/components/ui/datos-demo"
 
 
 export function SeleccionCaja() {
@@ -121,6 +123,13 @@ const handleCajaSubmit = async (e) => {
               <p className="mt-1 text-sm text-muted-foreground">Número de caja asignado y su clave</p>
             </div>
           </div>
+
+          {ES_DEMO && (
+            <DatosDemo
+              datos={[["Caja", "1"], ["Clave", "demo"]]}
+              onUsar={() => { setNumeroCaja("1"); setClaveCaja("demo"); setError("") }}
+            />
+          )}
 
           {error && (
             <div role="alert" className="mb-5 rounded-lg border border-error/30 bg-error-suave p-3 text-sm text-error">

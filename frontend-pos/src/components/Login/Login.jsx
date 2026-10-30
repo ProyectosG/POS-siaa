@@ -9,6 +9,8 @@ import { useRouter } from "next/navigation"
 import toast from "react-hot-toast"
 import Cookies from 'js-cookie'
 import { apiFetch } from "@/lib/apiFetch"
+import { ES_DEMO } from "@/lib/demo"
+import DatosDemo from "@/components/ui/datos-demo"
 
 export default function Login() {
   const router = useRouter()
@@ -140,6 +142,13 @@ export default function Login() {
             </p>
           </div>
 
+          {ES_DEMO && !modoSuperDev && (
+            <DatosDemo
+              datos={[["Usuario", "demo"], ["Contraseña", "demo"]]}
+              onUsar={() => { setNickname("demo"); setPassword("demo"); setError("") }}
+            />
+          )}
+
           {/* ERROR */}
           {error && (
             <div role="alert" className="mb-5 rounded-lg border border-error/30 bg-error-suave p-3 text-sm text-error">
@@ -202,14 +211,14 @@ export default function Login() {
               {isLoading ? "Ingresando..." : modoSuperDev ? "Entrar como SuperDeveloper" : "Continuar"}
             </button>
 
-            {/* Cambia entre login normal y SuperDeveloper (el servidor valida las credenciales) */}
-            <button
+            {/* Cambia entre login normal y SuperDeveloper (el servidor valida las credenciales). En la demo no hay SuperDeveloper */}
+            {!ES_DEMO && <button
               type="button"
               onClick={() => { setModoSuperDev(!modoSuperDev); setError("") }}
               className="w-full text-xs text-muted-foreground hover:text-foreground transition"
             >
               {modoSuperDev ? "Volver al inicio de sesión normal" : "Acceso SuperDeveloper"}
-            </button>
+            </button>}
           </form>
         </div>
 

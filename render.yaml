@@ -1,0 +1,56 @@
+# Blueprint de Render para la DEMO pública de POS-siaa (no es la tienda del cliente).
+# Dos servicios gratuitos que se despliegan desde main. La base de la demo vive en
+# el disco temporal del servicio y se vuelve a sembrar en cada arranque.
+# Pasos en docs/DEMO-RENDER.md.
+services:
+  # API (Express + SQLite) en modo demo
+  - type: web
+    name: pos-siaa-demo-api
+    runtime: node
+    plan: free
+    region: oregon
+    branch: main
+    rootDir: backend-POS
+    # --include=dev: Prisma y TypeScript (devDependencies) generan el cliente en el postinstall
+    buildCommand: npm ci --include=dev
+    startCommand: node server.js
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: MODO_DEMO
+        value: "1"
+      # Debe llamarse demo.db: es la única base que el modo demo acepta borrar
+      - key: DB_PATH
+        value: ./demo/demo.db
+      - key: BACKUP_DIR
+        value: ./demo/backups
+      - key: TZ_NEGOCIO
+        value: America/Mexico_City
+      # Secreto propio de la demo (Render lo genera; nunca el del cliente)
+      - key: JWT_SECRET
+        generateValue: true
+      # URL del frontend de la demo (https://pos-siaa-demo-web.onrender.com o la que dé Render)
+      - key: CORS_ORIGIN
+        sync: false
+      # Sin SUPERDEV_USER / SUPERDEV_PASSWORD: el SuperDeveloper queda apagado
+
+  # Frontend (Next) en modo demo
+  - type: web
+    name: pos-siaa-demo-web
+    runtime: node
+    plan: free
+    region: oregon
+    branch: main
+    rootDir: frontend-pos
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      # Se leen al CONSTRUIR: si cambian, hay que volver a desplegar
+      - key: NEXT_PUBLIC_MODO_DEMO
+        value: "1"
+      # URL de la API de la demo con /api al final (https://pos-siaa-demo-api.onrender.com/api)
+      - key: NEXT_PUBLIC_API_URL
+        sync: false
