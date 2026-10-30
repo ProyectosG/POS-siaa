@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { AlertTriangle, Zap, Check, Download } from "lucide-react";
 import { useAuthStore } from "@/store/useAuthStore";
 import toast from "react-hot-toast";
@@ -18,6 +18,19 @@ export default function ResetDatos() {
   const [confirmText, setConfirmText] = useState("");
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [respaldando, setRespaldando] = useState(false);
+  // Tablas que se pueden vaciar: las da el servidor (TABLAS_PERMITIDAS), con su nombre
+  const [tablas, setTablas] = useState([]);
+
+  useEffect(() => {
+    if (!user?.isSuperDev) return;
+    apiFetch(`/reset/tablas`)
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'No se pudo cargar la lista de tablas');
+        setTablas(data);
+      })
+      .catch((err) => toast.error(err.message));
+  }, [user?.isSuperDev]);
 
   // Solo SUPERdeveloper puede ver y usar esto
   if (!user?.isSuperDev) {
@@ -66,28 +79,6 @@ export default function ResetDatos() {
     }
   };
 
-const allTables = [
-    // 1. Primero los detalles (Las ramas)
-    'sale_details',
-    'entry_details',
-    'kardex',
-    'customer_balance_history',
-
-    // 2. Luego las cabeceras (Los troncos)
-    'payments',
-    'sales',
-    'entries',
-    'cuts',
-
-    // 3. Después los productos (Dependen de categorías)
-    'products',
-
-    // 4. Al final las maestras base (La raíz)
-    'categories',
-    'customers',
-    'cash_registers',
-    'users'
-  ];
 
 const handleSelectTable = (table) => {
   setSelectedTables(prev => {
@@ -191,7 +182,7 @@ const handleSelectTable = (table) => {
       <section className="mb-10">
         <h2 className="text-2xl font-bold text-primario mb-6 text-center">Elige tablas a zapear</h2>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {allTables.map(table => (
+          {tablas.map(({ tabla: table, nombre }) => (
             <button
               key={table}
               onClick={() => handleSelectTable(table)}
@@ -202,7 +193,7 @@ const handleSelectTable = (table) => {
                   : "bg-card border-border text-muted-foreground hover:bg-muted hover:border-cyan-500"
               )}
             >
-              {table.replace('_', ' ').toUpperCase()}
+              {nombre}
             </button>
           ))}
         </div>
