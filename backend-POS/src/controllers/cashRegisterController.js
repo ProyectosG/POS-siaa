@@ -1,6 +1,7 @@
 const CashRegister = require('../models/CashRegister');
 const { hashear, comparar } = require('../utils/seguridad');
 const { leerId, esDuplicado } = require('../utils/peticion');
+const { crearLimiteIntentos } = require('../utils/limiteIntentos');
 
 const CAJA_REPETIDA = 'Ya existe una caja con ese número';
 
@@ -35,6 +36,9 @@ exports.getById = async (req, res) => {
 
 
 // 🔥 ABRIR / VALIDAR CAJA
+// 5 claves de caja equivocadas para la misma caja desde el mismo equipo → 15 minutos sin poder intentar
+const intentosCaja = crearLimiteIntentos({ prefijo: 'caja', maximo: 5, bloqueoMs: 15 * 60 * 1000 });
+
 exports.abrirCaja = async (req, res) => {
   try {
     const { numero_caja, password } = req.body;
@@ -44,6 +48,12 @@ exports.abrirCaja = async (req, res) => {
       return res.status(400).json({
         error: 'numero_caja y password son requeridos',
       });
+    }
+
+    const llave = `${String(numero_caja).trim()}:${req.ip || 'desconocido'}`;
+    const minutos = await intentosCaja.minutosBloqueado(llave);
+    if (minutos > 0) {
+      return res.status(429).json({ error: `Demasiados intentos. Espera ${minutos} min.` });
     }
 
     // 2️⃣ Buscar caja por número
@@ -57,10 +67,14 @@ exports.abrirCaja = async (req, res) => {
 
     // 3️⃣ Validar clave contra el hash
     if (!(await comparar(password, register.password))) {
-      return res.status(401).json({
+      await intentosCaja.fallo(llave);
+      // 403, no 401: el usuario sí tiene sesión (con 401 la pantalla la cerraría)
+      return res.status(403).json({
         error: 'Clave de caja incorrecta',
       });
     }
+
+    await intentosCaja.exito(llave);
 
     // 4️⃣ (Opcional) Marcar caja como abierta en BD
     // await CashRegister.marcarAbierta(register.id);

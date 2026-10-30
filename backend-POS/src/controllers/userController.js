@@ -3,6 +3,7 @@ const User = require('../models/User');
 const { firmarToken, NIVELES } = require('../middleware/auth');
 const { hashear, comparar, esHash } = require('../utils/seguridad');
 const { leerId, esDuplicado } = require('../utils/peticion');
+const { crearLimiteIntentos } = require('../utils/limiteIntentos');
 
 // Campos que se pueden modificar en PUT /api/users/:id (el resto se ignora)
 const CAMPOS_EDITABLES = ['nickname', 'full_name', 'phone', 'email', 'password', 'access_level', 'photo_url'];
@@ -177,6 +178,11 @@ exports.updatePhoto = async (req, res) => {
   }
 };
 
+// 5 claves equivocadas del mismo usuario desde el mismo equipo → 15 minutos sin
+// poder intentar. La llave lleva el equipo para que alguien desde otra máquina
+// no pueda dejar bloqueado al usuario real.
+const intentosLogin = crearLimiteIntentos({ prefijo: 'login', maximo: 5, bloqueoMs: 15 * 60 * 1000 });
+
 // POST /api/users/login
 exports.login = async (req, res) => {
   try {
@@ -185,14 +191,22 @@ exports.login = async (req, res) => {
       return res.status(400).json({ error: 'nickname y password requeridos' });
     }
 
+    const llave = `${String(nickname).trim().toLowerCase()}:${req.ip || 'desconocido'}`;
+    const minutos = await intentosLogin.minutosBloqueado(llave);
+    if (minutos > 0) {
+      return res.status(429).json({ error: `Demasiados intentos. Espera ${minutos} min.` });
+    }
+
     const user = await User.findByNickname(String(nickname));
 
     // Si el usuario no existe se compara igual contra un hash de relleno (mismo tiempo de respuesta)
     const valido = await comparar(password, user ? user.password : HASH_RELLENO);
 
     if (!user || !valido) {
+      await intentosLogin.fallo(llave);
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
+    await intentosLogin.exito(llave);
 
     // Quitar password de la respuesta
     const { password: _, ...safeUser } = user;
