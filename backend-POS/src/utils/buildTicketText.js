@@ -66,7 +66,8 @@ module.exports = function buildTicketText({
   t += '\n';
 
   // ANTICIPO: lo que realmente se pagó como anticipo (antes se imprimía el 30% del total)
-  if (sale.type === 'apartado') {
+  // (apartado y crédito; en crédito puede ser 0)
+  if (sale.type === 'apartado' || sale.type === 'credito') {
     const anticipo = payments
       .filter((p) => p.payment_type === 'anticipo')
       .reduce((suma, p) => suma + Number(p.amount || 0), 0);
@@ -79,7 +80,9 @@ module.exports = function buildTicketText({
   // =====================================================
   t += 'Pagos:\n';
   payments.forEach((p) => {
-    let metodo = p.method === 'efectivo' ? 'Efectivo' : `Tarjeta ${p.bank || ''}`.slice(0, 15);
+    let metodo = p.method === 'efectivo' ? 'Efectivo'
+      : p.method === 'transferencia' ? 'Transferencia'
+      : `Tarjeta ${p.bank || ''}`.slice(0, 15);
     metodo = metodo.padEnd(18);
     const monto = Number(p.amount || 0).toFixed(2).padStart(amountWidth);
     t += `- ${metodo} $${monto}\n`;
@@ -90,6 +93,12 @@ module.exports = function buildTicketText({
   t += printRightAligned('Total pagado:', sale.paid || 0);
   t += printRightAligned('Saldo pendiente:', sale.pending_balance || 0);
   t += '\n';
+
+  // Crédito (fiado): el cliente firma de recibido
+  if (sale.type === 'credito') {
+    t += 'Firma del cliente:\n\n\n';
+    t += `${'_'.repeat(lineWidth)}\n\n`;
+  }
   t += '¡Gracias por su compra!\n';
   t += `${cfg.header}\n`;
 
