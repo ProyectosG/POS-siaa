@@ -102,6 +102,31 @@ test('abrir caja valida la clave contra el hash y no la devuelve', async () => {
   const ok = await api('POST', '/api/cash-registers/abrir', { token, body: { numero_caja: '1', password: 'caja1' } });
   assert.equal(ok.status, 200);
 
-  const lista = await api('GET', '/api/cash-registers', { token });
+  const lista = await api('GET', '/api/cash-registers', { token: await login('gerente') });
   for (const c of lista.data) assert.equal(c.password, undefined);
+});
+
+test('abrir caja no revela qué números existen y las cajas solo las consulta el Gerente', async () => {
+  const token = await login('cajero');
+  const abrir = (numero_caja, password) => api('POST', '/api/cash-registers/abrir', { token, body: { numero_caja, password } });
+
+  // Caja inexistente y clave equivocada: misma respuesta
+  const noExiste = await abrir('77', 'caja1');
+  const claveMala = await abrir('1', 'otra');
+  assert.equal(noExiste.status, 403);
+  assert.deepEqual(noExiste.data, claveMala.data);
+  assert.equal(noExiste.data.error, 'Número de caja o clave incorrectos');
+
+  // La caja inexistente también cuenta para el bloqueo
+  for (let i = 0; i < 4; i++) await abrir('77', 'x');
+  assert.equal((await abrir('77', 'x')).status, 429);
+
+  // Un Cajero no puede listar cajas ni buscarlas; el Gerente sí
+  assert.equal((await api('GET', '/api/cash-registers', { token })).status, 403);
+  assert.equal((await api('GET', '/api/cash-registers/1', { token })).status, 403);
+  assert.equal((await api('GET', '/api/cash-registers/numero/1', { token })).status, 404); // la ruta ya no existe
+  const gerente = await login('gerente');
+  const lista = await api('GET', '/api/cash-registers', { token: gerente });
+  assert.equal(lista.status, 200);
+  assert.ok(lista.data.length > 0);
 });
