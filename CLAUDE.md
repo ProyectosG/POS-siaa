@@ -36,6 +36,12 @@ Punto de venta independiente. Backend en `backend-POS/` (Express 5 + sqlite3, si
 - **Fechas**: el servidor pone fecha y hora de cada movimiento con `ahoraNegocio()` (`utils/fechas.js`), en `TZ_NEGOCIO` (por omisión `America/Mexico_City`). No usar `new Date()`, `toISOString()` ni fechas del navegador. `created_at` (de SQLite) está en UTC: para mostrar, usar `date` y `time`.
 - **Saldo de clientes**: `current_balance` es lo que el cliente debe. Sube con lo pendiente de un apartado o crédito y baja con cada abono; siempre con `Customer.moverSaldo`, que deja historial.
 - **Costo y utilidad** (rama `reporte-utilidad`, migración 5): `products.costo` y `sale_details.costo_unitario` (centavos; en `CAMPOS_DINERO`). El costo se captura **neto, con IVA**. Solo el Administrador lo captura (403 a los demás) y solo él lo ve: `productController` lo quita de las lecturas de productos y `Sale.renglones` omite `costo_unitario` (el detalle y el ticket los ve el cajero). La venta copia el costo del catálogo al renglón: **la utilidad usa siempre el costo del momento de la venta**, nunca el actual; un renglón sin costo (ventas anteriores o producto sin costo) queda fuera del cálculo y se informa aparte. `GET /api/reportes/utilidad?periodo=hoy|semana|mes` o `?desde=&hasta=` (Gerente o superior; semana = lunes a hoy, en `TZ_NEGOCIO`), cálculo en `utils/utilidad.js`: venta sin IVA = `subtotal`; costo sin IVA = costo × cantidad, quitando el 16 % si el renglón llevó IVA. Las migraciones 1 y 4 usan su lista congelada `DINERO_HASTA_V4` (no `CAMPOS_DINERO`): una columna de dinero nueva entra en una migración nueva.
+- **Venta a crédito** (rama `venta-credito`), según lo que decidió el dueño:
+  - Cualquier usuario vende a crédito a cualquier cliente, **sin límite de crédito**.
+  - El anticipo es opcional ($0 o parcial). Un crédito pagado completo responde 400 ("es una venta de contado").
+  - Pantalla `/dashboard/ventas/credito`: es `VentasApartado` con `tipo="credito"`. En `PagoVenta` (`mode="credito"`) lo recibido es el anticipo y no hay cambio.
+  - Al guardar se abre `VistaPreviaTicket` (`components/siaa-ui`).
+  - El ticket de crédito lleva el anticipo y "Firma del cliente". Las transferencias se imprimen como "Transferencia".
 - **Abonos**: `POST /api/apartados/abono` cobra **apartados y créditos** del mismo cliente (nunca contado); la ruta conserva su nombre. El pago queda con `payment_type = 'abono'` y entra en el corte de su día. Pantalla: Registro de Abonos.
 - **Precio libre**: en el menú de precios (tecla P) está "Precio libre (con clave)". `POST /api/settings/validar-clave-precio { clave, product_id, precio }` devuelve una autorización de 5 minutos para ese producto, precio y usuario (5 claves equivocadas → 15 min de bloqueo). La venta solo acepta el precio libre con esa autorización y marca el renglón (`sale_details.precio_libre`).
 - **Migraciones**: `src/config/migraciones.js`, versionadas con `PRAGMA user_version`, cada una en una transacción y con respaldo previo (`VACUUM INTO` en `BACKUP_DIR`) si la base tiene datos. Un cambio de datos nuevo es una migración nueva, nunca un cambio a una que ya corrió.
@@ -117,7 +123,6 @@ Arreglos encontrados en el camino: el ticket imprimía como anticipo el 30 % del
 ## Pendientes (sin hacer)
 
 - **Historial de códigos de barras**: la tabla `codigo_barras_historial` existe pero nada la llena; cambiar el código de un producto no deja rastro.
-- **No hay pantalla de venta a crédito**: el menú solo tiene contado y apartado; un crédito hoy solo se crea por el API (`POST /api/sales` con `type: 'credito'`). Falta decidir quién vende a crédito, si hay límite por cliente y si se pide anticipo.
 
 - **Reimprimir un corte viejo**: en Reporte de Cortes el botón de imprimir solo muestra un aviso; no hay ruta (`printCorteById` se quitó porque no tenía ruta y fallaba). Si se necesita, crear `GET /api/cuts/:id/print`.
 - "Saldos y stocks a cero" del reset pone el stock en 0 sin kardex (es una herramienta del SuperDeveloper).

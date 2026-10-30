@@ -109,6 +109,10 @@ exports.create = async (req, res) => {
         if (!cliente) throw new ErrorNegocio(400, 'Cliente no encontrado');
         if (pagado > venta.total) throw new ErrorNegocio(400, 'Los pagos exceden el total de la venta');
         if (type === 'apartado' && pagado <= 0) throw new ErrorNegocio(400, 'El apartado requiere un anticipo');
+        // El anticipo del crédito es opcional, pero si se paga todo es una venta de contado
+        if (type === 'credito' && pagado >= venta.total) {
+          throw new ErrorNegocio(400, 'Si se paga todo, es una venta de contado');
+        }
       }
 
       // Efectivo: lo aplicado a la venta y el cambio que se entrega

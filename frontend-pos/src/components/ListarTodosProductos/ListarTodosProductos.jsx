@@ -22,6 +22,7 @@ import { Badge } from "@/components/ui/badge"
 import { Package, Search, Filter } from "lucide-react"
 import { apiFetch } from "@/lib/apiFetch"
 import { pesos } from "@/lib/formato"
+import EncabezadoPantalla from "@/components/ui/encabezado-pantalla"
 
 
 export default function ListarTodosProductos() {

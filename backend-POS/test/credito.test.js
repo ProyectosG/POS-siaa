@@ -127,3 +127,52 @@ test('el corte X cuenta los abonos a crédito', async () => {
   assert.equal(actual.data.total_abonos, 75);
   assert.equal(actual.data.total_recibido, 75);
 });
+
+// ===== Pantalla de venta a crédito (rama venta-credito) =====
+
+test('un Cajero vende a crédito sin anticipo y con anticipo parcial', async () => {
+  const antes = await saldo(ids.beto);
+  const sinAnticipo = await vender('credito', ids.beto);
+  assert.deepEqual({ ...(await venta(sinAnticipo)) }, { paid: 0, pending_balance: 30000, status: 'pending' });
+
+  const conAnticipo = await vender('credito', ids.beto, [{ method: 'transferencia', amount: 50, reference: 'SPEI1' }]);
+  assert.deepEqual({ ...(await venta(conAnticipo)) }, { paid: 5000, pending_balance: 25000, status: 'pending' });
+  const pago = await dbGet(db, 'SELECT payment_type, method FROM payments WHERE sale_id = ?', [conAnticipo]);
+  assert.deepEqual({ ...pago }, { payment_type: 'anticipo', method: 'transferencia' });
+
+  assert.equal(await saldo(ids.beto), antes + 30000 + 25000);
+});
+
+test('un crédito pagado completo se rechaza (es una venta de contado) y no registra nada', async () => {
+  const ventas = (await dbGet(db, 'SELECT COUNT(*) n FROM sales')).n;
+  const antes = await saldo(ids.ana);
+  const r = await api('POST', '/api/sales', {
+    token: tokens.cajero,
+    body: {
+      type: 'credito', customer_id: ids.ana, total_esperado: 300,
+      details: [{ product_id: ids.prod, quantity: 1, tipo_precio: 'menudeo' }],
+      payments: [{ method: 'efectivo', amount: 300 }],
+    },
+  });
+  assert.equal(r.status, 400);
+  assert.match(r.data.error, /contado/);
+  assert.equal((await dbGet(db, 'SELECT COUNT(*) n FROM sales')).n, ventas);
+  assert.equal(await saldo(ids.ana), antes);
+});
+
+test('el ticket de crédito dice crédito, anticipo, transferencia y lleva la firma', async () => {
+  const credito = await vender('credito', ids.beto, [{ method: 'transferencia', amount: 40 }]);
+  const { status, data } = await api('GET', `/api/tickets/${credito}/text`, { token: tokens.cajero });
+  assert.equal(status, 200);
+  const t = data.ticketText;
+  assert.match(t, /TICKET DE VENTA CREDITO/);
+  assert.match(t, /ANTICIPO:\s+\$?\s*40\.00/);
+  assert.match(t, /- Transferencia/);
+  assert.doesNotMatch(t, /- Tarjeta/);
+  assert.match(t, /Firma del cliente:/);
+
+  // El de contado no lleva firma
+  const contado = await vender('contado', null, [{ method: 'efectivo', amount: 300 }]);
+  const tc = (await api('GET', `/api/tickets/${contado}/text`, { token: tokens.cajero })).data.ticketText;
+  assert.doesNotMatch(tc, /Firma del cliente/);
+});

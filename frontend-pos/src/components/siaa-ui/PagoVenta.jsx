@@ -38,7 +38,7 @@ const BANCOS_MEXICO = [
 ]
 
 export default function PagoVenta({
-  mode = "contado", // "contado" | "apartado"
+  mode = "contado", // "contado" | "apartado" | "credito"
   focusArea,
 
   formaPago,
@@ -67,21 +67,28 @@ export default function PagoVenta({
 
   /* ===================== CÁLCULOS ===================== */
 
-  const montoMinimo = mode === "apartado" ? anticipoRequerido : total
+  // Crédito: el anticipo es opcional (puede ser 0), todo lo que se recibe se
+  // aplica y no hay cambio; si se paga todo, es una venta de contado
+  const esCredito = mode === "credito"
+  const montoMinimo = mode === "apartado" ? anticipoRequerido : esCredito ? 0 : total
   const pagoActual = Number(efectivo || 0) + Number(tarjeta || 0)
-  const montoEfectivoPendiente = Math.max(0, montoMinimo - Number(tarjeta || 0))
+  const montoEfectivoPendiente = esCredito
+    ? Number(efectivo || 0)
+    : Math.max(0, montoMinimo - Number(tarjeta || 0))
   const efectivoSuficiente = Number(efectivo || 0) >= montoEfectivoPendiente
   const tarjetaCompleta =
     Number(tarjeta || 0) > 0 &&
     bancoTarjeta &&
     /^\d{4}$/.test(ultimos4Tarjeta)
-  const pagoCumpleRequisito = pagoActual >= montoMinimo
+  const pagoCumpleRequisito = esCredito ? pagoActual < total : pagoActual >= montoMinimo
+  const quedaADeber = Math.max(0, total - pagoActual)
 
   // ✅ Validación: solo habilitar si hay ventas y pago válido
-  const puedeProcesar =
-    total > 0 && // debe haber ventas
-    pagoCumpleRequisito &&
-    (formaPago === "efectivo" ? efectivoSuficiente : tarjetaCompleta)
+  const puedeProcesar = esCredito
+    ? total > 0 && pagoCumpleRequisito && (Number(tarjeta || 0) > 0 ? tarjetaCompleta : true)
+    : total > 0 && // debe haber ventas
+      pagoCumpleRequisito &&
+      (formaPago === "efectivo" ? efectivoSuficiente : tarjetaCompleta)
 
   /* ===================== FOCUS ===================== */
   useEffect(() => {
@@ -127,7 +134,7 @@ export default function PagoVenta({
     <div className="relative rounded-md p-5 border transition-all">
       <h3 className="flex items-center gap-2 font-semibold mb-4">
         <DollarSign className="w-5 h-5" />
-        {mode === "apartado" ? "Pago de Anticipo" : "Pago"}
+        {mode === "apartado" ? "Pago de Anticipo" : esCredito ? "Anticipo (opcional)" : "Pago"}
       </h3>
 
       {/* ======= ANTICIPO REQUERIDO ======= */}
@@ -177,7 +184,7 @@ export default function PagoVenta({
       {formaPago === "efectivo" && (
         <div className="space-y-4">
           <div>
-            <Label>Efectivo recibido</Label>
+            <Label>{esCredito ? "Anticipo en efectivo" : "Efectivo recibido"}</Label>
             <Input
               ref={efectivoRef}
               inputMode="decimal"
@@ -189,12 +196,15 @@ export default function PagoVenta({
             />
           </div>
 
-          <div className="text-center text-3xl font-bold bg-gray-100 rounded-md py-4 border">
-            Cambio: $
-            {Number(efectivo || 0) > montoEfectivoPendiente
-              ? fmt(Number(efectivo) - montoEfectivoPendiente)
-              : "0.00"}
-          </div>
+          {/* En crédito no hay cambio: lo recibido es el anticipo */}
+          {!esCredito && (
+            <div className="text-center text-3xl font-bold bg-gray-100 rounded-md py-4 border">
+              Cambio: $
+              {Number(efectivo || 0) > montoEfectivoPendiente
+                ? fmt(Number(efectivo) - montoEfectivoPendiente)
+                : "0.00"}
+            </div>
+          )}
         </div>
       )}
 
@@ -272,11 +282,18 @@ export default function PagoVenta({
         }
       >
         <ShoppingCart className="w-5 h-5 mr-2" />
-        {mode === "apartado" ? "Procesar Anticipo" : "Procesar Venta"}
+        {mode === "apartado" ? "Procesar Anticipo" : esCredito ? "Vender a crédito" : "Procesar Venta"}
       </Button>
 
       {/* ======= FEEDBACK ======= */}
-      {pagoActual > 0 && (
+      {esCredito && total > 0 && (
+        <p className={`text-center mt-3 text-sm font-medium ${pagoCumpleRequisito ? "text-foreground" : "text-aviso"}`}>
+          {pagoCumpleRequisito
+            ? <>Queda a deber <b>${fmt(quedaADeber)}</b></>
+            : "Si paga todo, cóbralo como venta de contado"}
+        </p>
+      )}
+      {!esCredito && pagoActual > 0 && (
         <p className={`text-center mt-3 text-sm font-medium ${pagoCumpleRequisito ? "text-emerald-600" : "text-amber-600"}`}>
           {pagoCumpleRequisito
             ? "Pago suficiente ✓"

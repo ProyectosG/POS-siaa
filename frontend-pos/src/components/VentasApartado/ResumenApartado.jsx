@@ -24,6 +24,7 @@ export default function ResumenApartado({
   montoFijo,
   setMontoFijo,
   pagoInicialRequerido,
+  tipo = "apartado", // en "credito" el anticipo es opcional: no hay anticipo requerido
 }) {
   const montoRequerido = pagoInicialRequerido || 0
   const esMontoPositivo = montoRequerido > 0
@@ -63,6 +64,7 @@ export default function ResumenApartado({
       </div>
 
       {/* Sección Anticipo requerido – con mayor separación */}
+  {tipo === "apartado" && (
   <div className="space-y-4 pt-6 border-t-2 border-gray-200">
   <div className="flex flex-wrap items-center justify-between gap-3">
     <h4 className="flex items-center gap-2 font-semibold text-lg text-gray-800">
@@ -143,6 +145,7 @@ export default function ResumenApartado({
         </div>
     </div>
   </div>
+  )}
     </div>
   )
 }
