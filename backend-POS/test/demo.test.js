@@ -95,6 +95,12 @@ test('lo demás funciona: vista previa del ticket, corte en vista previa, usuari
   assert.strictEqual(corte.status, 200);
   assert.ok(corte.data.ticketText);
 
+  // Reimprimir un corte guardado: vista previa sí; imprimir solo devuelve el texto
+  const z = await dbGet(db, "SELECT id FROM cuts WHERE type = 'Z' LIMIT 1");
+  assert.match((await api('GET', `/api/cuts/${z.id}/text`, { token })).data.ticketText, /REIMPRESIÓN/);
+  const reimpresion = await api('GET', `/api/cuts/${z.id}/print`, { token });
+  assert.match(reimpresion.data.message, /^Demo:/);
+
   const usuarios = await api('GET', '/api/users', { token });
   assert.strictEqual(usuarios.status, 200);
   assert.strictEqual(usuarios.data.length, 3);

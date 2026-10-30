@@ -33,4 +33,8 @@ router.post('/', permisoPorTipoCorte, cutController.createCorte);
 router.get('/', soloGerente, cutController.getAllCuts);
 router.get('/:id', soloGerente, cutController.getCutById);
 
+// Reimprimir un corte guardado (con los montos con que se cerró): vista previa e impresión
+router.get('/:id/text', soloGerente, ticketController.getCorteText);
+router.get('/:id/print', soloGerente, ticketController.printCorteById);
+
 module.exports = router;

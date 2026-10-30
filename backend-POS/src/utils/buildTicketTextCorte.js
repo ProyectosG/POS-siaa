@@ -14,13 +14,18 @@ function divider() {
   return '-'.repeat(CHARS_PER_LINE);
 }
 
-// Función principal para generar texto del ticket de corte
+// Función principal para generar texto del ticket de corte.
+// Opcionales: numero (corte guardado), usuario (quien hizo el corte) y
+// reimpresion { fecha, usuario } para marcar una copia de un corte viejo.
 function buildTicketTextCorte(data) {
   const lines = [];
 
   lines.push(centerText(`${data.type} DE CAJA`));
+  if (data.reimpresion) lines.push(centerText('*** REIMPRESIÓN ***'));
   lines.push(divider());
+  if (data.numero) lines.push(`Corte #${data.numero}`);
   lines.push(`Caja: ${data.caja}`);
+  if (data.usuario) lines.push(`Usuario: ${data.usuario}`);
   lines.push(`Fecha: ${data.fecha}`);
   lines.push(`Desde: ${data.desde}   Hasta: ${data.hasta}`);
   lines.push(`Tickets: ${data.firstTicket} al ${data.lastTicket}`);
@@ -42,10 +47,25 @@ function buildTicketTextCorte(data) {
   lines.push(`Abonos:          $${data.abonos.toFixed(2)}`);
   lines.push(divider());
 
+  lines.push('FORMAS DE PAGO');
+  lines.push(divider());
+  lines.push(`Efectivo:        $${data.efectivo.toFixed(2)}`);
+  lines.push(`Tarjeta:         $${data.tarjeta.toFixed(2)}`);
+  lines.push(`Transferencia:   $${data.transferencia.toFixed(2)}`);
+  lines.push(`Otros:           $${data.otros.toFixed(2)}`);
+  lines.push(divider());
+
   lines.push(`EFECTIVO EN CAJA: $${data.cashInBox.toFixed(2)}`);
   lines.push(divider());
 
-  lines.push(centerText('¡Gracias por tu turno! Sigue rockeándola 💪'));
+  if (data.reimpresion) {
+    lines.push(`Reimpreso: ${data.reimpresion.fecha}`);
+    lines.push(`Por: ${data.reimpresion.usuario}`);
+    lines.push(divider());
+  }
+
+  // Sin emojis: la impresora térmica no los tiene y los imprime como basura
+  lines.push(centerText('¡Gracias por tu turno! Sigue rockeándola'));
   lines.push(divider());
 
   return lines.join('\n');
