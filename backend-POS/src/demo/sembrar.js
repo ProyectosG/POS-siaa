@@ -195,7 +195,7 @@ async function sembrar(app) {
       const { id } = await api(tokens.demo, 'POST', '/products', {
         articulo,
         presentacion,
-        unidad_medida: 'pieza',
+        unidad_medida: 'PZ', // mismas claves que la lista del catálogo (PZ, KG, LT, CJ, PQ)
         precio_menudeo: menudeo,
         precio_mayoreo: mayoreo,
         precio_especial: mayoreo,

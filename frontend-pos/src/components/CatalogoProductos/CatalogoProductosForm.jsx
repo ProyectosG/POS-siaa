@@ -210,7 +210,8 @@ export default function CatalogoProductosForm({ product, onSave, onCancel }) {
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      <header className="flex justify-between items-center">
+      {/* En celular los botones bajan a su propio renglón (antes Guardar se cortaba) */}
+      <header className="flex flex-wrap justify-between items-center gap-3">
         <h2 className="text-2xl font-bold">
           {product ? "Editar Producto" : "Nuevo Producto"}
         </h2>

@@ -21,6 +21,15 @@ import HistorialCodigos from "../HistorialCodigos"
    - Unifica el focus verde en todos los inputs / triggers
    - Evita inconsistencias visuales entre tabs
 ============================================================================ */
+// Claves de unidad que guarda el catálogo
+const UNIDADES = [
+  ["PZ", "Pieza"],
+  ["KG", "Kilogramo"],
+  ["LT", "Litro"],
+  ["CJ", "Caja"],
+  ["PQ", "Paquete"],
+]
+
 const focusGreen = `
   transition-all duration-200
   focus-visible:ring-1
@@ -236,11 +245,14 @@ export default function TabGeneral({
               </SelectTrigger>
 
               <SelectContent>
-                <SelectItem value="PZ">Pieza</SelectItem>
-                <SelectItem value="KG">Kilogramo</SelectItem>
-                <SelectItem value="LT">Litro</SelectItem>
-                <SelectItem value="CJ">Caja</SelectItem>
-                <SelectItem value="PQ">Paquete</SelectItem>
+                {UNIDADES.map(([clave, nombre]) => (
+                  <SelectItem key={clave} value={clave}>{nombre}</SelectItem>
+                ))}
+                {/* Una unidad que no está en la lista (capturada antes o por otra vía)
+                    se muestra tal cual en vez de dejar el campo vacío */}
+                {formData.unidad_medida && !UNIDADES.some(([clave]) => clave === formData.unidad_medida) && (
+                  <SelectItem value={formData.unidad_medida}>{formData.unidad_medida}</SelectItem>
+                )}
               </SelectContent>
             </Select>
           </div>
