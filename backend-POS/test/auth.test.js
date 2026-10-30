@@ -98,7 +98,7 @@ test('alta y edición de usuario guardan la contraseña con hash', async () => {
 
 test('abrir caja valida la clave contra el hash y no la devuelve', async () => {
   const token = await login('cajero');
-  assert.equal((await api('POST', '/api/cash-registers/abrir', { token, body: { numero_caja: '1', password: 'mala' } })).status, 401);
+  assert.equal((await api('POST', '/api/cash-registers/abrir', { token, body: { numero_caja: '1', password: 'mala' } })).status, 403);
   const ok = await api('POST', '/api/cash-registers/abrir', { token, body: { numero_caja: '1', password: 'caja1' } });
   assert.equal(ok.status, 200);
 

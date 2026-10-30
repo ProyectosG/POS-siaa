@@ -39,7 +39,7 @@ before(async () => {
 after(detener);
 
 test('las columnas de dinero quedan INTEGER y guardan enteros', async () => {
-  assert.equal((await dbGet(db, 'PRAGMA user_version')).user_version, 6);
+  assert.equal((await dbGet(db, 'PRAGMA user_version')).user_version, 7);
   for (const [tabla, campos] of Object.entries(CAMPOS_DINERO)) {
     const columnas = await todas(db, `PRAGMA table_info(${tabla})`);
     for (const campo of campos) {

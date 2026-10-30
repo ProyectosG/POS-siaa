@@ -38,7 +38,7 @@ exports.updateSettings = async (req, res) => {
 };
 
 // 5 claves equivocadas por usuario → 15 minutos sin poder intentar
-const intentosClave = crearLimiteIntentos({ maximo: 5, bloqueoMs: 15 * 60 * 1000 });
+const intentosClave = crearLimiteIntentos({ prefijo: 'precio', maximo: 5, bloqueoMs: 15 * 60 * 1000 });
 
 // POST /api/settings/validar-clave-precio
 //   { clave }                         → { valida }
@@ -53,7 +53,7 @@ exports.validarClavePrecio = async (req, res) => {
     }
 
     const llave = `usuario:${req.user.id}`;
-    const minutos = intentosClave.minutosBloqueado(llave);
+    const minutos = await intentosClave.minutosBloqueado(llave);
     if (minutos > 0) {
       return res.status(429).json({ error: `Demasiados intentos. Espera ${minutos} min.` });
     }
@@ -69,10 +69,10 @@ exports.validarClavePrecio = async (req, res) => {
     const valida = await comparar(String(clave).trim(), hash);
 
     if (!valida) {
-      intentosClave.fallo(llave);
+      await intentosClave.fallo(llave);
       return res.json({ valida: false });
     }
-    intentosClave.exito(llave);
+    await intentosClave.exito(llave);
 
     if (!pideAutorizacion) return res.json({ valida: true });
 

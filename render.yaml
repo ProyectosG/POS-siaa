@@ -27,6 +27,10 @@ services:
         value: ./demo/backups
       - key: TZ_NEGOCIO
         value: America/Mexico_City
+      # Render pone un proxy delante: sin esto todos los visitantes compartirían el
+      # límite de intentos de clave (5 fallos de uno bloquearían a todos)
+      - key: TRUST_PROXY
+        value: "1"
       # Secreto propio de la demo (Render lo genera; nunca el del cliente)
       - key: JWT_SECRET
         generateValue: true

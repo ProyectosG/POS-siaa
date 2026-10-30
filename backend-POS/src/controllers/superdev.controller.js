@@ -4,11 +4,10 @@ const crypto = require('crypto');
 const { firmarTokenSuperDev } = require('../middleware/auth');
 const { respaldarAhora } = require('../utils/respaldos');
 
-const MAX_INTENTOS = 5;
-const BLOQUEO_MS = 15 * 60 * 1000;
+const { crearLimiteIntentos } = require('../utils/limiteIntentos');
 
-// Intentos fallidos por equipo (IP), en memoria: ip → { fallos, bloqueadoHasta }
-const intentos = new Map();
+// 5 intentos fallidos por equipo (IP) → 15 minutos sin poder intentar (en la base)
+const intentos = crearLimiteIntentos({ prefijo: 'superdev', maximo: 5, bloqueoMs: 15 * 60 * 1000 });
 
 // Comparación en tiempo constante: se comparan los SHA-256 (mismo largo siempre)
 function igualesSeguro(a, b) {
@@ -17,7 +16,7 @@ function igualesSeguro(a, b) {
   return crypto.timingSafeEqual(ha, hb);
 }
 
-exports.entrar = (req, res) => {
+exports.entrar = async (req, res) => {
   const usuarioEnv = process.env.SUPERDEV_USER;
   const passwordEnv = process.env.SUPERDEV_PASSWORD;
 
@@ -27,11 +26,8 @@ exports.entrar = (req, res) => {
   }
 
   const ip = req.ip || 'desconocido';
-  const ahora = Date.now();
-  const registro = intentos.get(ip) || { fallos: 0, bloqueadoHasta: 0 };
-
-  if (registro.bloqueadoHasta > ahora) {
-    const minutos = Math.ceil((registro.bloqueadoHasta - ahora) / 60000);
+  const minutos = await intentos.minutosBloqueado(ip);
+  if (minutos > 0) {
     return res.status(429).json({ error: `Demasiados intentos. Espera ${minutos} min.` });
   }
 
@@ -42,23 +38,18 @@ exports.entrar = (req, res) => {
   const passwordOk = igualesSeguro(password, passwordEnv);
 
   if (!(usuarioOk && passwordOk)) {
-    registro.fallos += 1;
-    if (registro.fallos >= MAX_INTENTOS) {
-      registro.fallos = 0;
-      registro.bloqueadoHasta = ahora + BLOQUEO_MS;
-    }
-    intentos.set(ip, registro);
+    await intentos.fallo(ip);
     return res.status(401).json({ error: 'Credenciales inválidas' });
   }
 
-  intentos.delete(ip);
+  await intentos.exito(ip);
 
   const user = { id: 0, nickname: 'SUPERdeveloper', access_level: 99, isSuperDev: true };
   res.json({ token: firmarTokenSuperDev(user.nickname), user });
 };
 
 // Solo para las pruebas: limpia el registro de intentos
-exports._limpiarIntentos = () => intentos.clear();
+exports._limpiarIntentos = () => intentos.limpiar();
 
 // GET /api/superdev/respaldo → descarga un respaldo completo de la base
 // ("Respaldar ahora"). Queda también una copia en backups/ (las 10 más recientes).
