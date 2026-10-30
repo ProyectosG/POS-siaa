@@ -221,14 +221,20 @@ const handleSelectTable = (table) => {
             />
             Resetear IDs autoincrementales (¡Vuelve a 1! 🔄)
           </label>
-          <label className="flex items-center gap-4 text-lg text-foreground cursor-pointer">
+          <label className="flex items-start gap-4 text-lg text-foreground cursor-pointer">
             <input
               type="checkbox"
               checked={resetBalances}
               onChange={() => setResetBalances(!resetBalances)}
-              className="w-5 h-5 accent-green-400"
+              className="mt-1.5 w-5 h-5 shrink-0 accent-green-400"
             />
-            Poner saldos de clientes y stocks de productos a 0 🧹 Limpieza financiera
+            <span className="min-w-0">
+              Poner saldos de clientes y stocks de productos a 0 🧹
+              {/* Lo que hace de verdad: no es un borrado silencioso */}
+              <span className="mt-1 block text-sm text-muted-foreground">
+                El stock queda en 0 con un ajuste en el kardex. Lo pendiente de créditos y apartados se perdona y queda en el historial de saldo de cada cliente.
+              </span>
+            </span>
           </label>
         </div>
       </section>
@@ -244,8 +250,8 @@ const handleSelectTable = (table) => {
 
       {/* Modal de Confirmación */}
       {isConfirmOpen && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 backdrop-blur-sm">
-          <div className="bg-background p-10 rounded-3xl border-4 border-red-600 max-w-lg w-full text-center shadow-2xl">
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 backdrop-blur-sm p-4">
+          <div className="bg-background p-6 sm:p-10 rounded-3xl border-4 border-red-600 max-w-lg w-full text-center shadow-2xl">
             <h2 className="text-3xl font-bold text-error mb-6">¡ÚLTIMA ADVERTENCIA! ⚠️💥</h2>
             <p className="text-muted-foreground mb-8 text-lg">
               Esto borrará los datos seleccionados de forma permanente.  
@@ -258,16 +264,16 @@ const handleSelectTable = (table) => {
               className="w-full p-4 bg-card border-2 border-red-500 rounded-xl text-foreground text-xl mb-8 focus:outline-none focus:border-red-400"
               placeholder="Escribe ZAPEAR aquí"
             />
-            <div className="flex gap-6 justify-center">
+            <div className="flex flex-wrap gap-3 sm:gap-6 justify-center">
               <button
                 onClick={() => setIsConfirmOpen(false)}
-                className="px-8 py-4 bg-muted text-foreground font-bold rounded-xl hover:bg-muted transition text-lg"
+                className="px-5 sm:px-8 py-4 bg-muted text-foreground font-bold rounded-xl hover:bg-muted transition text-lg"
               >
                 Cancelar 😅
               </button>
               <button
                 onClick={handleReset}
-                className="px-8 py-4 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition flex items-center gap-3 text-lg"
+                className="px-5 sm:px-8 py-4 bg-red-600 text-white font-bold rounded-xl hover:bg-red-700 transition flex items-center gap-3 text-lg"
               >
                 <Check size={24} /> Confirmar Zap
               </button>
