@@ -14,6 +14,7 @@ import {
   SelectItem,
 } from "@/components/ui/select"
 import { Tag } from "lucide-react"
+import HistorialCodigos from "../HistorialCodigos"
 
 /* ============================================================================
    ESTILO PRO REUTILIZABLE
@@ -34,6 +35,7 @@ export default function TabGeneral({
   onChange,
   imagePreview,
   isEditing,
+  productId, // al editar: para consultar el historial de códigos
   onGoToPrecios, // 👈 callback para cambiar al tab de precios
 }) {
   /* ==========================================================================
@@ -147,6 +149,8 @@ export default function TabGeneral({
                 </button>
               )}
             </div>
+
+            {isEditing && <HistorialCodigos productId={productId} />}
           </div>
 
           {/* ===============================================================

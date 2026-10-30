@@ -166,6 +166,11 @@ export default function VentasApartado({ tipo = "apartado" }) {
       const p = await res.json()
       beep(true)
 
+      // Etiqueta vieja: el servidor encontró el producto por su código anterior
+      if (p.codigo_cambiado) {
+        toast(`Este código cambió; el actual es ${p.codigo_cambiado.actual || "ninguno"}`, { icon: "🏷️" })
+      }
+
       const precios = [
         { tipo: "menudeo", label: "Menudeo", valor: p.precio_menudeo },
         { tipo: "mayoreo", label: "Mayoreo", valor: p.precio_mayoreo },
