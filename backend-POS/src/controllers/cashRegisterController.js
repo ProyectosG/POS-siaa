@@ -5,6 +5,12 @@ const { crearLimiteIntentos } = require('../utils/limiteIntentos');
 
 const CAJA_REPETIDA = 'Ya existe una caja con ese número';
 
+// Abrir caja: el mismo mensaje si la caja no existe o la clave está mal, para no
+// revelar qué números de caja existen. Si no existe se compara contra un hash de
+// relleno, así la respuesta tarda lo mismo.
+const CAJA_O_CLAVE_INCORRECTA = 'Número de caja o clave incorrectos';
+const HASH_RELLENO = require('bcrypt').hashSync('caja-inexistente', 10);
+
 // Nunca se devuelve la clave de la caja
 const sinPassword = (register) => {
   if (!register) return register;
@@ -59,19 +65,12 @@ exports.abrirCaja = async (req, res) => {
     // 2️⃣ Buscar caja por número
     const register = await CashRegister.findByNumeroCaja(numero_caja);
 
-    if (!register) {
-      return res.status(404).json({
-        error: 'Caja no encontrada',
-      });
-    }
-
-    // 3️⃣ Validar clave contra el hash
-    if (!(await comparar(password, register.password))) {
+    // 3️⃣ Validar clave contra el hash (caja inexistente: contra el de relleno)
+    const valida = await comparar(password, register ? register.password : HASH_RELLENO);
+    if (!register || !valida) {
       await intentosCaja.fallo(llave);
       // 403, no 401: el usuario sí tiene sesión (con 401 la pantalla la cerraría)
-      return res.status(403).json({
-        error: 'Clave de caja incorrecta',
-      });
+      return res.status(403).json({ error: CAJA_O_CLAVE_INCORRECTA });
     }
 
     await intentosCaja.exito(llave);
@@ -93,25 +92,6 @@ exports.abrirCaja = async (req, res) => {
     res.status(500).json({
       error: 'Error interno del servidor',
     });
-  }
-};
-
-
-
-// 🔥 NUEVO: buscar por numero_caja
-exports.getByNumeroCaja = async (req, res) => {
-  try {
-    const { numero_caja } = req.params;
-
-    const register = await CashRegister.findByNumeroCaja(numero_caja);
-
-    if (!register) {
-      return res.status(404).json({ error: 'Caja no encontrada' });
-    }
-
-    res.json(sinPassword(register));
-  } catch (err) {
-    res.status(500).json({ error: err.message });
   }
 };
 

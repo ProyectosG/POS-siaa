@@ -93,7 +93,7 @@ test('cajas: alta, número repetido 409, editar, 404 y sin clave en las respuest
 
   const edit = await api('PUT', `/api/cash-registers/${alta.data.id}`, { token: tokens.gerente, body: { numero_caja: '8', tipo_caja: 'Rápida' } });
   assert.equal(edit.status, 200);
-  const caja = await api('GET', `/api/cash-registers/${alta.data.id}`, { token: tokens.cajero });
+  const caja = await api('GET', `/api/cash-registers/${alta.data.id}`, { token: tokens.gerente });
   assert.deepEqual(caja.data, { id: alta.data.id, numero_caja: '8', tipo_caja: 'Rápida' });
 
   // Editar sin clave no la cambia: abrir la caja con la clave original
@@ -101,14 +101,13 @@ test('cajas: alta, número repetido 409, editar, 404 y sin clave en las respuest
   assert.equal(abrir.status, 200);
   assert.equal(abrir.data.estado, 'ABIERTA');
 
-  const lista = await api('GET', '/api/cash-registers', { token: tokens.cajero });
+  const lista = await api('GET', '/api/cash-registers', { token: tokens.gerente });
   assert.ok(lista.data.every((c) => !('password' in c)));
-  assert.equal((await api('GET', '/api/cash-registers/numero/8', { token: tokens.cajero })).data.password, undefined);
 
   assert.equal((await api('PUT', '/api/cash-registers/9999', { token: tokens.gerente, body: { tipo_caja: 'X' } })).status, 404);
   assert.equal((await api('DELETE', '/api/cash-registers/9999', { token: tokens.gerente })).status, 404);
   assert.equal((await api('DELETE', `/api/cash-registers/${alta.data.id}`, { token: tokens.gerente })).status, 200);
-  assert.equal((await api('GET', `/api/cash-registers/${alta.data.id}`, { token: tokens.cajero })).status, 404);
+  assert.equal((await api('GET', `/api/cash-registers/${alta.data.id}`, { token: tokens.gerente })).status, 404);
 });
 
 // ───────── Configuración
