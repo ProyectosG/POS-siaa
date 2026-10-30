@@ -24,7 +24,7 @@ import { fechaCorta } from "@/lib/formato"
 import { EtiquetaTipoVenta, EtiquetaEstadoVenta } from "@/components/ui/etiqueta-venta"
 import ListaVacia from "@/components/ui/lista-vacia"
 import { Esqueleto, EsqueletoFilas } from "@/components/ui/esqueleto"
-import { ES_DEMO } from "@/lib/demo"
+import VistaPreviaTicket from "@/components/siaa-ui/VistaPreviaTicket"
 
 
 export default function ListaVentas() {
@@ -40,52 +40,9 @@ export default function ListaVentas() {
   const [pagosDesglose, setPagosDesglose] = useState([])
   const [detallesVenta, setDetallesVenta] = useState([])
   
-  // Estados para el modal de previsualización
-const [showPrintModal, setShowPrintModal] = useState(false);
-const [ticketText, setTicketText] = useState('');
-const [selectedSaleId, setSelectedSaleId] = useState(null);
-
-// Handler actualizado: abre modal con previsualización
-const handleReimprimirTicket = async (venta) => {
-  try {
-    const res = await apiFetch(`/tickets/${venta.id}/text`);
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.error || 'Error al obtener ticket');
-    }
-    
-    
-   const data = await res.json();
-
-
-    setTicketText(data.ticketText);
-    setSelectedSaleId(venta.id);
-    setShowPrintModal(true);
-  } catch (err) {
-    console.error('Error cargando ticket:', err);
-    toast.error('No se pudo cargar el ticket para previsualizar');
-  }
-};
-
-// Imprimir desde el modal
-const handleConfirmPrint = async () => {
-  try {
-    const res = await apiFetch(`/tickets/${selectedSaleId}/print`);
-    if (!res.ok) throw new Error('Error al imprimir');
-
-    toast.success(`Ticket #${selectedSaleId} impreso exitosamente 🖨️`);
-    setShowPrintModal(false);
-  } catch (err) {
-    console.error('Error imprimiendo:', err);
-    toast.error('No se pudo imprimir. Verifica la impresora.');
-  }
-};
-
-
-  
-  
-  
-
+  // Venta cuyo ticket se va a reimprimir (abre la vista previa del servidor)
+  const [ticketAImprimir, setTicketAImprimir] = useState(null)
+  const handleReimprimirTicket = (venta) => setTicketAImprimir(venta.id)
 
   useEffect(() => {
     fetchVentas()
@@ -456,7 +413,7 @@ const handleConfirmPrint = async () => {
                   <TableCell className="text-right font-medium">{pesos(v.cambio)}</TableCell>
                   <TableCell>{v.nickname_user}</TableCell>
                   <TableCell className="text-center">
-                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); handleReimprimirTicket(v, e); }}>
+                    <Button variant="ghost" size="icon" aria-label={`Reimprimir ticket ${v.id}`} onClick={(e) => { e.stopPropagation(); handleReimprimirTicket(v, e); }}>
                       <Printer className="h-4 w-4 text-gray-600 hover:text-emerald-600 transition-colors" />
                     </Button>
                   </TableCell>
@@ -823,34 +780,8 @@ const handleConfirmPrint = async () => {
       </CardContent>
 
       {/* MODAL PREVISUALIZACIÓN TICKET */}
-      <Dialog open={showPrintModal} onOpenChange={setShowPrintModal}>
-        <DialogContent className="max-w-4xl">
-          <DialogHeader>
-            <DialogTitle>
-              Previsualización de Ticket #{selectedSaleId}
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="p-6 bg-white border rounded-lg whitespace-pre-wrap font-mono text-sm max-h-[70vh] overflow-auto">
-            {ticketText || "Sin contenido"}
-          </div>
-
-          <div className="flex justify-end gap-2 mt-4">
-            <Button
-              variant="outline"
-              onClick={() => setShowPrintModal(false)}
-            >
-              {ES_DEMO ? "Cerrar" : "Cancelar"}
-            </Button>
-            {/* En la demo solo hay vista previa */}
-            {!ES_DEMO && (
-              <Button onClick={handleConfirmPrint}>
-                Imprimir Ticket
-              </Button>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Vista previa del ticket (texto del servidor, al ancho de Configuración); en la demo sin Imprimir */}
+      <VistaPreviaTicket saleId={ticketAImprimir} onClose={() => setTicketAImprimir(null)} />
 
     </Card>
   )
