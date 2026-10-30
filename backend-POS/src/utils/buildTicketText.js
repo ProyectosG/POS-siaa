@@ -1,106 +1,108 @@
 // utils/buildTicketText.js
-// Versión FINAL: Todas las cantidades (incluyendo Anticipo, Total pagado y Saldo pendiente)
-// alineadas exactamente igual que Subtotal, IVA y Total
+// Texto del ticket de venta. Cabe en el ancho de Configuración (32 caracteres
+// en 57/58 mm, 48 en 80 mm): ningún renglón pasa del ancho y todos los montos
+// quedan alineados a la derecha. Lleva el encabezado y el pie del negocio.
 
-const buildTicketConfig = require('./ticketConfig');
+const { columnas, partir, centrar, renglonMonto } = require('./ticketConfig');
 
 module.exports = function buildTicketText({
   sale,
   customer,
   details,
   payments,
+  config = {},
 }) {
-  const cfg = buildTicketConfig();
-  const { lineWidth, qty: qtyWidth, name: nameWidth, amount: amountWidth } = cfg;
-  let t = '';
+  const ancho = config.ancho || columnas(58);
+  const separador = '-'.repeat(ancho);
+  const doble = '='.repeat(ancho);
+  const lineas = [];
+  const agregar = (...renglones) => lineas.push(...renglones.flat());
 
   // =====================================================
-  // ENCABEZADO
+  // ENCABEZADO DEL NEGOCIO (Configuración) Y DE LA VENTA
   // =====================================================
-  t += `${cfg.header}\n`;
-  t += `     TICKET DE VENTA ${String(sale.type || '').toUpperCase()}\n`;
-  t += `${cfg.header}\n\n`;
-  t += `Folio: ${sale.id}\n`;
-  t += `Fecha: ${sale.date}   Hora: ${sale.time}\n`;
-  t += `Cajero: ${sale.nickname_user || '—'}\n\n`;
+  for (const texto of config.encabezado || []) agregar(centrar(texto, ancho));
+  for (const texto of config.subencabezado || []) agregar(centrar(texto, ancho));
+  agregar(doble);
+  agregar(centrar(`TICKET DE VENTA ${String(sale.type || '').toUpperCase()}`, ancho));
+  agregar(doble, '');
+  agregar(`Folio: ${sale.id}`);
+  const fechaHora = `Fecha: ${sale.date}   Hora: ${sale.time}`;
+  if (fechaHora.length <= ancho) agregar(fechaHora);
+  else agregar(`Fecha: ${sale.date}`, `Hora: ${sale.time}`);
+  agregar(partir(`Cajero: ${sale.nickname_user || '—'}`, ancho), '');
 
   // =====================================================
   // CLIENTE
   // =====================================================
   if (customer) {
     const clienteNombre = `${customer.first_name || ''} ${customer.last_name_paternal || ''} ${customer.last_name_maternal || ''}`.trim();
-    t += `Cliente: ${clienteNombre}\n`;
-    t += `Tel: ${customer.phone || '—'}\n\n`;
+    agregar(partir(`Cliente: ${clienteNombre}`, ancho));
+    agregar(`Tel: ${customer.phone || '—'}`, '');
   }
 
   // =====================================================
-  // PRODUCTOS
+  // PRODUCTOS: cantidad, artículo (recortado) e importe
   // =====================================================
-  t += `${cfg.separator}\n`;
-  t += `Cant ${'Artículo'.padEnd(nameWidth)} Importe\n`;
-  t += `${cfg.separator}\n`;
+  const anchoCant = ancho >= 48 ? 4 : 3;
+  const anchoImporte = ancho >= 48 ? 10 : 9; // con el $: hasta 999999.99 / 9999999.99
+  const anchoNombre = ancho - anchoCant - anchoImporte - 2;
 
+  agregar(separador);
+  agregar(`${(anchoCant >= 4 ? 'Cant' : 'Cnt').padEnd(anchoCant)} ${'Artículo'.padEnd(anchoNombre)} ${'Importe'.padStart(anchoImporte)}`);
+  agregar(separador);
   details.forEach((d) => {
-    const qty = String(Number(d.quantity || 1)).padStart(qtyWidth);
-    const name = String(d.articulo || 'ARTÍCULO').slice(0, nameWidth).padEnd(nameWidth);
-    const importe = Number(d.subtotal || 0).toFixed(2).padStart(amountWidth);
-
-    t += `${qty} ${name} $${importe}\n`;
+    const qty = String(Number(d.quantity || 1)).slice(0, anchoCant).padStart(anchoCant);
+    const name = String(d.articulo || 'ARTÍCULO').slice(0, anchoNombre).padEnd(anchoNombre);
+    const importe = `$${Number(d.subtotal || 0).toFixed(2)}`;
+    if (importe.length <= anchoImporte) agregar(`${qty} ${name} ${importe.padStart(anchoImporte)}`);
+    else agregar(`${qty} ${name.trimEnd()}`, importe.padStart(ancho)); // importe muy grande: renglón aparte
   });
 
   // =====================================================
-  // TOTALES - Función de alineación perfecta (usada en TODAS las líneas de cantidades)
+  // TOTALES
   // =====================================================
-  t += `${cfg.separator}\n`;
+  agregar(separador);
+  agregar(renglonMonto('Subtotal:', sale.subtotal, ancho));
+  agregar(renglonMonto('IVA 16%:', sale.tax_total, ancho));
+  agregar(renglonMonto('Total:', sale.total, ancho));
+  agregar('');
 
-  const printRightAligned = (label, value) => {
-    const valStr = Number(value).toFixed(2);
-    const paddedValue = valStr.padStart(amountWidth);
-    const spaces = ' '.repeat(lineWidth - label.length - paddedValue.length - 1); // -1 por el $
-    return `${label}${spaces}$${paddedValue}\n`;
-  };
-
-  t += printRightAligned('Subtotal:', sale.subtotal || 0);
-  t += printRightAligned('IVA 16%:', sale.tax_total || 0);
-  t += printRightAligned('Total:', sale.total || 0);
-  t += '\n';
-
-  // ANTICIPO: lo que realmente se pagó como anticipo (antes se imprimía el 30% del total)
-  // (apartado y crédito; en crédito puede ser 0)
+  // ANTICIPO: lo que realmente se pagó como anticipo (apartado y crédito; en crédito puede ser 0)
   if (sale.type === 'apartado' || sale.type === 'credito') {
     const anticipo = payments
       .filter((p) => p.payment_type === 'anticipo')
       .reduce((suma, p) => suma + Number(p.amount || 0), 0);
-    t += printRightAligned('ANTICIPO:', anticipo);
-    t += '\n';
+    agregar(renglonMonto('ANTICIPO:', anticipo, ancho), '');
   }
 
   // =====================================================
-  // PAGOS (se mantienen como antes, a la izquierda)
+  // PAGOS
   // =====================================================
-  t += 'Pagos:\n';
+  agregar('Pagos:');
   payments.forEach((p) => {
-    let metodo = p.method === 'efectivo' ? 'Efectivo'
+    const metodo = p.method === 'efectivo' ? 'Efectivo'
       : p.method === 'transferencia' ? 'Transferencia'
-      : `Tarjeta ${p.bank || ''}`.slice(0, 15);
-    metodo = metodo.padEnd(18);
-    const monto = Number(p.amount || 0).toFixed(2).padStart(amountWidth);
-    t += `- ${metodo} $${monto}\n`;
+      : `Tarjeta ${p.bank || ''}`.trim();
+    agregar(renglonMonto(`- ${metodo}`, p.amount, ancho));
   });
-  t += '\n';
+  agregar('');
 
-  // CIERRE - También alineados con la misma función
-  t += printRightAligned('Total pagado:', sale.paid || 0);
-  t += printRightAligned('Saldo pendiente:', sale.pending_balance || 0);
-  t += '\n';
+  agregar(renglonMonto('Total pagado:', sale.paid, ancho));
+  agregar(renglonMonto('Saldo pendiente:', sale.pending_balance, ancho));
+  agregar('');
 
   // Crédito (fiado): el cliente firma de recibido
   if (sale.type === 'credito') {
-    t += 'Firma del cliente:\n\n\n';
-    t += `${'_'.repeat(lineWidth)}\n\n`;
+    agregar('Firma del cliente:', '', '', '_'.repeat(ancho), '');
   }
-  t += '¡Gracias por su compra!\n';
-  t += `${cfg.header}\n`;
 
-  return t;
+  // =====================================================
+  // PIE
+  // =====================================================
+  agregar(centrar('¡Gracias por su compra!', ancho));
+  for (const texto of config.pie || []) agregar(centrar(texto, ancho));
+  agregar(doble);
+
+  return lineas.join('\n') + '\n';
 };

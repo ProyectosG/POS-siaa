@@ -3,6 +3,7 @@
 const { prisma } = require('../config/prisma');
 const Sale = require('../models/Sale');
 const Payment = require('../models/Payment');
+const { leerConfigTicket } = require('./ticketConfig');
 
 module.exports = async function buildTicketData(saleId) {
   const id = Number(saleId);
@@ -10,7 +11,7 @@ module.exports = async function buildTicketData(saleId) {
   if (!sale) throw Object.assign(new Error('Venta no encontrada'), { status: 404 });
 
   // Renglones con el nombre guardado al vender
-  const [details, payments, customer] = await Promise.all([
+  const [details, payments, customer, config] = await Promise.all([
     Sale.renglones(id),
     Payment.findBySaleId(id),
     sale.customer_id
@@ -19,7 +20,8 @@ module.exports = async function buildTicketData(saleId) {
           select: { first_name: true, last_name_paternal: true, last_name_maternal: true, phone: true },
         })
       : null,
+    leerConfigTicket(), // ancho y textos del negocio (Configuración)
   ]);
 
-  return { sale, details, payments, customer: customer || null };
+  return { sale, details, payments, customer: customer || null, config };
 };

@@ -1,7 +1,8 @@
 // src/controllers/ticket.controller.js
 const buildTicketData = require('../utils/buildTicketData');
 const buildTicketText = require('../utils/buildTicketText');
-const buildTicketTextCorte = require('../utils/buildTicketTextCorte'); // ← Importamos la versión que respeta TICKET_WIDTH
+const buildTicketTextCorte = require('../utils/buildTicketTextCorte');
+const { leerConfigTicket, sinAcentos } = require('../utils/ticketConfig');
 const cutController = require('./cutController');
 const Cut = require('../models/Cut');
 const { leerId } = require('../utils/peticion');
@@ -60,7 +61,8 @@ exports.printById = async (req, res) => {
           });
         }
 
-        ticketText.split('\n').forEach(line => printer.text(line));
+        // La impresora recibe el texto sin acentos (no los tiene); la vista previa los conserva
+        sinAcentos(ticketText).split('\n').forEach(line => printer.text(line));
         printer.cut().close();
 
         res.json({ message: 'Ticket impreso correctamente' });
@@ -113,7 +115,8 @@ function imprimirCorte(res, ticketText, mensajeImpreso) {
         return sinImpresora();
       }
 
-      ticketText.split('\n').forEach(line => printer.text(line));
+      // La impresora recibe el texto sin acentos (no los tiene); la vista previa los conserva
+        sinAcentos(ticketText).split('\n').forEach(line => printer.text(line));
       printer.cut().close();
       res.json({ message: mensajeImpreso });
     });
@@ -169,8 +172,9 @@ exports.printCorteCurrent = async (req, res) => {
       cashInBox: pagos.efectivo || 0,
     };
 
-    // Usamos la función de utils que respeta TICKET_WIDTH
-    imprimirCorte(res, buildTicketTextCorte(ticketData), `Corte ${tipo} impreso correctamente`);
+    // Ancho del ticket según Configuración (58 mm por omisión)
+    const { ancho } = await leerConfigTicket();
+    imprimirCorte(res, buildTicketTextCorte(ticketData, ancho), `Corte ${tipo} impreso correctamente`);
   } catch (err) {
     console.error('[ERROR BACKEND] Error al imprimir corte actual:', err);
     if (!res.headersSent) {
@@ -195,6 +199,7 @@ async function textoCorteGuardado(req) {
   }
   const ahora = ahoraNegocio();
   const monto = (v) => Number(v) || 0;
+  const { ancho } = await leerConfigTicket();
 
   return buildTicketTextCorte({
     type: `CORTE ${corte.type}`,
@@ -220,7 +225,7 @@ async function textoCorteGuardado(req) {
     otros: monto(corte.pago_otros),
     cashInBox: monto(corte.cash_in_box),
     reimpresion: { fecha: `${ahora.date} ${ahora.time.slice(0, 5)}`, usuario: req.user.nickname },
-  });
+  }, ancho);
 }
 
 /**
