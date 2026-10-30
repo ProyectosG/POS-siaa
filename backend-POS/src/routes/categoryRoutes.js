@@ -8,6 +8,7 @@ const soloGerente = requireLevel(NIVELES.GERENTE);
 router.get('/', categoryController.getAll);
 router.post('/', soloGerente, categoryController.create);
 router.put('/:id', soloGerente, categoryController.update);
+router.delete('/familia/:nombre', soloGerente, categoryController.deleteFamilia);
 router.delete('/:id', soloGerente, categoryController.delete);
 
 module.exports = router;
