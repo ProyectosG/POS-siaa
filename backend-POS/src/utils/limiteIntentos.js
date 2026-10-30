@@ -1,32 +1,51 @@
 // src/utils/limiteIntentos.js
-// Límite de intentos fallidos por llave (usuario, IP...), en memoria:
-// al llegar a `maximo` fallos se bloquea durante `bloqueoMs`.
-// Se reinicia si se reinicia el servidor.
+// Límite de intentos fallidos por llave (usuario, IP...): al llegar a `maximo`
+// fallos se bloquea durante `bloqueoMs`. Se guarda en la base (tabla
+// intentos_clave, migración 7), así que reiniciar el servidor no lo borra.
+// Cada limitador usa su `prefijo` para no mezclar llaves (login, caja...).
+const { prisma } = require('../config/prisma');
+const { ahoraUTC } = require('./fechas');
 
-function crearLimiteIntentos({ maximo = 5, bloqueoMs = 15 * 60 * 1000 } = {}) {
-  const registros = new Map(); // llave → { fallos, bloqueadoHasta }
+function crearLimiteIntentos({ prefijo, maximo = 5, bloqueoMs = 15 * 60 * 1000 }) {
+  if (!prefijo) throw new Error('crearLimiteIntentos necesita un prefijo');
+  const id = (llave) => `${prefijo}:${llave}`;
+  const bloqueadoHasta = (r) => (r && r.bloqueado_hasta ? Date.parse(r.bloqueado_hasta) : 0);
 
   return {
     // Minutos que faltan de bloqueo, o 0 si puede intentar
-    minutosBloqueado(llave) {
-      const r = registros.get(llave);
-      const resta = r ? r.bloqueadoHasta - Date.now() : 0;
+    async minutosBloqueado(llave) {
+      const r = await prisma.intentos_clave.findUnique({ where: { llave: id(llave) } });
+      const resta = bloqueadoHasta(r) - Date.now();
       return resta > 0 ? Math.ceil(resta / 60000) : 0;
     },
-    fallo(llave) {
-      const r = registros.get(llave) || { fallos: 0, bloqueadoHasta: 0 };
-      r.fallos += 1;
-      if (r.fallos >= maximo) {
-        r.fallos = 0;
-        r.bloqueadoHasta = Date.now() + bloqueoMs;
-      }
-      registros.set(llave, r);
+
+    async fallo(llave) {
+      const ahora = Date.now();
+      const r = await prisma.intentos_clave.findUnique({ where: { llave: id(llave) } });
+      // Los fallos viejos (más de bloqueoMs sin intentar) ya no cuentan
+      const vigente = r && r.updated_at && r.updated_at >= ahoraUTC(new Date(ahora - bloqueoMs));
+      const fallos = (vigente ? r.fallos : 0) + 1;
+      const datos = fallos >= maximo
+        ? { fallos: 0, bloqueado_hasta: new Date(ahora + bloqueoMs).toISOString(), updated_at: ahoraUTC() }
+        : { fallos, bloqueado_hasta: bloqueadoHasta(r) > ahora ? r.bloqueado_hasta : null, updated_at: ahoraUTC() };
+      await prisma.intentos_clave.upsert({ where: { llave: id(llave) }, create: { llave: id(llave), ...datos }, update: datos });
+
+      // Limpieza: registros sin bloqueo vigente y sin intentos recientes
+      await prisma.intentos_clave.deleteMany({
+        where: {
+          updated_at: { lt: ahoraUTC(new Date(ahora - bloqueoMs)) },
+          OR: [{ bloqueado_hasta: null }, { bloqueado_hasta: { lt: new Date(ahora).toISOString() } }],
+        },
+      });
     },
-    exito(llave) {
-      registros.delete(llave);
+
+    async exito(llave) {
+      await prisma.intentos_clave.deleteMany({ where: { llave: id(llave) } });
     },
-    limpiar() {
-      registros.clear();
+
+    // Solo para las pruebas: borra los registros de este limitador
+    async limpiar() {
+      await prisma.intentos_clave.deleteMany({ where: { llave: { startsWith: `${prefijo}:` } } });
     },
   };
 }

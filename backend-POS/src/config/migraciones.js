@@ -276,6 +276,21 @@ const MIGRACIONES = [
       );
     },
   },
+  {
+    version: 7,
+    nombre: 'intentos_clave',
+    async aplicar(tx) {
+      // Intentos fallidos de claves (login, caja, SuperDeveloper, precio libre).
+      // Antes vivían en memoria y se perdían al reiniciar el servidor.
+      // bloqueado_hasta es texto ISO en UTC (un Int de Prisma no alcanza para milisegundos).
+      await tx.run(`CREATE TABLE IF NOT EXISTS intentos_clave (
+        llave TEXT PRIMARY KEY NOT NULL,
+        fallos INTEGER NOT NULL DEFAULT 0,
+        bloqueado_hasta TEXT,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      )`);
+    },
+  },
 ];
 
 async function migrar() {

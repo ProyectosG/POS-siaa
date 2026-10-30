@@ -287,7 +287,7 @@ test('precio libre: requiere la clave, la autorización es solo para ese product
   // 5 claves equivocadas → bloqueado, aunque después mande la buena
   for (let i = 0; i < 5; i++) await validar({ clave: `mala-${i}` });
   assert.equal((await validar({ clave: '1234' })).status, 429);
-  require('../src/controllers/settings.controller')._limpiarIntentosClave();
+  await require('../src/controllers/settings.controller')._limpiarIntentosClave();
 });
 
 test('entrada con un producto inexistente: no queda nada a medias', async () => {
