@@ -16,6 +16,14 @@ const { zonaNegocio } = require('./src/utils/fechas');
 
 const app = express();
 
+// Detrás de un proxy (como Render) req.ip sería la del proxy y todos los visitantes
+// compartirían el límite de intentos de clave. TRUST_PROXY=1 toma la IP real del
+// encabezado X-Forwarded-For. Sin proxy NO se pone: ese encabezado lo inventa cualquiera.
+if (process.env.TRUST_PROXY) {
+  const saltos = Number(process.env.TRUST_PROXY);
+  app.set('trust proxy', Number.isInteger(saltos) ? saltos : process.env.TRUST_PROXY);
+}
+
 // Puerto
 const PORT = process.env.PORT || 5000;
 
