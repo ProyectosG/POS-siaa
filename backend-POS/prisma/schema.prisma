@@ -110,6 +110,19 @@ model cuts {
   last_ticket        Int?
   created_at         String?   @default(dbgenerated("CURRENT_TIMESTAMP"))
   last_payment_id    Int?
+  corte_general_id   Int?
+
+  @@index([corte_general_id], map: "idx_cuts_corte_general")
+}
+
+// Migración 8: qué cortes individuales incluyó cada corte general (XG, ZG)
+model corte_general_cortes {
+  id         Int @id @default(autoincrement())
+  general_id Int
+  corte_id   Int
+
+  @@unique([general_id, corte_id], map: "sqlite_autoindex_corte_general_cortes_1")
+  @@index([corte_id], map: "idx_corte_general_cortes_corte")
 }
 
 model entries {
@@ -206,7 +219,10 @@ model payments {
   last4        String?
   reference    String?
   date         String
+  caja         String?
   sales        sales   @relation(fields: [sale_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([caja], map: "idx_payments_caja")
 }
 
 model products {
@@ -274,10 +290,13 @@ model sales {
   efectivo_recibido        Float?                     @default(0)
   cambio                   Float?                     @default(0)
   created_at               String?                    @default(dbgenerated("CURRENT_TIMESTAMP"))
+  caja                     String?
   customer_balance_history customer_balance_history[]
   payments                 payments[]
   sale_details             sale_details[]
   customers                customers?                 @relation(fields: [customer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([caja], map: "idx_sales_caja")
 }
 
 model settings {

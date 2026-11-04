@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const saleController = require('../controllers/sale.controller');
-const { requireLevel, NIVELES } = require('../middleware/auth');
+const { requireLevel, requireCaja, NIVELES } = require('../middleware/auth');
 
 // Lista completa de ventas (reporte): Gerente o superior
 router.get('/', requireLevel(NIVELES.GERENTE), saleController.getAll);
@@ -12,6 +12,7 @@ router.get('/range', saleController.getTicketRange);
 // ❗ AL FINAL las rutas dinámicas
 router.get('/:id', saleController.getById);
 
-router.post('/', saleController.create);
+// Cobrar exige una caja abierta (X-Caja-Token)
+router.post('/', requireCaja, saleController.create);
 
 module.exports = router;

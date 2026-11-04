@@ -22,6 +22,7 @@ class Sale {
         status: data.status,
         id_user: data.id_user,
         nickname_user: data.nickname_user,
+        caja: data.caja ?? null,
       },
       select: { id: true },
     });

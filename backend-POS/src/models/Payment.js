@@ -7,7 +7,7 @@ const METODOS = ['efectivo', 'tarjeta', 'transferencia'];
 
 class Payment {
   // Va DENTRO de una transacción (tx de Prisma); amount en centavos y date del servidor
-  static async crear(tx, { sale_id, method, amount, payment_type = 'normal', bank, last4, reference, date }) {
+  static async crear(tx, { sale_id, method, amount, payment_type = 'normal', bank, last4, reference, date, caja }) {
     const pago = await tx.payments.create({
       data: {
         sale_id,
@@ -18,6 +18,7 @@ class Payment {
         last4: last4 == null ? null : String(last4),
         reference: reference == null ? null : String(reference),
         date,
+        caja: caja ?? null,
       },
       select: { id: true },
     });
@@ -28,7 +29,7 @@ class Payment {
   static async crearVarios(tx, pagos) {
     if (pagos.length === 0) return;
     await tx.payments.createMany({
-      data: pagos.map(({ sale_id, method, amount, payment_type = 'normal', bank, last4, reference, date }) => ({
+      data: pagos.map(({ sale_id, method, amount, payment_type = 'normal', bank, last4, reference, date, caja }) => ({
         sale_id,
         method,
         amount,
@@ -37,6 +38,7 @@ class Payment {
         last4: last4 == null ? null : String(last4),
         reference: reference == null ? null : String(reference),
         date,
+        caja: caja ?? null,
       })),
     });
   }

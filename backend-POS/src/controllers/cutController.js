@@ -5,85 +5,14 @@ const { aPesos, camposAPesos, filaAPesos } = require('../utils/dinero');
 const { ahoraNegocio } = require('../utils/fechas');
 const { responderError } = require('../utils/idempotencia');
 const { leerId } = require('../utils/peticion');
+const { tieneNivel, NIVELES } = require('../middleware/auth');
+const { calcularCorte, columnasDeCorte } = require('../utils/cortes');
+const { TIPO_GENERAL, armarGeneral, respuestaGeneral, esGeneral } = require('../utils/corteGeneral');
 
 const CAMPOS_VENTAS = ['total_ventas_monto', 'ventas_contado', 'ventas_credito', 'ventas_apartado', 'total_iva_gravado'];
 
-/**
- * Calcula un corte en CENTAVOS. El X va desde el último corte (X o Z); el Z desde
- * el último Z.
- *
- * Ventas y cobros llevan cada uno su rango:
- * - Ventas: los tickets después del último que cubrió el corte anterior.
- * - Cobros: los pagos después del último que cubrió el corte anterior, sin importar
- *   de qué venta son. Así un abono de hoy a un apartado viejo entra en el corte de hoy.
- */
-async function calcularCorte(c, tipo) {
-  // c es el cliente de Prisma (GET) o el tx de una transacción (al guardar)
-  const ultimo = await c.cuts.findFirst({ where: tipo === 'Z' ? { type: 'Z' } : {}, orderBy: { id: 'desc' } });
-
-  const ultimoTicket = ultimo?.last_ticket ?? 0;
-  const ultimoPago = ultimo?.last_payment_id ?? 0;
-  const maxTicket = (await c.sales.aggregate({ _max: { id: true } }))._max.id ?? 0;
-  const maxPago = (await c.payments.aggregate({ _max: { id: true } }))._max.id ?? 0;
-
-  const hayVentas = maxTicket > ultimoTicket;
-  const hayCobros = maxPago > ultimoPago;
-
-  if (!hayVentas && !hayCobros) {
-    return { ultimo, vacio: true };
-  }
-
-  // Sin ventas nuevas el rango de tickets queda vacío (desde > hasta), pero se conserva
-  // hasta dónde se cubrió para que el siguiente corte no repita tickets
-  const desde = ultimoTicket + 1;
-  const hasta = maxTicket;
-
-  // Ventas del rango: conteo, total, IVA y total por tipo
-  const enRangoVentas = { id: { gte: desde, lte: hasta } };
-  const totales = await c.sales.aggregate({
-    where: enRangoVentas,
-    _count: { _all: true },
-    _sum: { total: true, tax_total: true },
-  });
-  const porTipo = await c.sales.groupBy({ by: ['type'], where: enRangoVentas, _sum: { total: true } });
-  const totalDeTipo = (t) => porTipo.find((r) => r.type === t)?._sum.total ?? 0;
-
-  const ventas = {
-    total_ventas: totales._count._all,
-    total_ventas_monto: totales._sum.total ?? 0,
-    ventas_contado: totalDeTipo('contado'),
-    ventas_credito: totalDeTipo('credito'),
-    ventas_apartado: totalDeTipo('apartado'),
-    total_iva_gravado: totales._sum.tax_total ?? 0,
-  };
-
-  // Cobros del rango: por tipo de pago y por forma de pago
-  const enRangoPagos = { id: { gt: ultimoPago, lte: maxPago } };
-  const porTipoPago = await c.payments.groupBy({ by: ['payment_type'], where: enRangoPagos, _sum: { amount: true } });
-  const cobradoDe = (t) => porTipoPago.find((r) => r.payment_type === t)?._sum.amount ?? 0;
-  const porMetodo = await c.payments.groupBy({ by: ['method'], where: enRangoPagos, _sum: { amount: true } });
-  const pagos = Object.fromEntries(porMetodo.map((r) => [r.method, r._sum.amount ?? 0]));
-
-  const total_anticipos = cobradoDe('anticipo');
-  const total_abonos = cobradoDe('abono');
-
-  return {
-    ultimo,
-    vacio: false,
-    hayVentas,
-    desde,
-    hasta,
-    ultimoPago: maxPago,
-    ventas,
-    pagos,
-    total_anticipos,
-    total_abonos,
-    total_recibido: total_anticipos + total_abonos + cobradoDe('normal'),
-  };
-}
-
 // Respuesta del corte en curso (en pesos), igual que antes para el frontend
-function respuestaCorte(corte, tipo) {
+function respuestaCorte(corte, tipo, caja) {
   const ultimo_corte = filaAPesos(corte.ultimo, 'cuts') || null;
 
   if (corte.vacio) {
@@ -96,6 +25,7 @@ function respuestaCorte(corte, tipo) {
       ticketRange: { first_ticket: null, last_ticket: null },
       ultimo_corte,
       tipo,
+      caja,
     };
   }
 
@@ -114,15 +44,19 @@ function respuestaCorte(corte, tipo) {
     hay_movimientos: true,
     ultimo_corte,
     tipo,
+    caja,
   };
 }
 
+// Corte en curso de la caja del token (X o Z), para la pantalla y para imprimir
+exports.corteEnCurso = async (tipo, caja) => respuestaCorte(await calcularCorte(prisma, tipo, caja), tipo, caja);
+
 /**
- * GET /api/cuts/current → Corte X actual
+ * GET /api/cuts/current → Corte X actual de la caja del token
  */
 exports.getCurrentCorte = async (req, res) => {
   try {
-    res.json(respuestaCorte(await calcularCorte(prisma, 'X'), 'X'));
+    res.json(await exports.corteEnCurso('X', req.caja.numero));
   } catch (err) {
     console.error('❌ Error Corte X:', err);
     res.status(500).json({ error: 'Error al calcular corte X' });
@@ -130,11 +64,11 @@ exports.getCurrentCorte = async (req, res) => {
 };
 
 /**
- * GET /api/cuts/current-z → Corte Z actual
+ * GET /api/cuts/current-z → Corte Z actual de la caja del token
  */
 exports.getCurrentCorteZ = async (req, res) => {
   try {
-    res.json(respuestaCorte(await calcularCorte(prisma, 'Z'), 'Z'));
+    res.json(await exports.corteEnCurso('Z', req.caja.numero));
   } catch (err) {
     console.error('❌ Error Corte Z:', err);
     res.status(500).json({ error: 'Error al calcular corte Z' });
@@ -142,55 +76,40 @@ exports.getCurrentCorteZ = async (req, res) => {
 };
 
 /**
- * POST /api/cuts → Crear corte X o Z
+ * POST /api/cuts → Crear corte X o Z de la caja del token.
  * El servidor calcula todos los montos y el rango de tickets en el momento de
- * guardar; del cuerpo solo se toman el tipo y la caja.
+ * guardar; del cuerpo solo se toma el tipo. La caja sale del token.
  */
 exports.createCorte = async (req, res) => {
-  const { type, cash_register } = req.body;
+  const type = String(req.body.type).toUpperCase();
+  const caja = req.caja.numero;
 
   try {
     const resultado = await enTransaccion(async (tx) => {
-      const corte = await calcularCorte(tx, type);
+      const corte = await calcularCorte(tx, type, caja);
       if (corte.vacio) throw new ErrorNegocio(400, 'No hay ventas ni cobros nuevos para este corte');
 
       const { date } = ahoraNegocio();
-      const p = corte.pagos;
-      const otros = Object.entries(p)
-        .filter(([m]) => !['efectivo', 'tarjeta', 'transferencia'].includes(m))
-        .reduce((suma, [, v]) => suma + v, 0);
-
       const id = await Cut.crear(tx, {
         type,
         date,
         desde: corte.hayVentas ? String(corte.desde) : '-',
         hasta: corte.hayVentas ? String(corte.hasta) : '-',
-        cash_register: cash_register || null,
+        cash_register: caja,
         user_nickname: req.user.nickname, // el usuario del corte sale del token
-        total_sales: corte.ventas.total_ventas_monto,
-        ventas_contado: corte.ventas.ventas_contado,
-        ventas_credito: corte.ventas.ventas_credito,
-        ventas_apartado: corte.ventas.ventas_apartado,
-        total_iva_gravado: corte.ventas.total_iva_gravado,
-        total_recibido: corte.total_recibido,
-        total_anticipos: corte.total_anticipos,
-        total_abonos: corte.total_abonos,
-        pago_efectivo: p.efectivo || 0,
-        pago_tarjeta: p.tarjeta || 0,
-        pago_transferencia: p.transferencia || 0,
-        pago_otros: otros,
-        cash_in_box: p.efectivo || 0,
+        ...columnasDeCorte(corte),
         // Sin ventas nuevas no hay primer ticket, pero last_ticket conserva hasta dónde se cubrió
-        first_ticket: corte.hayVentas ? corte.desde : null,
+        first_ticket: corte.desde,
         last_ticket: corte.hasta,
         last_payment_id: corte.ultimoPago,
       });
 
-      return { id, first_ticket: corte.hayVentas ? corte.desde : null, last_ticket: corte.hasta };
+      return { id, first_ticket: corte.desde, last_ticket: corte.hasta };
     });
 
     res.status(201).json({
       ...resultado,
+      caja,
       message: type === 'Z' ? '¡Corte Z registrado correctamente!' : 'Corte X registrado correctamente'
     });
   } catch (err) {
@@ -198,17 +117,113 @@ exports.createCorte = async (req, res) => {
   }
 };
 
+// Lee ?tipo= o { type }: X o Z (también XG y ZG). Si no, null.
+function tipoGeneral(valor) {
+  const t = String(valor || '').toUpperCase().replace(/G$/, '');
+  return TIPO_GENERAL[t] ? t : null;
+}
+exports.tipoGeneral = tipoGeneral;
+
 /**
- * GET /api/cuts → Listar todos los cortes (con filtros opcionales)
+ * GET /api/cuts/general/current?tipo=X|Z → general en curso (solo Administrador)
+ */
+exports.getGeneralActual = async (req, res) => {
+  const tipo = tipoGeneral(req.query.tipo);
+  if (!tipo) return res.status(400).json({ error: 'tipo debe ser X o Z' });
+  try {
+    res.json(respuestaGeneral(await armarGeneral(prisma, tipo)));
+  } catch (err) {
+    responderError(res, err, 'Error al calcular el corte general');
+  }
+};
+
+/**
+ * POST /api/cuts/general { type } → guarda un XG o un ZG (solo Administrador).
+ * ZG: consolida los Z sin consolidar, en una transacción: ninguno entra en dos, y si
+ * algún monto no cuadra contra ventas y pagos deshace todo y responde 409.
+ * XG: es una foto que se puede repetir; no marca nada ni mueve el conteo de las cajas.
+ */
+exports.createGeneral = async (req, res) => {
+  const tipo = tipoGeneral(req.body && req.body.type);
+  if (!tipo) return res.status(400).json({ error: 'type debe ser X o Z' });
+
+  try {
+    const resultado = await enTransaccion(async (tx) => {
+      const g = await armarGeneral(tx, tipo);
+
+      if (g.incluidos.length === 0) {
+        throw new ErrorNegocio(400, tipo === 'Z'
+          ? 'No hay cortes Z de caja por consolidar'
+          : 'No hay cortes de caja para incluir');
+      }
+      if (tipo === 'Z' && !g.cuadra) {
+        throw new ErrorNegocio(409, 'El corte general no cuadra contra las ventas y los pagos; no se guardó nada', {
+          cuadra: false,
+          diferencia_centavos: g.diferencia_centavos,
+          diferencias: g.diferencias,
+        });
+      }
+
+      const { date } = ahoraNegocio();
+      const id = await Cut.crear(tx, {
+        type: TIPO_GENERAL[tipo],
+        date,
+        desde: '-',
+        hasta: '-',
+        cash_register: null,
+        user_nickname: req.user.nickname,
+        ...g.columnas,
+        first_ticket: null,
+        last_ticket: null,
+        last_payment_id: null,
+      });
+
+      const ids = g.incluidos.map((k) => k.id);
+      await tx.corte_general_cortes.createMany({ data: ids.map((corte_id) => ({ general_id: id, corte_id })) });
+
+      if (tipo === 'Z') {
+        const { count } = await tx.cuts.updateMany({
+          where: { id: { in: ids }, corte_general_id: null },
+          data: { corte_general_id: id },
+        });
+        if (count !== ids.length) throw new ErrorNegocio(409, 'Otro corte general tomó estos cortes; vuelve a intentarlo');
+      }
+
+      return { id, tipo: TIPO_GENERAL[tipo], incluidos: ids.length, cuadra: g.cuadra, diferencia_centavos: g.diferencia_centavos };
+    });
+
+    res.status(201).json({ ...resultado, message: `Corte ${tipo} General registrado correctamente` });
+  } catch (err) {
+    responderError(res, err, 'Error al guardar el corte general');
+  }
+};
+
+/**
+ * GET /api/cuts → Listar los cortes (con filtros opcionales). Los generales solo
+ * los ve el Administrador.
  */
 exports.getAllCuts = async (req, res) => {
   try {
     const { type, fromDate, toDate } = req.query;
-    const cuts = await Cut.findAll({ type, fromDate, toDate });
-    res.json(cuts);
+    const sinGenerales = !tieneNivel(req.user, NIVELES.ADMIN);
+    res.json(await Cut.findAll({ type, fromDate, toDate, sinGenerales }));
   } catch (err) {
     console.error('❌ Error al obtener lista de cortes:', err);
     res.status(500).json({ error: 'Error al obtener los cortes' });
+  }
+};
+
+// Middleware de /:id, /:id/text y /:id/print: un general solo lo consulta el Administrador
+exports.protegerGeneral = async (req, res, next) => {
+  try {
+    const id = leerId(req);
+    const corte = id && (await prisma.cuts.findUnique({ where: { id }, select: { type: true } }));
+    if (esGeneral(corte) && !tieneNivel(req.user, NIVELES.ADMIN)) {
+      return res.status(403).json({ error: 'No tienes permiso para esta acción' });
+    }
+    next();
+  } catch (err) {
+    responderError(res, err, 'Error al revisar el corte');
   }
 };
 

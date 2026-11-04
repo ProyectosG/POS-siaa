@@ -74,6 +74,8 @@ exports.create = async (req, res) => {
 
   // El usuario de la venta sale del token, nunca del cuerpo de la petición
   const { id: id_user, nickname: nickname_user } = req.user;
+  // La caja sale del token de caja, nunca del cuerpo
+  const caja = req.caja.numero;
 
   try {
     const { status, body } = await operacionIdempotente(req, 'POST /sales', async (tx) => {
@@ -143,6 +145,7 @@ exports.create = async (req, res) => {
         status: pendiente > 0 ? 'pending' : 'completed',
         id_user,
         nickname_user,
+        caja,
       });
 
       // Stock: el que calcularVenta leyó DENTRO de esta transacción (dos ventas
@@ -185,6 +188,7 @@ exports.create = async (req, res) => {
         sale_id: saleId,
         payment_type: type === 'contado' ? 'normal' : 'anticipo',
         date,
+        caja,
       })));
 
       // 5. Saldo del cliente: sube por lo que queda pendiente

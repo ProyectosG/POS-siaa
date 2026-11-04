@@ -2,6 +2,7 @@ const CashRegister = require('../models/CashRegister');
 const { hashear, comparar } = require('../utils/seguridad');
 const { leerId, esDuplicado } = require('../utils/peticion');
 const { crearLimiteIntentos } = require('../utils/limiteIntentos');
+const { firmarTokenCaja } = require('../middleware/auth');
 
 const CAJA_REPETIDA = 'Ya existe una caja con ese número';
 
@@ -85,6 +86,8 @@ exports.abrirCaja = async (req, res) => {
       tipo_caja: register.tipo_caja,
       estado: 'ABIERTA',
       abierta_en: new Date().toISOString(),
+      // El servidor saca la caja de este token (X-Caja-Token), no de lo que mande el navegador
+      caja_token: firmarTokenCaja(register, req.user),
     });
 
   } catch (err) {
@@ -133,6 +136,14 @@ exports.update = async (req, res) => {
       return res.status(400).json({ error: 'numero_caja no puede quedar vacío' });
     }
 
+    // Ventas, pagos y cortes guardan el número: con movimientos ya no puede cambiar
+    if (numero_caja !== undefined) {
+      const actual = await CashRegister.findById(id);
+      if (actual && actual.numero_caja !== String(numero_caja) && (await CashRegister.tieneMovimientos(actual.numero_caja))) {
+        return res.status(409).json({ error: 'La caja ya tiene movimientos: no se puede cambiar su número' });
+      }
+    }
+
     const existe = await CashRegister.update(id, {
       numero_caja: numero_caja === undefined ? undefined : String(numero_caja),
       tipo_caja,
@@ -152,6 +163,11 @@ exports.delete = async (req, res) => {
   try {
     const id = leerId(req);
     if (!id) return res.status(400).json({ error: 'id inválido' });
+
+    const actual = await CashRegister.findById(id);
+    if (actual && (await CashRegister.tieneMovimientos(actual.numero_caja))) {
+      return res.status(409).json({ error: 'La caja ya tiene movimientos: no se puede borrar' });
+    }
 
     const existe = await CashRegister.delete(id);
     if (!existe) return res.status(404).json({ error: 'Caja no encontrada' });
