@@ -321,6 +321,12 @@ model settings {
   card_payment_max_reprints Int?      @default(1)
   created_at                String?   @default(dbgenerated("CURRENT_TIMESTAMP"))
   updated_at                String?   @default(dbgenerated("CURRENT_TIMESTAMP"))
+  respaldo_auto             Int?      @default(0)
+  respaldo_periodo          String?   @default("diario")
+  respaldo_ultimo_fecha     String?
+  respaldo_ultimo_nombre    String?
+  respaldo_ultimo_bytes     Int?
+  respaldo_ultimo_error     String?
 }
 
 model users {

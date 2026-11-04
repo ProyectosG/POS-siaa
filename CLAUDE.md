@@ -77,6 +77,15 @@ Punto de venta independiente. Backend en `backend-POS/` (Express 5 + Prisma 7 so
 - **Pruebas**: en `test/helpers.js`, `api()` usa la caja 1 en las rutas que la piden; `caja: token` usa otra y `caja: null` manda sin ella. `abrirCaja`, `sembrarCajas`, `crearProducto`, `vender` y `abonar` arman los escenarios.
 - **Demo**: 3 cajas con clave `demo`; cada día pasado lleva un Z por caja con movimientos y un Corte Z General.
 
+## Respaldo automático: cómo funciona hoy (rama `respaldo-automatico`, migración 9)
+
+- **Configuración → Respaldo automático** (solo Administrador; en la demo no se muestra): interruptor `settings.respaldo_auto` (nace apagado) y `respaldo_periodo` (`diario` o `semanal`), en `CAMPOS_EDITABLES` y validados. Los `respaldo_ultimo_*` (fecha, nombre, bytes, error) los escribe el servidor y `GET /settings` los quita a quien no es Administrador.
+- **Cuándo** (`utils/respaldoAuto.js`): al confirmar un Z de caja o un Z General, DESPUÉS de su transacción (`VACUUM INTO` no corre dentro de una). Un X General no respalda. Los respaldos van en fila dentro del proceso: varios Z a la vez no se pisan.
+- **Archivos**: uno por periodo, que se reemplaza con cada Z: `pos_auto_diario_AAAA-MM-DD.db` y `pos_auto_semanal_AAAA-MM-DD.db` (el lunes de la semana, en `TZ_NEGOCIO`). Se escribe a un temporal, se verifica (`copiarVerificada` de `utils/respaldos.js`) y luego se reemplaza: una copia dañada nunca borra la buena. Limpieza: 30 diarios y 12 semanales; los `pos_respaldo_*`, `pos_antes_*` y `pos_backup_*` no se tocan.
+- **Si falla, el Z NO se deshace**: la respuesta trae `respaldo: { ok: false, error }` (sin rutas del servidor), `CorteZ` avisa en ámbar y queda en `respaldo_ultimo_error` hasta el siguiente que salga bien. Apagado o en la demo, la respuesta no trae `respaldo`.
+- **Lista y descarga**: `GET /api/settings/respaldos` y `/respaldos/:nombre`, solo Administrador y SuperDeveloper (traen datos sensibles). Solo nombres de respaldo automático. Bloqueadas en la demo.
+- **Restaurar**: sin pantalla, a propósito. Pasos en `docs/RESTAURAR-RESPALDO.md` (local probado de verdad, también en `test/respaldo-automatico.test.js`; Render no se pudo probar). El respaldo vive en el mismo disco que la base: no protege contra una falla del disco. En Render, `DB_PATH` y `BACKUP_DIR` deben estar en un disco persistente. El Blueprint de la demo no cambia.
+
 ## Diseño del frontend: cómo funciona hoy (rama `responsive-estetica`)
 
 - **Recuadro de los cortes**: clase `superficie-corte` de `globals.css` (tokens `--superficie-corte` y `--sombra-corte`, también en tema oscuro). Las tarjetas de adentro siguen con `bg-card`.

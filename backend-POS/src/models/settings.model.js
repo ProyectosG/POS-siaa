@@ -14,14 +14,23 @@ const CAMPOS_EDITABLES = [
   'allow_discounts', 'max_discount_without_auth', 'allow_negative_balance',
   'customer_form_mode',
   'card_payment_max_reprints',
+  'respaldo_auto', 'respaldo_periodo',
 ];
 
 // Tipo de cada campo en la base: SQLite aceptaba texto en columnas numéricas,
 // Prisma no. Se convierte igual que lo guardaba SQLite.
-const CAMPOS_ENTEROS = ['ticket_width', 'auto_print_ticket', 'allow_discounts', 'allow_negative_balance', 'card_payment_max_reprints'];
+const CAMPOS_ENTEROS = ['ticket_width', 'auto_print_ticket', 'allow_discounts', 'allow_negative_balance', 'card_payment_max_reprints', 'respaldo_auto'];
 const CAMPOS_DECIMALES = ['max_discount_without_auth'];
 
+// Valores permitidos del respaldo automático
+const VALIDOS = { respaldo_auto: [0, 1], respaldo_periodo: ['diario', 'semanal'] };
+
 function convertir(campo, valor) {
+  if (VALIDOS[campo]) {
+    const v = campo === 'respaldo_auto' && typeof valor === 'boolean' ? Number(valor) : campo === 'respaldo_auto' ? Number(valor) : valor;
+    if (!VALIDOS[campo].includes(v)) throw new ErrorCampo(campo);
+    return v;
+  }
   if (valor === null) return null;
   if (CAMPOS_ENTEROS.includes(campo)) {
     if (typeof valor === 'boolean') return valor ? 1 : 0;

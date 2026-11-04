@@ -3,10 +3,21 @@ const { hashear, comparar } = require('../utils/seguridad');
 const { aCentavos } = require('../utils/dinero');
 const { crearLimiteIntentos } = require('../utils/limiteIntentos');
 const { firmarAutorizacionPrecio } = require('../utils/precios');
+const { tieneNivel, NIVELES } = require('../middleware/auth');
+const respaldoAuto = require('../utils/respaldoAuto');
+const { dirRespaldos } = require('../utils/respaldos');
+const fs = require('fs');
+const path = require('path');
 
 exports.getSettings = async (req, res) => {
   try {
     const settings = await Settings.get();
+    // El resultado del último respaldo es solo para quien administra los respaldos
+    if (settings && !tieneNivel(req.user, NIVELES.ADMIN)) {
+      for (const campo of ['respaldo_ultimo_fecha', 'respaldo_ultimo_nombre', 'respaldo_ultimo_bytes', 'respaldo_ultimo_error']) {
+        delete settings[campo];
+      }
+    }
     res.json(settings);
   } catch (error) {
     console.error('Error al obtener settings:', error);
@@ -35,6 +46,27 @@ exports.updateSettings = async (req, res) => {
     console.error('Error al actualizar settings:', error);
     res.status(500).json({ error: 'Error al actualizar configuración' });
   }
+};
+
+// GET /api/settings/respaldos: respaldos automáticos, del más reciente al más viejo
+exports.listarRespaldos = (req, res) => {
+  try {
+    res.json(respaldoAuto.listar());
+  } catch (error) {
+    console.error('Error al listar respaldos:', error);
+    res.status(500).json({ error: 'No se pudo leer la lista de respaldos' });
+  }
+};
+
+// GET /api/settings/respaldos/:nombre: descarga uno. Solo nombres de respaldo
+// automático: ni otros archivos ni rutas.
+exports.descargarRespaldo = (req, res) => {
+  const { nombre } = req.params;
+  const archivo = respaldoAuto.esNombreValido(nombre) ? path.join(dirRespaldos(), nombre) : null;
+  if (!archivo || !fs.existsSync(archivo)) return res.status(404).json({ error: 'Respaldo no encontrado' });
+  res.download(archivo, nombre, (err) => {
+    if (err && !res.headersSent) res.status(500).json({ error: 'No se pudo enviar el respaldo' });
+  });
 };
 
 // 5 claves equivocadas por usuario → 15 minutos sin poder intentar

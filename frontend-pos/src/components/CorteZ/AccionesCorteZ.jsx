@@ -18,6 +18,7 @@ export default function AccionesCorteZ({
   last,
   fetchCorte,
   general = false,
+  setAvisoRespaldo,
 }) {
   const [verTicket, setVerTicket] = useState(false);
 
@@ -40,6 +41,9 @@ export default function AccionesCorteZ({
       }
 
       toast.success(general ? "¡Corte Z General registrado!" : "¡Corte Z registrado con éxito! 🎉");
+      // El corte ya quedó: un respaldo fallido solo se avisa
+      const { respaldo } = await res.json().catch(() => ({}));
+      setAvisoRespaldo?.(respaldo && !respaldo.ok ? respaldo.error || "Error desconocido" : null);
       setCorteConfirmado(true);
       fetchCorte();
     } catch (err) {
