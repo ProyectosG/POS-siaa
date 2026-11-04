@@ -124,12 +124,33 @@ function limpiarCorridasViejas() {
   }
 }
 
+// Rutas que necesitan caja: si la prueba no dice otra cosa, usan la caja 1
+const RUTAS_CON_CAJA = /^\/api\/(sales\/?$|apartados\/abono|cuts\/?$|cuts\/(current|current-z|print\/current)(\?|$))/;
+
+// Token de caja por token de sesión (se abre una vez)
+const cajasAbiertas = new Map();
+
+// Abre una caja con su clave ('caja' + número) y devuelve el token de caja
+async function abrirCaja(token, numero = '1') {
+  const llave = `${token}|${numero}`;
+  if (cajasAbiertas.has(llave)) return cajasAbiertas.get(llave);
+  const { status, data } = await api('POST', '/api/cash-registers/abrir', {
+    token, caja: null, body: { numero_caja: numero, password: `caja${numero}` },
+  });
+  if (status !== 200) return null;
+  cajasAbiertas.set(llave, data.caja_token);
+  return data.caja_token;
+}
+
 // Petición al API; token opcional. Los POST llevan un Idempotency-Key nuevo,
 // salvo que la prueba pase uno (clave) para repetir la misma operación, o
-// clave: null para mandarlo sin él.
-async function api(metodo, ruta, { token, body, clave } = {}) {
+// clave: null para mandarlo sin él. caja: token de caja; sin decirlo, las rutas
+// que la piden usan la caja 1; caja: null para mandarlas sin ella.
+async function api(metodo, ruta, { token, body, clave, caja } = {}) {
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers.Authorization = `Bearer ${token}`;
+  const cajaToken = caja === undefined && token && RUTAS_CON_CAJA.test(ruta) ? await abrirCaja(token) : caja;
+  if (cajaToken) headers['X-Caja-Token'] = cajaToken;
   if (metodo === 'POST' && clave !== null) headers['Idempotency-Key'] = clave || crypto.randomUUID();
   const res = await fetch(`${baseUrl}${ruta}`, {
     method: metodo,
@@ -153,6 +174,63 @@ async function login(nombre) {
 const dbGet = (db, sql, params = []) =>
   new Promise((resolve, reject) => db.get(sql, params, (err, row) => (err ? reject(err) : resolve(row))));
 
+const centavos = (pesos) => Math.round(pesos * 100);
+
+// Da de alta las cajas 2 y 3 (la 1 ya viene en la base de prueba), con clave 'caja' + número
+async function sembrarCajas(tokenGerente, numeros = ['2', '3']) {
+  for (const n of numeros) {
+    const r = await api('POST', '/api/cash-registers', { token: tokenGerente, body: { numero_caja: n, password: `caja${n}` } });
+    if (r.status !== 201) throw new Error(`No se creó la caja ${n}: ${JSON.stringify(r.data)}`);
+  }
+}
+
+let consecutivoProducto = 0;
+
+// Producto con precio de menudeo (pesos), IVA opcional y stock surtido con una entrada
+async function crearProducto(tokenAdmin, { precio, iva = false, stock = 100 }) {
+  consecutivoProducto += 1;
+  const cat = await api('POST', '/api/categories', { token: tokenAdmin, body: { family: 'Pruebas', subfamily: `S${consecutivoProducto}` } });
+  const r = await api('POST', '/api/products', {
+    token: tokenAdmin,
+    body: { articulo: `PRODUCTO ${consecutivoProducto}`, presentacion: 'pz', unidad_medida: 'PZ', precio_menudeo: precio, iva: iva ? 16 : null, category_id: cat.data.id },
+  });
+  if (r.status !== 201) throw new Error(`No se creó el producto: ${JSON.stringify(r.data)}`);
+  if (stock > 0) {
+    const e = await api('POST', '/api/entries', {
+      token: tokenAdmin,
+      body: { entry_type: 'ENTRADA', movement_reason: 'COMPRA_PROVEEDOR', comments: 'prueba', items: [{ product_id: r.data.id, quantity: stock }] },
+    });
+    if (e.status >= 300) throw new Error(`No se surtió: ${JSON.stringify(e.data)}`);
+  }
+  return r.data.id;
+}
+
+// Venta de contado de 1 pieza por total (pesos) en esa caja. pagos: forma de pago
+// (por omisión efectivo). Devuelve el id de la venta.
+async function vender(token, caja, producto, total, extra = {}, pagos) {
+  const r = await api('POST', '/api/sales', {
+    token,
+    caja,
+    body: {
+      type: 'contado',
+      details: [{ product_id: producto, quantity: 1, tipo_precio: 'menudeo' }],
+      payments: pagos || [{ method: 'efectivo', amount: total }],
+      total_esperado: total,
+      ...extra,
+    },
+  });
+  if (r.status !== 201) throw new Error(`Venta falló: ${r.status} ${JSON.stringify(r.data)}`);
+  return r.data.id;
+}
+
+async function abonar(token, caja, sale_id, customer_id, monto, method = 'efectivo') {
+  const r = await api('POST', '/api/apartados/abono', {
+    token, caja, body: { sale_id, customer_id, amount: monto, pagos: [{ method, amount: monto }] },
+  });
+  if (r.status !== 200) throw new Error(`Abono falló: ${r.status} ${JSON.stringify(r.data)}`);
+  return r.data;
+}
+
 configurarEntorno();
 
-module.exports = { USUARIOS, iniciar, detener, api, login, dbGet };
+module.exports = { USUARIOS, iniciar, detener, api, login, dbGet, abrirCaja, sembrarCajas, crearProducto, vender, abonar, centavos };
