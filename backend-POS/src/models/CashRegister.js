@@ -20,6 +20,16 @@ class CashRegister {
     return prisma.cash_registers.findUnique({ where: { numero_caja: String(numero_caja) } });
   }
 
+  // ¿Alguna venta, pago o corte quedó con este número de caja?
+  static async tieneMovimientos(numero_caja) {
+    const [ventas, pagos, cortes] = await Promise.all([
+      prisma.sales.count({ where: { caja: numero_caja } }),
+      prisma.payments.count({ where: { caja: numero_caja } }),
+      prisma.cuts.count({ where: { cash_register: numero_caja } }),
+    ]);
+    return ventas + pagos + cortes > 0;
+  }
+
   // password llega ya con hash; si no viene, la clave no cambia.
   // Devuelve false si no existe.
   static async update(id, { numero_caja, tipo_caja, password }) {

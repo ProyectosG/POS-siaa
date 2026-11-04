@@ -12,6 +12,7 @@ const NIVELES = {
 
 const DURACION_TOKEN = '12h';
 const DURACION_TOKEN_SUPERDEV = '45m';
+const DURACION_TOKEN_CAJA = '12h';
 
 function getSecret() {
   const secret = process.env.JWT_SECRET;
@@ -37,6 +38,16 @@ function firmarTokenSuperDev(nickname) {
   );
 }
 
+// Token de caja: lo entrega POST /cash-registers/abrir, ligado a la caja y al
+// usuario. Viaja en el encabezado X-Caja-Token.
+function firmarTokenCaja(caja, user) {
+  return jwt.sign(
+    { tipo: 'caja', caja_id: caja.id, numero_caja: caja.numero_caja, id_user: user.id },
+    getSecret(),
+    { expiresIn: DURACION_TOKEN_CAJA }
+  );
+}
+
 // Exige un token válido y deja los datos del usuario en req.user
 function requireAuth(req, res, next) {
   const header = req.headers.authorization || '';
@@ -48,6 +59,8 @@ function requireAuth(req, res, next) {
 
   try {
     const payload = jwt.verify(token, getSecret());
+    // Con el mismo secreto se firman tokens de otro tipo (caja, precio libre): no son sesiones
+    if (payload.tipo) return res.status(401).json({ error: 'Sesión vencida o token inválido' });
     req.user = {
       id: payload.id,
       nickname: payload.nickname,
@@ -74,6 +87,41 @@ function requireLevel(nivel) {
   };
 }
 
+// Exige un token de caja válido de este usuario y deja la caja en req.caja. Nunca
+// se confía en una caja del cuerpo o de la dirección. Sin caja válida: 400 y el
+// encabezado X-Caja-Requerida, con el que el navegador regresa a elegir caja.
+async function requireCaja(req, res, next) {
+  const sinCaja = () => res
+    .status(400)
+    .set('X-Caja-Requerida', '1')
+    .json({ error: 'Esta operación necesita una caja abierta: selecciona tu caja e inténtalo de nuevo' });
+
+  const token = req.get('X-Caja-Token');
+  if (!token) return sinCaja();
+
+  let datos;
+  try {
+    datos = jwt.verify(token, getSecret());
+  } catch {
+    return sinCaja();
+  }
+  if (datos.tipo !== 'caja' || datos.id_user !== req.user.id) return sinCaja();
+
+  try {
+    const { prisma } = require('../config/prisma');
+    const caja = await prisma.cash_registers.findUnique({
+      where: { id: datos.caja_id },
+      select: { id: true, numero_caja: true },
+    });
+    if (!caja || caja.numero_caja !== datos.numero_caja) return sinCaja();
+    req.caja = { id: caja.id, numero: caja.numero_caja };
+    next();
+  } catch (err) {
+    console.error('❌ Error al revisar la caja:', err);
+    res.status(500).json({ error: 'Error interno del servidor' });
+  }
+}
+
 function requireSuperDev(req, res, next) {
   if (!req.user || !req.user.superdev) {
     return res.status(403).json({ error: 'Acceso denegado. Solo SuperDeveloper.' });
@@ -85,7 +133,9 @@ module.exports = {
   NIVELES,
   firmarToken,
   firmarTokenSuperDev,
+  firmarTokenCaja,
   requireAuth,
+  requireCaja,
   requireLevel,
   requireSuperDev,
   tieneNivel,

@@ -12,9 +12,13 @@ import TablaPagos from "./TablaPagos";
 import AccionesCorteZ from "./AccionesCorteZ";
 import { apiFetch } from "@/lib/apiFetch"
 import { pesos } from "@/lib/formato"
+import DesgloseGeneral from "@/components/CorteDeCaja/DesgloseGeneral"
 
 
-export default function CorteZ() {
+// alcance="general": Corte Z General (consolida los Z de las cajas, solo
+// Administrador). Mismo formato; en lugar de la caja dice "Todas las cajas".
+export default function CorteZ({ alcance = "caja" }) {
+  const esGeneral = alcance === "general";
   const { caja } = useCajaStore();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -24,7 +28,7 @@ export default function CorteZ() {
   const fetchCorte = async () => {
     try {
       setLoading(true);
-      const res = await apiFetch(`/cuts/current-z`);
+      const res = await apiFetch(esGeneral ? `/cuts/general/current?tipo=Z` : `/cuts/current-z`);
       if (!res.ok) throw new Error("Error al obtener datos del corte Z");
       setData(await res.json());
     } catch (err) {
@@ -72,12 +76,8 @@ export default function CorteZ() {
     (data?.ventas?.total_ventas ?? 0) === 0 &&
     (data?.total_recibido ?? 0) === 0;
 
-  const totalRecibido = corteVacio
-    ? 0
-    : Object.values(data.pagos || {}).reduce(
-        (sum, amt) => sum + Number(amt || 0),
-        0
-      );
+  // El total lo calcula el servidor en centavos (no se suman pesos con decimales)
+  const totalRecibido = corteVacio ? 0 : data.total_recibido || 0;
 
   return (
     <div className="superficie-corte max-w-2xl mx-auto p-4 rounded-tarjeta border border-border">
@@ -86,6 +86,7 @@ export default function CorteZ() {
         first={first}
         last={last}
         hasTickets={hasTickets}
+        general={esGeneral ? data : null}
       />
 
       <section className="mb-6">
@@ -118,9 +119,12 @@ export default function CorteZ() {
 
 
 
+      {esGeneral && <DesgloseGeneral data={data} />}
+
       <AccionesCorteZ
         // También con solo cobros (abonos a ventas anteriores) hay corte que confirmar
-        hasTickets={hasTickets || Boolean(data.hay_movimientos)}
+        hasTickets={esGeneral ? Boolean(data.incluidos) : hasTickets || Boolean(data.hay_movimientos)}
+        general={esGeneral}
         confirming={confirming}
         corteConfirmado={corteConfirmado}
         setConfirming={setConfirming}

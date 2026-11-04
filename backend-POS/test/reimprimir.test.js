@@ -36,7 +36,7 @@ const vender = (metodo, monto) => api('POST', '/api/sales', {
 test('la reimpresión trae los montos guardados aunque después haya más ventas', async () => {
   assert.equal((await vender('efectivo', 100)).status, 201);
   assert.equal((await vender('tarjeta', 100)).status, 201);
-  const corte = await api('POST', '/api/cuts', { token: tokens.cajero, body: { type: 'X', cash_register: '3' } });
+  const corte = await api('POST', '/api/cuts', { token: tokens.cajero, body: { type: 'X', cash_register: '3' } }); // la caja del cuerpo se ignora
   assert.equal(corte.status, 201, JSON.stringify(corte.data));
 
   // Ventas nuevas después del corte: no deben cambiar la reimpresión
@@ -48,7 +48,7 @@ test('la reimpresión trae los montos guardados aunque después haya más ventas
   assert.match(t, /CORTE X DE CAJA/);
   assert.match(t, /\*\*\* REIMPRESIÓN \*\*\*/);
   assert.match(t, new RegExp(`Corte #${corte.data.id}`));
-  assert.match(t, /Caja: 3/);
+  assert.match(t, /Caja: 1/); // la del token, no la del cuerpo
   assert.match(t, /Usuario: cajero/); // quien hizo el corte
   assert.match(t, /Por: gerente/); // quien lo reimprime
   assert.match(t, /Total Ventas:\s+\$200\.00/);

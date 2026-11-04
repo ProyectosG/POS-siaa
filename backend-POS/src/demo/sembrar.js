@@ -1,7 +1,7 @@
 // src/demo/sembrar.js
 // Datos de la demo: una tienda de abarrotes con 30 productos (con costo), 10
 // clientes y dos semanas de ventas de contado, apartados y créditos con abonos,
-// más un corte Z por cada día pasado.
+// en 3 cajas, más un corte Z por caja y un Corte Z General por cada día pasado.
 //
 // Todo lo que mueve dinero o inventario pasa por el API real (en un puerto
 // local temporal, antes de atender la primera petición), con el reloj fijado en
@@ -15,6 +15,7 @@ const { ahoraNegocio, ahoraUTC, fijarReloj } = require('../utils/fechas');
 
 const DIAS = 14;
 const CLAVE_DEMO = 'demo';
+const CAJAS = ['1', '2', '3'];
 
 // Familia, subfamilia, artículo, presentación, menudeo, mayoreo, costo (neto) e IVA (%)
 const PRODUCTOS = [
@@ -128,13 +129,22 @@ async function sembrarFijos() {
     });
   }
 
-  await prisma.cash_registers.create({ data: { numero_caja: '1', tipo_caja: 'Normal', password: await hashear(CLAVE_DEMO) } });
+  for (const numero_caja of CAJAS) {
+    await prisma.cash_registers.create({ data: { numero_caja, tipo_caja: 'Normal', password: await hashear(CLAVE_DEMO) } });
+  }
   return usuarios;
 }
 
-// Revisión final: el stock de cada producto es el último saldo de su kardex y
-// el saldo de cada cliente es lo pendiente de sus ventas
+// Revisión final: el stock de cada producto es el último saldo de su kardex, el
+// saldo de cada cliente es lo pendiente de sus ventas y cada general es la suma de
+// sus cortes
 async function verificar() {
+  for (const g of await prisma.cuts.findMany({ where: { type: 'ZG' } })) {
+    const { _sum } = await prisma.cuts.aggregate({ where: { corte_general_id: g.id }, _sum: { total_sales: true, total_recibido: true } });
+    if (_sum.total_sales !== g.total_sales || _sum.total_recibido !== g.total_recibido) {
+      throw new Error(`Demo: el Corte Z General ${g.id} no cuadra con sus cortes`);
+    }
+  }
   for (const p of await prisma.products.findMany({ select: { id: true, articulo: true, stock: true } })) {
     const ultimo = await prisma.kardex.findFirst({ where: { product_id: p.id }, orderBy: { id: 'desc' } });
     if (!ultimo || ultimo.new_stock !== p.stock) throw new Error(`Demo: el stock de ${p.articulo} no cuadra con el kardex`);
@@ -159,9 +169,10 @@ async function sembrar(app) {
   });
   const base = `http://127.0.0.1:${servidor.address().port}/api`;
 
-  async function api(token, metodo, ruta, body) {
+  async function api(token, metodo, ruta, body, cajaToken) {
     const headers = { 'Content-Type': 'application/json' };
     if (token) headers.Authorization = `Bearer ${token}`;
+    if (cajaToken) headers['X-Caja-Token'] = cajaToken;
     if (metodo === 'POST') headers['Idempotency-Key'] = crypto.randomUUID();
     const res = await fetch(base + ruta, { method: metodo, headers, body: body && JSON.stringify(body) });
     const data = await res.json().catch(() => null);
@@ -171,10 +182,21 @@ async function sembrar(app) {
   const entrar = async (nickname) =>
     (await api(null, 'POST', '/users/login', { nickname, password: usuarios[nickname].clave })).token;
 
-  const conteo = { ventas: 0, abonos: 0, cortes: 0 };
+  // Cada usuario abre una vez cada caja: { nickname: { numero: token de caja } }
+  async function abrirCajas(token) {
+    const abiertas = {};
+    for (const numero_caja of CAJAS) {
+      abiertas[numero_caja] = (await api(token, 'POST', '/cash-registers/abrir', { numero_caja, password: CLAVE_DEMO })).caja_token;
+    }
+    return abiertas;
+  }
+
+  const conteo = { ventas: 0, abonos: 0, cortes: 0, generales: 0 };
 
   try {
     const tokens = { demo: await entrar('demo'), maria: await entrar('maria'), luis: await entrar('luis') };
+    const cajasDe = new Map();
+    for (const t of Object.values(tokens)) cajasDe.set(t, await abrirCajas(t));
     const hoy = ahoraNegocio(new Date()).date;
     const ahora = Date.now();
     const fechaDe = (dia) => sumarDias(hoy, dia - (DIAS - 1)); // día 0 = hace 13 días; día 13 = hoy
@@ -233,7 +255,7 @@ async function sembrar(app) {
     // --- Dos semanas de ventas, abonos y cortes ---
     const pendientes = []; // apartados y créditos con saldo: { id, cliente, pendiente }
 
-    async function vender(token, tipo, cliente) {
+    async function vender(token, caja, tipo, cliente) {
       const renglones = [];
       // Los apartados y créditos son compras más grandes
       for (let r = tipo === 'contado' ? entre(1, 4) : entre(3, 6); r > 0; r--) {
@@ -282,12 +304,12 @@ async function sembrar(app) {
         payments,
         efectivo_recibido: metodo === 'efectivo' ? pesos(recibido) : undefined,
         total_esperado: pesos(total),
-      });
+      }, cajasDe.get(token)[caja]);
       conteo.ventas++;
       if (tipo !== 'contado') pendientes.push({ id: venta.id, cliente, pendiente: total - pagado });
     }
 
-    async function abonar(token, deuda) {
+    async function abonar(token, caja, deuda) {
       let monto = deuda.pendiente <= 15000 || azar() < 0.3
         ? deuda.pendiente
         : Math.round((deuda.pendiente * entre(30, 60)) / 100 / 1000) * 1000;
@@ -297,7 +319,7 @@ async function sembrar(app) {
         customer_id: deuda.cliente.id,
         amount: pesos(monto),
         pagos: [{ method: azar() < 0.8 ? 'efectivo' : 'transferencia', amount: pesos(monto) }],
-      });
+      }, cajasDe.get(token)[caja]);
       deuda.pendiente -= monto;
       conteo.abonos++;
     }
@@ -324,22 +346,32 @@ async function sembrar(app) {
         if (instante.getTime() > ahora) break; // hoy: solo lo que ya pasó
         fijarReloj(instante);
         const token = e.minuto < 14 * 60 ? tokens.maria : tokens.demo; // turno de la mañana y de la tarde
+        // Caja 1 y 2 por turno; la 3 abre para ayudar en los ratos de más gente
+        const caja = azar() < 0.25 ? '3' : e.minuto < 14 * 60 ? '1' : '2';
 
         if (e.tipo === 'abono') {
-          await abonar(token, e.deuda);
+          await abonar(token, caja, e.deuda);
         } else {
           const cliente = e.tipo === 'contado'
             ? (azar() < 0.25 ? elegir(CLIENTES) : null)
             : elegir(e.tipo === 'credito' ? CLIENTES.slice(0, 6) : CLIENTES);
-          await vender(token, e.tipo, cliente);
+          await vender(token, caja, e.tipo, cliente);
         }
       }
 
       // Corte Z al cerrar cada día pasado (el de hoy queda para probarlo en la demo)
       if (dia < DIAS - 1) {
         a(dia, 21, 15);
-        await api(tokens.luis, 'POST', '/cuts', { type: 'Z', cash_register: '1' });
-        conteo.cortes++;
+        for (const caja of CAJAS) {
+          const cajaToken = cajasDe.get(tokens.luis)[caja];
+          const enCurso = await api(tokens.luis, 'GET', '/cuts/current-z', undefined, cajaToken);
+          if (!enCurso.hay_movimientos) continue; // una caja sin movimientos no tiene qué cortar
+          await api(tokens.luis, 'POST', '/cuts', { type: 'Z' }, cajaToken);
+          conteo.cortes++;
+        }
+        a(dia, 21, 30);
+        await api(tokens.demo, 'POST', '/cuts/general', { type: 'Z' });
+        conteo.generales++;
       }
     }
   } finally {
@@ -350,7 +382,7 @@ async function sembrar(app) {
   await verificar();
   console.log(
     `🧪 Demo sembrada en ${((Date.now() - inicio) / 1000).toFixed(1)} s: ${PRODUCTOS.length} productos, ` +
-    `${CLIENTES.length} clientes, ${conteo.ventas} ventas, ${conteo.abonos} abonos, ${conteo.cortes} cortes Z`
+    `${CLIENTES.length} clientes, ${conteo.ventas} ventas, ${conteo.abonos} abonos, ${conteo.cortes} cortes Z, ${conteo.generales} generales`
   );
 }
 

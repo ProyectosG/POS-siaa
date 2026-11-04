@@ -5,6 +5,10 @@ const buildTicketTextCorte = require('../utils/buildTicketTextCorte');
 const { leerConfigTicket, sinAcentos } = require('../utils/ticketConfig');
 const cutController = require('./cutController');
 const Cut = require('../models/Cut');
+const { prisma } = require('../config/prisma');
+const {
+  conFormato, esGeneral, armarGeneral, desgloseGuardado, filaEnPesos, respuestaGeneral,
+} = require('../utils/corteGeneral');
 const { leerId } = require('../utils/peticion');
 const { ahoraNegocio } = require('../utils/fechas');
 const { esDemo } = require('../demo/demo');
@@ -134,15 +138,8 @@ exports.printCorteCurrent = async (req, res) => {
   const tipo = req.query.tipo === 'Z' ? 'Z' : 'X';
 
   try {
-    // Mismo cálculo que GET /cuts/current (X) o /cuts/current-z (Z)
-    const corteData = await new Promise((resolve, reject) => {
-      const mockRes = {
-        json: resolve,
-        status: (code) => ({ json: (err) => reject(new Error(err.error || `Error ${code}`)) })
-      };
-      const calcular = tipo === 'Z' ? cutController.getCurrentCorteZ : cutController.getCurrentCorte;
-      calcular({ query: {} }, mockRes);
-    });
+    // Mismo cálculo que GET /cuts/current (X) o /cuts/current-z (Z), de la caja del token
+    const corteData = await cutController.corteEnCurso(tipo, req.caja.numero);
 
     const ventas = corteData.ventas || {};
     const pagos = corteData.pagos || {};
@@ -150,7 +147,7 @@ exports.printCorteCurrent = async (req, res) => {
 
     const ticketData = {
       type: `CORTE ${tipo}`,
-      caja: req.query.caja || 'N/A',
+      caja: req.caja.numero,
       usuario: req.user.nickname,
       fecha: ahoraNegocio().date,
       desde: first_ticket ?? '-',
@@ -183,6 +180,64 @@ exports.printCorteCurrent = async (req, res) => {
   }
 };
 
+// Ticket del general en curso: montos sumados, desglose, si cuadra y lo que queda fuera
+async function textoGeneralActual(req, tipo) {
+  const g = respuestaGeneral(await armarGeneral(prisma, tipo));
+  const { ancho } = await leerConfigTicket();
+  return buildTicketTextCorte({
+    type: `CORTE ${tipo} GENERAL`,
+    general: true,
+    caja: 'Todas las cajas',
+    usuario: req.user.nickname,
+    fecha: ahoraNegocio().date,
+    totalVentas: g.ventas.total_ventas_monto,
+    contado: g.ventas.ventas_contado,
+    credito: g.ventas.ventas_credito,
+    apartado: g.ventas.ventas_apartado,
+    iva: g.ventas.total_iva_gravado,
+    totalRecibido: g.total_recibido,
+    anticipos: g.total_anticipos,
+    abonos: g.total_abonos,
+    efectivo: g.pagos.efectivo,
+    tarjeta: g.pagos.tarjeta,
+    transferencia: g.pagos.transferencia,
+    otros: g.pagos.otros,
+    cashInBox: g.cash_in_box,
+    porCaja: g.por_caja,
+    cuadra: g.cuadra,
+    diferencia: conFormato(g.diferencia_centavos),
+    fuera: g.fuera,
+  }, ancho);
+}
+
+/**
+ * GET /cuts/general/text?tipo=X|Z → vista previa del general en curso
+ */
+exports.getGeneralText = async (req, res) => {
+  const tipo = cutController.tipoGeneral(req.query.tipo);
+  if (!tipo) return res.status(400).json({ error: 'tipo debe ser X o Z' });
+  try {
+    res.json({ ticketText: await textoGeneralActual(req, tipo) });
+  } catch (err) {
+    console.error('[ERROR BACKEND] Error al generar el corte general:', err);
+    res.status(500).json({ error: 'Error al generar el ticket del corte general' });
+  }
+};
+
+/**
+ * GET /cuts/general/print?tipo=X|Z → imprime el general en curso (no guarda nada)
+ */
+exports.printGeneralCurrent = async (req, res) => {
+  const tipo = cutController.tipoGeneral(req.query.tipo);
+  if (!tipo) return res.status(400).json({ error: 'tipo debe ser X o Z' });
+  try {
+    imprimirCorte(res, await textoGeneralActual(req, tipo), `Corte ${tipo} General impreso correctamente`);
+  } catch (err) {
+    console.error('[ERROR BACKEND] Error al imprimir el corte general:', err);
+    if (!res.headersSent) res.status(500).json({ error: 'Error al imprimir el corte general' });
+  }
+};
+
 // Ticket de un corte ya guardado: los montos son los que quedaron al cerrarlo
 // (no se vuelven a calcular) y va marcado como reimpresión, con fecha y usuario.
 async function textoCorteGuardado(req) {
@@ -201,10 +256,16 @@ async function textoCorteGuardado(req) {
   const monto = (v) => Number(v) || 0;
   const { ancho } = await leerConfigTicket();
 
+  // Un general: su desglose sale de lo que guardó, sin volver a calcular nada
+  const general = esGeneral(corte);
+  const porCaja = general ? (await desgloseGuardado(prisma, corte.id)).map(filaEnPesos) : undefined;
+
   return buildTicketTextCorte({
-    type: `CORTE ${corte.type}`,
+    type: general ? `CORTE ${corte.type[0]} GENERAL` : `CORTE ${corte.type}`,
+    general,
+    porCaja,
     numero: corte.id,
-    caja: corte.cash_register || 'N/A',
+    caja: general ? 'Todas las cajas' : corte.cash_register || 'N/A',
     usuario: corte.user_nickname || 'N/A',
     fecha,
     desde: corte.desde || '-',

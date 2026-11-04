@@ -20,6 +20,7 @@ const TABLAS_PERMITIDAS = [
   'sales',
   'entries',
   'outs',
+  'corte_general_cortes',
   'cuts',
   'products',
   'categories',
@@ -49,6 +50,7 @@ const NOMBRES_TABLAS = {
   sales: 'Ventas',
   entries: 'Entradas',
   outs: 'Salidas',
+  corte_general_cortes: 'Cortes incluidos en cortes generales',
   cuts: 'Cortes',
   products: 'Productos',
   categories: 'Familias',
@@ -91,7 +93,9 @@ exports.resetTables = async (req, res) => {
     const backupPath = await respaldar();
 
     const borraOperaciones = tables.some((t) => TABLAS_DE_OPERACIONES.includes(t));
-    const aVaciar = borraOperaciones ? [...tables, ...TABLAS_AUXILIARES] : tables;
+    const aVaciar = borraOperaciones ? [...tables, ...TABLAS_AUXILIARES] : [...tables];
+    // Sin cortes, lo que incluyó cada corte general ya no se refiere a nada
+    if (tables.includes('cuts') && !aVaciar.includes('corte_general_cortes')) aVaciar.push('corte_general_cortes');
 
     // Se pueden vaciar tablas con registros que dependen de ellas (como antes):
     // las llaves foráneas se apagan en la conexión que usará la transacción.

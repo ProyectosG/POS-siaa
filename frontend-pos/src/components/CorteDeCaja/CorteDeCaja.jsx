@@ -7,11 +7,17 @@ import toast from "react-hot-toast";
 import { apiFetch } from "@/lib/apiFetch"
 import EncabezadoPantalla from "@/components/ui/encabezado-pantalla"
 import { pesos } from "@/lib/formato"
+import DesgloseGeneral from "@/components/CorteDeCaja/DesgloseGeneral"
+import VistaPreviaTicket from "@/components/siaa-ui/VistaPreviaTicket"
 
 
 
-export default function CorteDeCaja() {
+// alcance="general": Corte X General (la suma de los cortes de todas las cajas,
+// solo Administrador). Mismo formato; en lugar de la caja dice "Todas las cajas".
+export default function CorteDeCaja({ alcance = "caja" }) {
+  const esGeneral = alcance === "general";
   const { caja } = useCajaStore();
+  const [verTicket, setVerTicket] = useState(false);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
@@ -19,7 +25,7 @@ export default function CorteDeCaja() {
   const fetchCorte = async () => {
     try {
       setLoading(true);
-      const corteRes = await apiFetch(`/cuts/current`);
+      const corteRes = await apiFetch(esGeneral ? `/cuts/general/current?tipo=X` : `/cuts/current`);
       if (!corteRes.ok) throw new Error("Error al obtener datos del corte");
       const corteData = await corteRes.json();
       setData(corteData);
@@ -36,7 +42,7 @@ export default function CorteDeCaja() {
 
   const handlePrint = async () => {
     try {
-      const res = await apiFetch(`/cuts/print/current?tipo=X&caja=${encodeURIComponent(caja?.numero || "")}`);
+      const res = await apiFetch(`/cuts/print/current?tipo=X`);
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(data.error || `Error ${res.status} al imprimir corte`);
@@ -54,34 +60,11 @@ export default function CorteDeCaja() {
     setConfirming(true);
 
     try {
-      const payload = {
-        type: "X",
-        date: new Date().toISOString().split("T")[0],
-        desde: data.desde,
-        hasta: data.hasta,
-        cash_register: data.cash_register || null,
-        user_nickname: data.user_nickname || null,
-        total_sales: data.ventas.total_ventas_monto || 0,
-        ventas_contado: data.ventas.ventas_contado || 0,
-        ventas_credito: data.ventas.ventas_credito || 0,
-        ventas_apartado: data.ventas.ventas_apartado || 0,
-        total_iva_gravado: data.ventas.total_iva_gravado || 0,
-        pago_efectivo: data.pagos.efectivo || 0,
-        pago_tarjeta: data.pagos.tarjeta || 0,
-        pago_transferencia: data.pagos.transferencia || 0,
-        pago_otros: data.pagos.otros || 0,
-        total_recibido: data.total_recibido || 0,
-        total_anticipos: data.total_anticipos || 0,
-        total_abonos: data.total_abonos || 0,
-        cash_in_box: data.pagos.efectivo || 0,
-        first_ticket: data.ticketRange?.first_ticket ?? null,
-        last_ticket: data.ticketRange?.last_ticket ?? null,
-      };
-
-      const res = await apiFetch(`/cuts`, {
+      // Montos, fecha, usuario y caja los pone el servidor
+      const res = await apiFetch(esGeneral ? `/cuts/general` : `/cuts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ type: "X" }),
       });
 
       if (!res.ok) {
@@ -89,11 +72,11 @@ export default function CorteDeCaja() {
         throw new Error(errData.error || "Error al registrar corte");
       }
 
-      toast.success("¡Corte X registrado con éxito! 🎉");
+      toast.success(esGeneral ? "¡Corte X General registrado!" : "¡Corte X registrado con éxito! 🎉");
       await fetchCorte();
     } catch (err) {
       console.error("❌ Error al registrar corte:", err);
-      toast.error("No se pudo registrar el corte 😢");
+      toast.error(err.message || "No se pudo registrar el corte 😢");
     } finally {
       setConfirming(false);
     }
@@ -112,10 +95,8 @@ export default function CorteDeCaja() {
     return <div className="text-center text-error text-lg">No hay datos para mostrar 😔</div>;
   }
 
-  const totalRecibido = Object.values(data.pagos).reduce(
-    (sum, amt) => sum + Number(amt || 0),
-    0
-  );
+  // El total lo calcula el servidor en centavos (no se suman pesos con decimales)
+  const totalRecibido = data.total_recibido || 0;
 
   const totalContado = data.ventas.ventas_contado || 0;
   const totalAnticipos = data.total_anticipos || 0;
@@ -137,14 +118,16 @@ export default function CorteDeCaja() {
   return (
     <div className="max-w-3xl mx-auto">
       <EncabezadoPantalla
-        titulo="Corte X del turno"
+        titulo={esGeneral ? "Corte X General" : "Corte X del turno"}
         icono={DollarSign}
-        subtitulo={
+        subtitulo={esGeneral ? (
+          <><b className="text-foreground">Todas las cajas</b> · {data.incluidos} {data.incluidos === 1 ? "corte incluido" : "cortes incluidos"}</>
+        ) : (
           <>
             Caja <b className="text-foreground">{caja?.numero || "sin caja"}</b> ·{" "}
             {hasTickets ? <>tickets del <b className="tabular text-foreground">{first}</b> al <b className="tabular text-foreground">{last}</b></> : "sin tickets nuevos en este período"}
           </>
-        }
+        )}
       />
       <div className="superficie-corte rounded-tarjeta border p-4 sm:p-6">
 
@@ -242,27 +225,38 @@ export default function CorteDeCaja() {
         </div>
       </section>
 
+      {esGeneral && <DesgloseGeneral data={data} />}
+
       {/* Botones de acción */}
       <div className="flex flex-col sm:flex-row justify-center gap-4 mt-6">
         <button
           onClick={handleConfirmarCorte}
-          disabled={confirming || loading}
+          disabled={confirming || loading || (esGeneral && !data.incluidos)}
           className={`px-6 py-3 bg-exito text-white font-bold text-base rounded-lg hover:opacity-90 transition flex items-center justify-center gap-2 shadow-suave ${
-            confirming || loading ? 'opacity-50 cursor-not-allowed' : ''
+            confirming || loading || (esGeneral && !data.incluidos) ? 'opacity-50 cursor-not-allowed' : ''
           }`}
         >
           <CheckCircle size={20} />
-          {confirming ? 'Confirmando...' : 'Confirmar Corte X'}
+          {confirming ? 'Confirmando...' : esGeneral ? 'Confirmar Corte X General' : 'Confirmar Corte X'}
         </button>
 
         <button
-          onClick={handlePrint}
+          onClick={esGeneral ? () => setVerTicket(true) : handlePrint}
           className="px-6 py-3 bg-primario text-white font-bold text-base rounded-lg hover:opacity-90 transition flex items-center justify-center gap-2 shadow-suave"
         >
-          <Printer size={20} /> Imprimir Corte (Térmica)
+          <Printer size={20} /> {esGeneral ? "Vista previa e impresión" : "Imprimir Corte (Térmica)"}
         </button>
       </div>
       </div>
+
+      {esGeneral && (
+        <VistaPreviaTicket
+          rutaTexto={verTicket ? `/cuts/general/text?tipo=X` : null}
+          rutaImprimir={`/cuts/general/print?tipo=X`}
+          titulo="Corte X General"
+          onClose={() => setVerTicket(false)}
+        />
+      )}
     </div>
   );
 }

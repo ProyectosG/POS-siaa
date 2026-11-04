@@ -91,9 +91,17 @@ test('lo demás funciona: vista previa del ticket, corte en vista previa, usuari
   assert.strictEqual(ticket.status, 200);
   assert.match(ticket.data.ticketText, /TICKET DE VENTA/);
 
-  const corte = await api('GET', '/api/cuts/print/current?tipo=X&caja=1', { token });
+  const abierta = await api('POST', '/api/cash-registers/abrir', { token, body: { numero_caja: '1', password: 'demo' } });
+  assert.strictEqual(abierta.status, 200);
+  const corte = await api('GET', '/api/cuts/print/current?tipo=X', { token, caja: abierta.data.caja_token });
   assert.strictEqual(corte.status, 200);
   assert.ok(corte.data.ticketText);
+
+  // Cortes generales: la siembra los deja y aquí tampoco se imprime nada
+  const zg = await dbGet(db, "SELECT COUNT(*) n FROM cuts WHERE type = 'ZG'");
+  assert.ok(zg.n > 0);
+  const general = await api('GET', '/api/cuts/general/print?tipo=X', { token });
+  assert.match(general.data.message, /^Demo:/);
 
   // Reimprimir un corte guardado: vista previa sí; imprimir solo devuelve el texto
   const z = await dbGet(db, "SELECT id FROM cuts WHERE type = 'Z' LIMIT 1");
@@ -115,6 +123,7 @@ test('lo demás funciona: vista previa del ticket, corte en vista previa, usuari
   const total = producto.precio_menudeo / 100;
   const venta = await api('POST', '/api/sales', {
     token,
+    caja: (await api('POST', '/api/cash-registers/abrir', { token, body: { numero_caja: '1', password: 'demo' } })).data.caja_token,
     body: {
       type: 'contado',
       details: [{ product_id: producto.id, quantity: 1, tipo_precio: 'menudeo' }],

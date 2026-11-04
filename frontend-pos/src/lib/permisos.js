@@ -14,6 +14,8 @@ const PERMISOS_RUTAS = {
   "/dashboard/ventas/credito": NIVELES.CAJERO,
   "/dashboard/cortes/cortesx": NIVELES.CAJERO,
   "/dashboard/cortes/cortesz": NIVELES.GERENTE,
+  "/dashboard/cortes/cortesx-general": NIVELES.ADMIN,
+  "/dashboard/cortes/cortesz-general": NIVELES.ADMIN,
   "/dashboard/cxc/registroAbonosApartados": NIVELES.CAJERO,
   "/dashboard/cxc/estadodecuenta": NIVELES.CAJERO,
   "/dashboard/catalogos/familias": NIVELES.GERENTE,

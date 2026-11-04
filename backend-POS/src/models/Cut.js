@@ -41,6 +41,8 @@ class Cut {
   static async findAll(filters = {}) {
     const where = {};
     if (filters.type) where.type = String(filters.type);
+    // Los generales (XG, ZG) solo los ve el Administrador
+    if (filters.sinGenerales) where.NOT = { type: { in: ['XG', 'ZG'] } };
     if (filters.fromDate || filters.toDate) {
       where.date = {};
       if (filters.fromDate) where.date.gte = String(filters.fromDate);

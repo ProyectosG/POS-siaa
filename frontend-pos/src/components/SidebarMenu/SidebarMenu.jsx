@@ -40,6 +40,8 @@ const menuItems = [
     subItems: [
       { label: "Cortes X", href: "/dashboard/cortes/cortesx" },
       { label: "Cortes Z", href: "/dashboard/cortes/cortesz" },
+      { label: "Corte X General", href: "/dashboard/cortes/cortesx-general" },
+      { label: "Corte Z General", href: "/dashboard/cortes/cortesz-general" },
     ],
   },
   {

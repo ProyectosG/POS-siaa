@@ -291,6 +291,54 @@ const MIGRACIONES = [
       )`);
     },
   },
+  {
+    version: 8,
+    nombre: 'cortes_por_caja',
+    async aplicar(tx) {
+      // Cada venta y cada pago guardan su caja (el número): un abono cuenta en la
+      // caja que lo cobró, aunque la venta sea de otra.
+      await tx.run('ALTER TABLE sales ADD COLUMN caja TEXT');
+      await tx.run('ALTER TABLE payments ADD COLUMN caja TEXT');
+      await tx.run('CREATE INDEX IF NOT EXISTS idx_sales_caja ON sales (caja)');
+      await tx.run('CREATE INDEX IF NOT EXISTS idx_payments_caja ON payments (caja)');
+
+      // Corte Z General: marca los Z consolidados. 0 = corte viejo que no entra.
+      await tx.run('ALTER TABLE cuts ADD COLUMN corte_general_id INTEGER');
+      await tx.run('CREATE INDEX IF NOT EXISTS idx_cuts_corte_general ON cuts (corte_general_id)');
+
+      // Qué incluyó cada XG y ZG (de aquí salen el desglose y la reimpresión)
+      await tx.run(`CREATE TABLE IF NOT EXISTS corte_general_cortes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        general_id INTEGER NOT NULL,
+        corte_id INTEGER NOT NULL,
+        UNIQUE (general_id, corte_id)
+      )`);
+      await tx.run('CREATE INDEX IF NOT EXISTS idx_corte_general_cortes_corte ON corte_general_cortes (corte_id)');
+
+      // Lo que aún no entra en un corte Z se asigna a la caja de número más bajo; lo
+      // ya cortado queda sin caja. Los números no numéricos van al final.
+      const primera = await tx.get(`SELECT numero_caja FROM cash_registers
+        ORDER BY (numero_caja GLOB '[0-9]*') DESC, CAST(numero_caja AS INTEGER), numero_caja LIMIT 1`);
+      const ultimoZ = await tx.get("SELECT id, last_ticket, last_payment_id FROM cuts WHERE type = 'Z' ORDER BY id DESC LIMIT 1");
+      const idZ = ultimoZ?.id ?? 0;
+
+      // Un corte viejo que traía caja (venía del cuerpo, sin validar) no puede entrar
+      // en un general: no hay ventas con esa caja contra las cuales revisarlo
+      await tx.run(
+        `UPDATE cuts SET corte_general_id = 0
+         WHERE cash_register IS NOT NULL AND cash_register <> '' AND (type = 'Z' OR id <= ?)`,
+        [idZ]
+      );
+
+      if (primera) {
+        await tx.run('UPDATE sales SET caja = ? WHERE id > ?', [primera.numero_caja, ultimoZ?.last_ticket ?? 0]);
+        await tx.run('UPDATE payments SET caja = ? WHERE id > ?', [primera.numero_caja, ultimoZ?.last_payment_id ?? 0]);
+        // Los X posteriores al último Z cubrieron parte de eso: el siguiente X de esa
+        // caja debe partir de ellos para no contarlo otra vez
+        await tx.run("UPDATE cuts SET cash_register = ? WHERE type = 'X' AND id > ?", [primera.numero_caja, idZ]);
+      }
+    },
+  },
 ];
 
 async function migrar() {
