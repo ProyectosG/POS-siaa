@@ -13,7 +13,7 @@ export default function Home() {
   useEffect(() => {
     if (!user) {
       router.replace("/login");
-    } else if (!caja && !user.isSuperDev) {  // ← Añade !user.isSuperDev
+    } else if (!caja?.token && !user.isSuperDev) {  // ← Añade !user.isSuperDev
       router.replace("/seleccion-caja");
     } else {
       router.replace("/dashboard");

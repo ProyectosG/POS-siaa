@@ -19,9 +19,13 @@ export function SeleccionCaja() {
   const user = useAuthStore((state) => state.user)
   const setCaja = useCajaStore((state) => state.setCaja)
 
-  // Si es SUPERdeveloper → saltar directamente al dashboard
+  // Si es SUPERdeveloper → saltar directamente al dashboard, salvo que venga a
+  // elegir una caja para cobrar (/seleccion-caja?elegir=1)
+  const [eligiendo, setEligiendo] = React.useState(false)
   useEffect(() => {
-    if (user?.isSuperDev) {
+    if (window.location.search.includes("elegir=1")) {
+      setEligiendo(true)
+    } else if (user?.isSuperDev) {
       toast.success("SUPERdeveloper detectado → Acceso directo al dashboard")
       router.replace("/dashboard")
     }
@@ -71,6 +75,7 @@ const handleCajaSubmit = async (e) => {
       numero: data.numero_caja,
       tipo: data.tipo_caja,
       abiertaEn: data.abierta_en,
+      token: data.caja_token,
     });
 
     // ← ¡ESTO ES LO QUE FALTABA! Middleware lo necesita
@@ -89,8 +94,8 @@ const handleCajaSubmit = async (e) => {
   }
 };
 
-  // Si es superdev, no renderizamos nada (ya se redirigió)
-  if (user?.isSuperDev) {
+  // Si es superdev y no viene a elegir caja, no renderizamos nada (ya se redirigió)
+  if (user?.isSuperDev && !eligiendo) {
     return null // o un loader muy breve
   }
 

@@ -10,6 +10,14 @@ import { useCajaStore } from "@/store/useCajaStore"
 import { puedeVer } from "@/lib/permisos"
 import { ES_DEMO } from "@/lib/demo"
 
+// Pantallas que necesitan una caja abierta (los cortes generales no)
+const RUTAS_CON_CAJA = [
+  "/dashboard/ventas",
+  "/dashboard/cortes/cortesx",
+  "/dashboard/cortes/cortesz",
+  "/dashboard/cxc/registroAbonosApartados",
+]
+
 export default function DashboardLayout({ children }) {
   const router = useRouter()
   const pathname = usePathname()
@@ -36,8 +44,9 @@ export default function DashboardLayout({ children }) {
       return // No redirigir, dejar que renderice
     }
 
-    // Usuarios normales: si no tienen caja seleccionada → redirigir
-    if (!caja) {
+    // Usuarios normales: sin caja, o con una guardada sin token (de antes de los
+    // cortes por caja) → redirigir
+    if (!caja?.token) {
       router.replace("/seleccion-caja")
       return
     }
@@ -53,7 +62,7 @@ export default function DashboardLayout({ children }) {
   }
 
   // Si no está autenticado o no tiene caja (y no es superdev) → no renderizar nada
-  if (!isAuthenticated || (!caja && !user?.isSuperDev)) {
+  if (!isAuthenticated || (!caja?.token && !user?.isSuperDev)) {
     return null
   }
 
@@ -62,6 +71,13 @@ export default function DashboardLayout({ children }) {
       <SidebarMenu />
       {/* Debajo de 1024 px: espacio para la barra superior; desde 1024 px: para el menú fijo */}
       <main className="min-w-0 pt-14 lg:pt-0 lg:pl-64">
+        {/* El SuperDeveloper entra sin caja, pero para cobrar debe elegir una */}
+        {user?.isSuperDev && !caja?.token && RUTAS_CON_CAJA.some((r) => pathname.startsWith(r)) && (
+          <div className="border-b border-aviso/30 bg-aviso-suave px-4 py-2 text-center text-sm font-medium text-foreground">
+            Para cobrar o hacer un corte elige una caja.{" "}
+            <Link href="/seleccion-caja?elegir=1" className="font-bold text-primario underline">Elegir caja</Link>
+          </div>
+        )}
         {/* Franja fija de la demo, debajo de la barra superior (en celular) o arriba (con el menú fijo) */}
         {ES_DEMO && (
           <div className="sticky top-14 lg:top-0 z-30 border-b border-aviso/30 bg-aviso-suave px-4 py-1.5 text-center text-sm font-semibold text-foreground">

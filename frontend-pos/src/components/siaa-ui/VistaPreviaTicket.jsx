@@ -9,29 +9,32 @@ import { ES_DEMO } from "@/lib/demo"
 
 // Vista previa de un ticket (texto del servidor) con opción de imprimirlo.
 // Venta: saleId (null = cerrado). Otro ticket, como un corte: ruta base
-// (`/cuts/5`, de donde salen /text y /print) y titulo. En la demo solo hay vista previa.
-export default function VistaPreviaTicket({ saleId, ruta, titulo, onClose }) {
+// (`/cuts/5`, de donde salen /text y /print) y titulo. Si las direcciones no siguen
+// ese patrón: rutaTexto y rutaImprimir. En la demo solo hay vista previa.
+export default function VistaPreviaTicket({ saleId, ruta, rutaTexto, rutaImprimir, titulo, onClose }) {
   const base = ruta || (saleId ? `/tickets/${saleId}` : null)
+  const urlTexto = rutaTexto || (base ? `${base}/text` : null)
+  const urlImprimir = rutaImprimir || `${base}/print`
   const encabezado = titulo || `Ticket #${saleId}`
   const [texto, setTexto] = useState("")
   const [imprimiendo, setImprimiendo] = useState(false)
 
   useEffect(() => {
-    if (!base) return
+    if (!urlTexto) return
     setTexto("")
-    apiFetch(`${base}/text`)
+    apiFetch(urlTexto)
       .then(async (res) => {
         const data = await res.json().catch(() => ({}))
         if (!res.ok) throw new Error(data.error || "No se pudo cargar el ticket")
         setTexto(data.ticketText)
       })
       .catch((err) => toast.error(err.message))
-  }, [base])
+  }, [urlTexto])
 
   const imprimir = async () => {
     setImprimiendo(true)
     try {
-      const res = await apiFetch(`${base}/print`)
+      const res = await apiFetch(urlImprimir)
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || "No se pudo imprimir")
       // El servidor dice si imprimió o si no encontró impresora (modo prueba)
@@ -45,7 +48,7 @@ export default function VistaPreviaTicket({ saleId, ruta, titulo, onClose }) {
   }
 
   return (
-    <Dialog open={Boolean(base)} onOpenChange={(abierto) => !abierto && onClose()}>
+    <Dialog open={Boolean(urlTexto)} onOpenChange={(abierto) => !abierto && onClose()}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>{encabezado}</DialogTitle>

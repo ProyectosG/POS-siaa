@@ -41,7 +41,8 @@ export function middleware(request) {
 
   // 3. SUPERDEVELOPER: salta la selección de caja
   if (payload.superdev === true) {
-    if (pathname.startsWith('/seleccion-caja')) {
+    // Puede entrar sin caja, pero para cobrar elige una (?elegir=1)
+    if (pathname.startsWith('/seleccion-caja') && !request.nextUrl.searchParams.get('elegir')) {
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
     return NextResponse.next()

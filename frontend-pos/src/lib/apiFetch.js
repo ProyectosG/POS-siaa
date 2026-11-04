@@ -1,6 +1,7 @@
 "use client"
 
 import { useAuthStore } from "@/store/useAuthStore"
+import { useCajaStore } from "@/store/useCajaStore"
 
 // URL base del backend, por ejemplo http://localhost:5000/api
 export const API_URL = process.env.NEXT_PUBLIC_API_URL
@@ -9,7 +10,10 @@ export const API_URL = process.env.NEXT_PUBLIC_API_URL
  * Única función para llamar al API.
  * - Antepone NEXT_PUBLIC_API_URL a la ruta ("/products" → ".../api/products")
  * - Agrega Authorization: Bearer <token> con el token de la sesión
+ * - Agrega X-Caja-Token con el token de la caja abierta
  * - Si el servidor responde 401 con una sesión abierta, cierra la sesión
+ * - Si el servidor rechaza la caja (X-Caja-Requerida), la olvida: el layout del
+ *   dashboard regresa a /seleccion-caja
  *
  * Devuelve el Response de fetch, igual que fetch.
  */
@@ -19,12 +23,19 @@ export async function apiFetch(ruta, opciones = {}) {
 
   const headers = new Headers(opciones.headers || {})
   if (token) headers.set("Authorization", `Bearer ${token}`)
+  const cajaToken = useCajaStore.getState().caja?.token
+  if (cajaToken) headers.set("X-Caja-Token", cajaToken)
 
   const res = await fetch(url, { ...opciones, headers })
 
   // Token vencido o inválido: fuera de la sesión
   if (res.status === 401 && token) {
     useAuthStore.getState().logout()
+  }
+
+  // Token de caja vencido o de otro usuario: hay que volver a abrir la caja
+  if (res.headers.get("X-Caja-Requerida") && cajaToken) {
+    useCajaStore.getState().clearCaja()
   }
 
   return res

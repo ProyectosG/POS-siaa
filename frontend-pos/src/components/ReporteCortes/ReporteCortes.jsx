@@ -37,9 +37,21 @@ import ListaVacia from "@/components/ui/lista-vacia"
 import { EsqueletoFilas } from "@/components/ui/esqueleto"
 import VistaPreviaTicket from "@/components/siaa-ui/VistaPreviaTicket"
 import toast from "react-hot-toast"
+import { useAuthStore } from "@/store/useAuthStore"
+import { NIVELES } from "@/lib/permisos"
+
+const TIPOS_GENERALES = ['XG', 'ZG'];
+const NOMBRE_TIPO = { X: 'X', Z: 'Z', XG: 'X General', ZG: 'Z General' };
+const esGeneral = (c) => TIPOS_GENERALES.includes(c.type);
+
+// Suma en centavos, para no acumular errores de decimales
+const sumarPesos = (filas, campo) =>
+  filas.reduce((suma, c) => suma + Math.round((Number(c[campo]) || 0) * 100), 0) / 100;
 
 
 const ReporteCortes = () => {
+  const user = useAuthStore((s) => s.user);
+  const esAdmin = Boolean(user?.isSuperDev || Number(user?.accessLevel) >= NIVELES.ADMIN);
   const [cortes, setCortes] = useState([]);
   const [cortesFiltrados, setCortesFiltrados] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -47,6 +59,7 @@ const ReporteCortes = () => {
 
   const [filtros, setFiltros] = useState({
     tipo: '',
+    caja: '',
     fechaDesde: null,
     fechaHasta: null,
   });
@@ -94,6 +107,10 @@ const ReporteCortes = () => {
       filtrados = filtrados.filter(c => c.type === filtros.tipo);
     }
 
+    if (filtros.caja) {
+      filtrados = filtrados.filter(c => (c.cash_register || 'sin-caja') === filtros.caja);
+    }
+
     if (filtros.fechaDesde) {
       const desde = new Date(filtros.fechaDesde).toISOString().split('T')[0];
       filtrados = filtrados.filter(c => c.date >= desde);
@@ -111,20 +128,43 @@ const ReporteCortes = () => {
     setCortesFiltrados(aplicarFiltros);
   }, [aplicarFiltros]);
 
+  // Cajas con cortes, para el filtro
+  const cajasConCortes = useMemo(() => {
+    const numeros = cortes.filter((c) => c.cash_register).map((c) => c.cash_register);
+    return [...new Set(numeros)].sort((a, b) => a.localeCompare(b, 'es', { numeric: true }));
+  }, [cortes]);
+
+  // Los generales ya son la suma de otros cortes: no entran en los totales, para no sumar dos veces
   const totales = useMemo(() => {
-    if (cortesFiltrados.length === 0) return { totalVentas: 0, efectivoEnCaja: 0, conteo: 0 };
-
-    const totalVentas = cortesFiltrados.reduce((sum, c) => sum + (Number(c.total_sales) || 0), 0);
-    const efectivoEnCaja = cortesFiltrados.reduce((sum, c) => sum + (Number(c.cash_in_box) || 0), 0);
-    const conteo = cortesFiltrados.length;
-
-    return { totalVentas, efectivoEnCaja, conteo };
+    const deCaja = cortesFiltrados.filter((c) => !esGeneral(c));
+    return {
+      totalVentas: sumarPesos(deCaja, 'total_sales'),
+      efectivoEnCaja: sumarPesos(deCaja, 'cash_in_box'),
+      conteo: deCaja.length,
+    };
   }, [cortesFiltrados]);
+
+  // Suma de todas las cajas, con los mismos filtros de tipo y fecha pero sin el de caja
+  const sumaTodas = useMemo(() => {
+    const filas = cortes.filter((c) => {
+      if (esGeneral(c)) return false;
+      if (filtros.tipo && filtros.tipo !== c.type) return false;
+      if (filtros.fechaDesde && c.date < new Date(filtros.fechaDesde).toISOString().split('T')[0]) return false;
+      if (filtros.fechaHasta && c.date > new Date(filtros.fechaHasta).toISOString().split('T')[0]) return false;
+      return true;
+    });
+    return { totalVentas: sumarPesos(filas, 'total_sales'), efectivoEnCaja: sumarPesos(filas, 'cash_in_box') };
+  }, [cortes, filtros]);
 
   const columnas = useMemo(
     () => [
       { accessorKey: 'id', header: 'ID' },
-      { accessorKey: 'type', header: 'Tipo' },
+      { accessorKey: 'type', header: 'Tipo', cell: info => NOMBRE_TIPO[info.getValue()] || info.getValue() },
+      {
+        accessorKey: 'cash_register',
+        header: 'Caja',
+        cell: ({ row }) => (esGeneral(row.original) ? 'Todas' : row.original.cash_register || '—'),
+      },
       { accessorKey: 'date', header: 'Fecha' },
       { accessorKey: 'desde', header: 'Desde Ticket' },
       { accessorKey: 'hasta', header: 'Hasta Ticket' },
@@ -206,15 +246,19 @@ const ReporteCortes = () => {
       body: cortesFiltrados.map(row =>
         columnas.map(col => {
           if (col.id === 'acciones') return '';
+          if (col.accessorKey === 'type') return NOMBRE_TIPO[row.type] || row.type;
+          if (col.accessorKey === 'cash_register') return esGeneral(row) ? 'Todas' : row.cash_register || '';
           const val = row[col.accessorKey];
-          return col.cell ? col.cell({ getValue: () => val }) : val ?? '';
+          // Las exportaciones van con números sin formato
+          if (col.accessorKey === 'total_sales' || col.accessorKey === 'cash_in_box') return Number(val || 0).toFixed(2);
+          return val ?? '';
         })
       ),
       styles: { fontSize: 9, cellPadding: 3 },
       headStyles: { fillColor: [16, 185, 129] },
       alternateRowStyles: { fillColor: [240, 253, 244] },
       foot: [[
-        'Totales', '', '', '', '', '', 
+        'Totales (sin generales)', '', '', '', '', '', '',
         `$${totales.totalVentas.toFixed(2)}`, 
         `$${totales.efectivoEnCaja.toFixed(2)}`, 
         ''
@@ -227,7 +271,7 @@ const ReporteCortes = () => {
   const exportarExcel = () => {
     const ws = XLSX.utils.json_to_sheet(cortesFiltrados);
     XLSX.utils.sheet_add_aoa(ws, [[
-      'Totales', '', '', '', '', '', 
+      'Totales (sin generales)', '', '', '', '', '', '',
       totales.totalVentas, 
       totales.efectivoEnCaja, 
       ''
@@ -239,7 +283,7 @@ const ReporteCortes = () => {
 
   const exportarTXT = () => {
     const contenido = cortesFiltrados.map(row => Object.values(row).join('\t')).join('\n');
-    const totalLine = `\nTotales:\t\t\t\t\t\t$${totales.totalVentas.toFixed(2)}\t$${totales.efectivoEnCaja.toFixed(2)}`;
+    const totalLine = `\nTotales (sin generales):\t\t\t\t\t\t\t$${totales.totalVentas.toFixed(2)}\t$${totales.efectivoEnCaja.toFixed(2)}`;
     const blob = new Blob([contenido + totalLine], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -262,7 +306,7 @@ const ReporteCortes = () => {
             <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
               <Printer className="size-7 shrink-0 text-primario" /> Reporte de Cortes
             </h1>
-            <p className="mt-1 text-sm font-normal text-muted-foreground">Cortes X y Z guardados, con filtros por tipo y fecha</p>
+            <p className="mt-1 text-sm font-normal text-muted-foreground">Cortes X y Z guardados, con filtros por tipo, caja y fecha</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={exportarExcel} className="gap-1">
@@ -283,7 +327,7 @@ const ReporteCortes = () => {
 
       <CardContent className="pt-6">
         {/* Filtros */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8 bg-gradient-to-r from-gray-50 to-slate-50 p-6 rounded-xl border border-slate-200 shadow-sm">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-8 bg-gradient-to-r from-gray-50 to-slate-50 p-6 rounded-xl border border-slate-200 shadow-sm">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
               Tipo de corte
@@ -299,6 +343,27 @@ const ReporteCortes = () => {
                 <SelectItem value="todos">Todos los cortes</SelectItem>
                 <SelectItem value="X">Corte X</SelectItem>
                 <SelectItem value="Z">Corte Z</SelectItem>
+                {esAdmin && <SelectItem value="XG">Corte X General</SelectItem>}
+                {esAdmin && <SelectItem value="ZG">Corte Z General</SelectItem>}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Caja
+            </label>
+            <Select
+              value={filtros.caja || 'todas'}
+              onValueChange={(v) => setFiltros((p) => ({ ...p, caja: v === 'todas' ? '' : v }))}
+            >
+              <SelectTrigger className="bg-white shadow-sm border-gray-300 focus:ring-emerald-500">
+                <SelectValue placeholder="Seleccionar caja" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todas">Todas las cajas</SelectItem>
+                {cajasConCortes.map((n) => <SelectItem key={n} value={n}>Caja {n}</SelectItem>)}
+                <SelectItem value="sin-caja">Sin caja (anteriores)</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -378,8 +443,8 @@ const ReporteCortes = () => {
               </tbody>
               <tfoot className="bg-white font-semibold border-t-2 border-gray-300">
                 <tr>
-                  <td colSpan={6} className="px-6 py-4 text-right text-gray-900">
-                    Totales ({totales.conteo} cortes):
+                  <td colSpan={7} className="px-6 py-4 text-right text-gray-900">
+                    Totales ({totales.conteo} cortes, sin generales):
                   </td>
                   <td className="px-6 py-4 text-gray-900">
                     {pesos(totales.totalVentas)}
@@ -389,6 +454,16 @@ const ReporteCortes = () => {
                   </td>
                   <td className="px-6 py-4"></td>
                 </tr>
+                {filtros.caja && (
+                  <tr>
+                    <td colSpan={7} className="px-6 py-4 text-right text-gray-900">
+                      Suma de todas las cajas:
+                    </td>
+                    <td className="px-6 py-4 text-gray-900">{pesos(sumaTodas.totalVentas)}</td>
+                    <td className="px-6 py-4 text-gray-900">{pesos(sumaTodas.efectivoEnCaja)}</td>
+                    <td className="px-6 py-4"></td>
+                  </tr>
+                )}
               </tfoot>
             </table>
           </div>

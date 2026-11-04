@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import { Printer, CheckCircle } from "lucide-react";
+import VistaPreviaTicket from "@/components/siaa-ui/VistaPreviaTicket";
 import toast from "react-hot-toast";
 import { apiFetch } from "@/lib/apiFetch"
 
@@ -15,34 +17,29 @@ export default function AccionesCorteZ({
   first,
   last,
   fetchCorte,
+  general = false,
 }) {
+  const [verTicket, setVerTicket] = useState(false);
+
   const handleConfirmarCorteZ = async () => {
     if (!hasTickets || confirming) return;
 
     setConfirming(true);
 
     try {
-      const payload = {
-        type: "Z",
-        date: new Date().toISOString().split("T")[0],
-        desde: first,
-        hasta: last,
-        total_sales: data.ventas.total_ventas_monto || 0,
-        total_iva_gravado: data.ventas.total_iva_gravado || 0,
-        total_recibido: data.total_recibido || 0,
-        first_ticket: first,
-        last_ticket: last,
-      };
-
-      const res = await apiFetch(`/cuts`, {
+      // Montos, fecha, usuario y caja los pone el servidor
+      const res = await apiFetch(general ? `/cuts/general` : `/cuts`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ type: "Z" }),
       });
 
-      if (!res.ok) throw new Error("Error al registrar corte Z");
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({}));
+        throw new Error(error.error || "Error al registrar corte Z");
+      }
 
-      toast.success("¡Corte Z registrado con éxito! 🎉");
+      toast.success(general ? "¡Corte Z General registrado!" : "¡Corte Z registrado con éxito! 🎉");
       setCorteConfirmado(true);
       fetchCorte();
     } catch (err) {
@@ -80,21 +77,30 @@ export default function AccionesCorteZ({
         }`}
       >
         <CheckCircle size={20} />
-        {confirming ? "Confirmando..." : "Confirmar Corte Z"}
+        {confirming ? "Confirmando..." : general ? "Confirmar Corte Z General" : "Confirmar Corte Z"}
       </button>
 
       <button
-        onClick={handlePrint}
-        disabled={!hasTickets && !corteConfirmado}
+        onClick={general ? () => setVerTicket(true) : handlePrint}
+        disabled={!general && !hasTickets && !corteConfirmado}
         className={`px-6 py-3 rounded-lg font-bold flex items-center gap-2 ${
-          !hasTickets && !corteConfirmado
+          !general && !hasTickets && !corteConfirmado
             ? "bg-muted text-muted-foreground opacity-70 cursor-not-allowed"
             : "bg-primario text-white hover:opacity-90"
         }`}
       >
         <Printer size={20} />
-        Imprimir Corte
+        {general ? "Vista previa e impresión" : "Imprimir Corte"}
       </button>
+
+      {general && (
+        <VistaPreviaTicket
+          rutaTexto={verTicket ? `/cuts/general/text?tipo=Z` : null}
+          rutaImprimir={`/cuts/general/print?tipo=Z`}
+          titulo="Corte Z General"
+          onClose={() => setVerTicket(false)}
+        />
+      )}
     </div>
   );
 }
