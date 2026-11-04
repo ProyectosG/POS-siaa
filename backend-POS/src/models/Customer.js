@@ -81,16 +81,21 @@ class Customer {
     return count > 0;
   }
 
-  // Busca por nombre, apellidos o teléfono (máximo 20)
+  // Busca por nombre, apellidos o teléfono (máximo 20). El texto se parte en
+  // palabras y CADA una debe aparecer en alguno de esos campos: "Juan Pérez"
+  // encuentra al cliente aunque nombre y apellido estén en columnas distintas.
   static async search(q) {
+    const palabras = String(q).trim().split(/\s+/).filter(Boolean).slice(0, 8);
     const filas = await prisma.customers.findMany({
       where: {
-        OR: [
-          { first_name: { contains: q } },
-          { last_name_paternal: { contains: q } },
-          { last_name_maternal: { contains: q } },
-          { phone: { contains: q } },
-        ],
+        AND: palabras.map((palabra) => ({
+          OR: [
+            { first_name: { contains: palabra } },
+            { last_name_paternal: { contains: palabra } },
+            { last_name_maternal: { contains: palabra } },
+            { phone: { contains: palabra } },
+          ],
+        })),
       },
       select: {
         id: true, first_name: true, last_name_paternal: true, last_name_maternal: true,

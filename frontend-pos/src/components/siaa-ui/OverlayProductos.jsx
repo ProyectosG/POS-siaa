@@ -78,7 +78,7 @@ export default function OverlayProductos({
         tabIndex={-1} 
         className={cn(
           "fixed top-24 left-1/2 -translate-x-1/2 outline-none",
-          "w-[850px] max-h-[500px] bg-white rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] z-[9999] overflow-hidden flex flex-col border border-slate-200"
+          "w-[min(850px,calc(100vw-2rem))] max-h-[500px] bg-white rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] z-[9999] overflow-hidden flex flex-col border border-slate-200"
         )}
       >
         {/* CABECERA MÁS LIMPIA */}
@@ -104,7 +104,7 @@ export default function OverlayProductos({
         </div>
 
         {/* CUERPO DE TABLA CON MEJOR CONTRASTE */}
-        <div className="flex-1 overflow-y-auto custom-scrollbar">
+        <div className="flex-1 overflow-auto custom-scrollbar">
           <table className="w-full text-sm border-collapse">
             <thead className="sticky top-0 bg-slate-100 z-20 shadow-sm">
               <tr>

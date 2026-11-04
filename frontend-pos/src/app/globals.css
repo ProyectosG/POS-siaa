@@ -23,6 +23,9 @@
   --error: oklch(0.58 0.22 27);
   --error-suave: oklch(0.96 0.03 27);
   --sombra-suave: 0 1px 2px oklch(0 0 0 / 0.04), 0 2px 8px oklch(0 0 0 / 0.06);
+  /* Recuadro de los cortes: gris muy claro y sombra apenas perceptible */
+  --superficie-corte: oklch(0.955 0.002 260);
+  --sombra-corte: 0 1px 2px oklch(0 0 0 / 0.05), 0 3px 10px oklch(0 0 0 / 0.04);
 
   --background: oklch(0.98 0 0);
   --foreground: oklch(0.145 0 0);
@@ -61,6 +64,8 @@
 }
 
 .dark {
+  --superficie-corte: oklch(0.19 0 0);
+  --sombra-corte: 0 1px 2px oklch(0 0 0 / 0.3), 0 3px 10px oklch(0 0 0 / 0.25);
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.145 0 0);
@@ -171,6 +176,18 @@
 }
 .tabular {
   font-variant-numeric: tabular-nums;
+}
+
+/* Recuadro de los cortes (X, Z y detalle del reporte). Las tarjetas de adentro
+   siguen con bg-card, para que resalten. Sobre el gris, el texto tenue se
+   oscurece un poco para conservar el contraste. */
+.superficie-corte {
+  background-color: var(--superficie-corte);
+  box-shadow: var(--sombra-corte);
+  --muted-foreground: oklch(0.46 0 0);
+}
+.dark .superficie-corte {
+  --muted-foreground: oklch(0.75 0 0);
 }
 
 /* En globals.css o en un componente */
