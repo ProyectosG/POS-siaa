@@ -39,6 +39,7 @@ const BLOQUEADAS = [
   ['*', /^\/reset(\/|$)/i],
   // Configuración y clave de precios (sin precio libre)
   ['PUT', /^\/settings\/?$/i],
+  ['*', /^\/settings\/respaldos(\/|$)/i],
   ['POST', /^\/settings\/validar-clave-precio\/?$/i],
   // Impresión del ticket (la vista previa, /tickets/:id/text, sí funciona)
   ['GET', /^\/tickets\/[^/]+\/print\/?$/i],

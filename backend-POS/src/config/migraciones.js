@@ -339,6 +339,20 @@ const MIGRACIONES = [
       }
     },
   },
+  {
+    version: 9,
+    nombre: 'respaldo_automatico',
+    async aplicar(tx) {
+      // Respaldo al hacer el Corte Z: nace apagado. Los respaldo_ultimo_* los
+      // escribe el servidor (no están en CAMPOS_EDITABLES).
+      await tx.run('ALTER TABLE settings ADD COLUMN respaldo_auto INTEGER DEFAULT 0');
+      await tx.run("ALTER TABLE settings ADD COLUMN respaldo_periodo TEXT DEFAULT 'diario'");
+      await tx.run('ALTER TABLE settings ADD COLUMN respaldo_ultimo_fecha TEXT');
+      await tx.run('ALTER TABLE settings ADD COLUMN respaldo_ultimo_nombre TEXT');
+      await tx.run('ALTER TABLE settings ADD COLUMN respaldo_ultimo_bytes INTEGER');
+      await tx.run('ALTER TABLE settings ADD COLUMN respaldo_ultimo_error TEXT');
+    },
+  },
 ];
 
 async function migrar() {

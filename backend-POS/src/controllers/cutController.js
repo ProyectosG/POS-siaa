@@ -8,6 +8,7 @@ const { leerId } = require('../utils/peticion');
 const { tieneNivel, NIVELES } = require('../middleware/auth');
 const { calcularCorte, columnasDeCorte } = require('../utils/cortes');
 const { TIPO_GENERAL, armarGeneral, respuestaGeneral, esGeneral } = require('../utils/corteGeneral');
+const { respaldarTrasCorteZ } = require('../utils/respaldoAuto');
 
 const CAMPOS_VENTAS = ['total_ventas_monto', 'ventas_contado', 'ventas_credito', 'ventas_apartado', 'total_iva_gravado'];
 
@@ -107,9 +108,13 @@ exports.createCorte = async (req, res) => {
       return { id, first_ticket: corte.desde, last_ticket: corte.hasta };
     });
 
+    // Fuera de la transacción: VACUUM INTO no corre dentro de una. Si falla, el Z se queda
+    const respaldo = type === 'Z' ? await respaldarTrasCorteZ() : null;
+
     res.status(201).json({
       ...resultado,
       caja,
+      ...(respaldo && { respaldo }),
       message: type === 'Z' ? '¡Corte Z registrado correctamente!' : 'Corte X registrado correctamente'
     });
   } catch (err) {
@@ -192,7 +197,10 @@ exports.createGeneral = async (req, res) => {
       return { id, tipo: TIPO_GENERAL[tipo], incluidos: ids.length, cuadra: g.cuadra, diferencia_centavos: g.diferencia_centavos };
     });
 
-    res.status(201).json({ ...resultado, message: `Corte ${tipo} General registrado correctamente` });
+    // Un Z General respalda una sola vez; un X General no respalda
+    const respaldo = tipo === 'Z' ? await respaldarTrasCorteZ() : null;
+
+    res.status(201).json({ ...resultado, ...(respaldo && { respaldo }), message: `Corte ${tipo} General registrado correctamente` });
   } catch (err) {
     responderError(res, err, 'Error al guardar el corte general');
   }

@@ -57,6 +57,21 @@ function limpiarManuales(dir) {
   return sobran;
 }
 
+// Copia consistente de la base en un archivo, ya revisada. Si no pasa la revisión la
+// borra y lanza el error: nunca se entrega ni se guarda una copia dañada.
+let copias = 0;
+async function copiarVerificada(archivo) {
+  const [{ user_version: version }] = await prisma.$queryRawUnsafe('PRAGMA user_version');
+  await prisma.$executeRawUnsafe(`VACUUM INTO '${archivo.replace(/'/g, "''")}'`);
+  copias += 1;
+  try {
+    await module.exports.verificar(archivo, Number(version));
+  } catch (err) {
+    fs.rmSync(archivo, { force: true });
+    throw err;
+  }
+}
+
 // Respaldo completo con VACUUM INTO: seguro con el servidor encendido (espera a
 // que termine la transacción en curso y copia en un solo momento, con lo que
 // todavía esté en pos.db-wal). Devuelve { archivo, nombre, bytes }.
@@ -66,17 +81,13 @@ async function respaldarAhora() {
   const nombre = nombreManual(dir);
   const archivo = path.join(dir, nombre);
 
-  const [{ user_version: version }] = await prisma.$queryRawUnsafe('PRAGMA user_version');
-  await prisma.$executeRawUnsafe(`VACUUM INTO '${archivo.replace(/'/g, "''")}'`);
-  try {
-    await verificar(archivo, Number(version));
-  } catch (err) {
-    fs.rmSync(archivo, { force: true }); // nunca se entrega ni se guarda una copia dañada
-    throw err;
-  }
+  await copiarVerificada(archivo);
 
   limpiarManuales(dir);
   return { archivo, nombre, bytes: fs.statSync(archivo).size };
 }
 
-module.exports = { dirRespaldos, respaldarAhora, limpiarManuales, PATRON_MANUAL, MAXIMO_MANUALES };
+module.exports = {
+  dirRespaldos, respaldarAhora, copiarVerificada, verificar, limpiarManuales, PATRON_MANUAL, MAXIMO_MANUALES,
+  copiasHechas: () => copias, // para las pruebas
+};

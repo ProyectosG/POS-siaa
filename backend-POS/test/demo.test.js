@@ -72,6 +72,8 @@ test('lo sensible responde 403', async () => {
     ['PUT', '/api/cash-registers/1', { password: 'otra' }],
     ['POST', '/api/superdev/entrar', { nickname: 'superdev', password: 'clave-super-de-prueba' }],
     ['GET', '/api/superdev/respaldo'],
+    ['GET', '/api/settings/respaldos'],
+    ['GET', '/api/settings/respaldos/pos_auto_diario_2026-01-01.db'],
     ['POST', '/api/reset/tables', { tables: ['sales'] }],
     ['PUT', '/api/settings', { ticket_header_line1: 'x' }],
     ['POST', '/api/settings/validar-clave-precio', { clave: '1234', product_id: 1, precio: 1 }],
