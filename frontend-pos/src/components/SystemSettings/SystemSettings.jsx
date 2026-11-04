@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch"
 import { Button } from "@/components/ui/button"
 import toast from "react-hot-toast"
 import TicketPreview from "./TicketPreview"
+import RespaldoAutomatico from "./RespaldoAutomatico"
 import { apiFetch } from "@/lib/apiFetch"
 import EncabezadoPantalla from "@/components/ui/encabezado-pantalla"
 import { Esqueleto, EsqueletoFilas } from "@/components/ui/esqueleto"
@@ -269,6 +270,9 @@ export default function SystemSettings() {
       </CardContent>
     </Card>
   </div>
+
+  {/* En la demo no hay respaldos automáticos */}
+  {!ES_DEMO && <RespaldoAutomatico settings={settings} onChange={handleChange} />}
 
   {/* CARD DE SEGURIDAD - ANCLADA AL FINAL DERECHO */}
 <Card className="bg-card shadow-suave border-border p-6 rounded-tarjeta">

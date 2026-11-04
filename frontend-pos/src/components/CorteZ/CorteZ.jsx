@@ -24,6 +24,7 @@ export default function CorteZ({ alcance = "caja" }) {
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
   const [corteConfirmado, setCorteConfirmado] = useState(false);
+  const [avisoRespaldo, setAvisoRespaldo] = useState(null);
 
   const fetchCorte = async () => {
     try {
@@ -121,10 +122,17 @@ export default function CorteZ({ alcance = "caja" }) {
 
       {esGeneral && <DesgloseGeneral data={data} />}
 
+      {avisoRespaldo && (
+        <p role="alert" className="mb-4 rounded-lg border border-aviso/40 bg-aviso-suave px-3 py-2 text-sm font-medium text-foreground">
+          El corte quedó guardado, pero el respaldo automático falló: {avisoRespaldo}. Revísalo en Configuración.
+        </p>
+      )}
+
       <AccionesCorteZ
         // También con solo cobros (abonos a ventas anteriores) hay corte que confirmar
         hasTickets={esGeneral ? Boolean(data.incluidos) : hasTickets || Boolean(data.hay_movimientos)}
         general={esGeneral}
+        setAvisoRespaldo={setAvisoRespaldo}
         confirming={confirming}
         corteConfirmado={corteConfirmado}
         setConfirming={setConfirming}
