@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { useState, useEffect,useRef } from "react"
+import { useState, useEffect } from "react"
 import { useAuthStore } from "@/store/useAuthStore"
 import { useSettingsStore } from "@/store/useSettingsStore"
 import toast from "react-hot-toast"
@@ -29,6 +29,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useCajaStore } from "@/store/useCajaStore"
 import { apiFetch } from "@/lib/apiFetch"
 import { armarRenglones, enviarVenta, aCentavosPesos } from "@/lib/ventas"
+import { crearCliente } from "@/lib/clientes"
 import { pesos } from "@/lib/formato"
 
 
@@ -64,12 +65,6 @@ export default function VentasApartado({ tipo = "apartado" }) {
   const settings = useSettingsStore((s) => s.settings)
   const FORM_MODE = settings.customer_form_mode || "complete" // 🟢 ahora también desde settings globales
 
-  /* Overlay */
-  const [mostrarOverlay, setMostrarOverlay] = useState(false)
-  const [productoTmp, setProductoTmp] = useState(null)
-  const [cantidad, setCantidad] = useState("")
-  const refNombre = useRef(null)
-  const refCodigo = useRef(null)
   
   const {
     items,
@@ -130,6 +125,18 @@ export default function VentasApartado({ tipo = "apartado" }) {
   const [customers, setCustomers] = useState([])
   const [selectedCustomer, setSelectedCustomer] = useState(null)
   const [showOverlay, setShowOverlay] = useState(false)
+  // Texto puesto al elegir un cliente: no es una búsqueda, no debe reabrir la lista
+  const textoElegidoRef = React.useRef(null)
+
+  // Deja al cliente seleccionado con su nombre en el buscador
+  const elegirCliente = (cliente) => {
+    const texto = [cliente.first_name, cliente.last_name_paternal].filter(Boolean).join(" ")
+    textoElegidoRef.current = texto
+    setSelectedCustomer(cliente)
+    setCustomerQuery(texto)
+    setCustomers([])
+    setShowOverlay(false)
+  }
 
   React.useEffect(() => {
     const h = (e) => {
@@ -320,6 +327,7 @@ export default function VentasApartado({ tipo = "apartado" }) {
       setBancoTarjeta("")
       setUltimos4Tarjeta("")
       setFocusArea("grilla")
+      textoElegidoRef.current = null
       setSelectedCustomer(null)          // Limpia el cliente seleccionado
       setCustomerQuery("")               // Limpia el input de búsqueda
       setShowOverlay(false)              // Cierra cualquier overlay abierto
@@ -372,15 +380,28 @@ export default function VentasApartado({ tipo = "apartado" }) {
       return
     }
 
+    // El nombre del cliente recién elegido no se busca (reabriría la lista)
+    if (customerQuery === textoElegidoRef.current) return
+
+    let cancelada = false // una respuesta que llega tarde no debe reabrir la lista
     const fetchCustomers = async () => {
-      const res = await apiFetch(`/customers/search/${customerQuery}`)
-      const data = await res.json()
-      setCustomers(data)
-      setShowOverlay(true)
+      try {
+        const res = await apiFetch(`/customers/search/${encodeURIComponent(customerQuery)}`)
+        if (!res.ok) throw new Error("No se pudo buscar el cliente")
+        const data = await res.json()
+        if (cancelada) return
+        setCustomers(data)
+        setShowOverlay(true)
+      } catch (err) {
+        if (!cancelada) toast.error(err.message)
+      }
     }
 
     const delay = setTimeout(fetchCustomers, 300)
-    return () => clearTimeout(delay)
+    return () => {
+      cancelada = true
+      clearTimeout(delay)
+    }
   }, [customerQuery])
 
 
@@ -416,11 +437,18 @@ const handleAgregarNuevoCliente = () => {
   setMostrarNuevoCliente(true)
 }
 
-const handleClienteCreado = (clienteNuevo) => {
-  setSelectedCustomer(clienteNuevo)
-  setCustomerQuery(`${clienteNuevo.first_name} ${clienteNuevo.last_name_paternal}`)
-  setMostrarNuevoCliente(false)
+// Si el servidor falla, crearCliente lanza el error: CustomerForm lo muestra y
+// sigue abierto, sin aviso de éxito
+const handleClienteCreado = async (datos) => {
+  const clienteNuevo = await crearCliente(datos)
+  elegirCliente(clienteNuevo)
   toast.success("Cliente creado ✅")
+}
+
+// Cierra la lista de productos sin tocar la venta y regresa a la celda de Artículo
+const cerrarListaProductos = () => {
+  setMostrarLista(false)
+  setFocusPendiente({ row: filaBusqueda ?? 0, col: "articulo" })
 }
 
   return (
@@ -515,11 +543,7 @@ const handleClienteCreado = (clienteNuevo) => {
                   {customers.map((c) => (
                     <div
                       key={c.id}
-                      onClick={() => {
-                        setSelectedCustomer(c)
-                        setCustomerQuery(`${c.first_name} ${c.last_name_paternal}`)
-                        setShowOverlay(false)
-                      }}
+                      onClick={() => elegirCliente(c)}
                       className="px-4 py-3 hover:bg-emerald-50 cursor-pointer transition-colors"
                     >
                       <div className="font-medium text-gray-900">
@@ -630,7 +654,7 @@ const handleClienteCreado = (clienteNuevo) => {
              selectedIndex={selectedIndexNombre}
              setSelectedIndex={setSelectedIndexNombre}
              onSelect={handleSeleccionProducto}
-             onClose={() => setMostrarOverlay(false)} // ✅ corregido
+             onClose={cerrarListaProductos}
              columns={[
                { key: 'codigo_barras', label: 'Código' },
                { key: 'articulo', label: 'Artículo' },

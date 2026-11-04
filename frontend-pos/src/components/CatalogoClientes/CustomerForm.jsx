@@ -32,6 +32,9 @@ export default function CustomerForm({
     ...initialData
   })
 
+  // Un doble clic no debe dar de alta dos veces
+  const [guardando, setGuardando] = useState(false)
+
   // 🟢 CONSUMIMOS SETTINGS GLOBALES
     const settings = useSettingsStore((s) => s.settings)
     const FORM_MODE = settings.customer_form_mode || "complete" // 🟢 ahora también desde settings globales
@@ -53,11 +56,15 @@ export default function CustomerForm({
       return
     }
 
+    if (guardando) return
+    setGuardando(true)
     try {
       await onSubmit(formData)
       onCancel()
     } catch (err) {
       toast.error(err.message || "Error al guardar el cliente")
+    } finally {
+      setGuardando(false)
     }
   }
 
@@ -313,9 +320,10 @@ export default function CustomerForm({
                 </Button>
                 <Button
                   type="submit"
+                  disabled={guardando}
                   className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
                 >
-                  {isEditing ? "Actualizar Cliente" : "Crear Cliente"}
+                  {guardando ? "Guardando…" : isEditing ? "Actualizar Cliente" : "Crear Cliente"}
                 </Button>
               </div>
             </form>

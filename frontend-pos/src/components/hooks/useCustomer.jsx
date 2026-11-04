@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import toast from 'react-hot-toast'
 import { apiFetch } from "@/lib/apiFetch"
+import { crearCliente } from "@/lib/clientes"
 
 const CUSTOMERS_URL = '/customers'
 
@@ -42,15 +43,7 @@ export function useCustomers() {
   }
 
   const createCustomer = async (data) => {
-    const res = await apiFetch(CUSTOMERS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    })
-
-    if (!res.ok) throw await errorDe(res, 'Error al crear cliente')
-
-    const { id } = await res.json()
+    const { id } = await crearCliente(data)
     const newCustomer = await leerCliente(id)
     setCustomers(prev => [...prev, newCustomer])
     return newCustomer
