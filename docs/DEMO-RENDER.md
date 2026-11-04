@@ -4,7 +4,7 @@ La demo es una copia aparte del POS con datos de prueba: una tienda de abarrotes
 
 ## Cómo se comporta
 
-- **Entrada:** usuario `demo` / contraseña `demo` (Administrador). Caja `1`, clave `demo`. El login y la selección de caja los muestran, con un botón "Usar estos datos".
+- **Entrada:** usuario `demo` / contraseña `demo` (Administrador). Caja `1`, clave `demo` (las cajas `2` y `3` usan la misma clave, para probar los cortes por caja). El login y la selección de caja los muestran, con un botón "Usar estos datos".
 - **Los datos se reinician en cada arranque.** El plan gratis de Render apaga el servicio tras unos 15 minutos sin visitas. La siguiente visita tarda entre 30 y 60 s en abrir y llega con los datos nuevos.
 - **Bloqueado en el servidor** (responde 403 "No disponible en la demo"):
   - crear, editar o borrar usuarios (sí se pueden ver), y cambiar las cajas;
