@@ -146,7 +146,7 @@ export default function CorteDeCaja() {
           </>
         }
       />
-      <div className="rounded-tarjeta border bg-card p-4 shadow-suave sm:p-6">
+      <div className="superficie-corte rounded-tarjeta border p-4 sm:p-6">
 
 
       {/* SECCIÓN VENTAS TOTALES + IVA */}

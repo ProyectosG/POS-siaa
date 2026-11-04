@@ -416,7 +416,7 @@ const ReporteCortes = () => {
       </DialogTitle>
     </DialogHeader>
 
-    <div className="p-4 space-y-4 bg-gray-50/30 overflow-y-auto max-h-[85vh]">
+    <div className="superficie-corte p-4 space-y-4 overflow-y-auto max-h-[85vh]">
       {/* Fecha y Rango - muy compacto */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         <Card className="border-emerald-100 shadow-sm !p-0">

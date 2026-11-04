@@ -80,7 +80,7 @@ export default function CorteZ() {
       );
 
   return (
-    <div className="max-w-2xl mx-auto p-4 rounded-xl border border-border shadow-xl overflow-auto max-h-screen">
+    <div className="superficie-corte max-w-2xl mx-auto p-4 rounded-tarjeta border border-border">
       <HeaderCorteZ
         caja={caja}
         first={first}
